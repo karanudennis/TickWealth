@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TickWealth – Over / Under</title>
+<meta name="description" content="Digit Over/Under with live Deriv ticks, digit frequency circles and paper or live trading.">
+<link rel="stylesheet" href="core.css">
+</head>
+<body>
+<div id="top"></div>
+<div id="app"></div>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script src="coach.js"></script>
+<script src="digitpage.js"></script>
+<script>
+TW.digitPage({
+  active:'over-under', theme:'gold', title:'DIGIT OVER / UNDER',
+  hint:'Pick a barrier digit. <b>Over</b> wins if the last digit of the exit tick is above it, <b>Under</b> if below. Over 0–8 and Under 1–9 are allowed.',
+  tabs:[{id:'OVER',label:'▲ Over'},{id:'UNDER',label:'▼ Under',cls:'alt'}],
+  picker:{label:'BARRIER (0–9)',def:4,off:(d,t)=>t==='OVER'?d>8:d<1,fix:(t)=>t==='OVER'?8:1},
+  contract:t=>t==='OVER'?'DIGITOVER':'DIGITUNDER',
+  label:(t,b)=>(t==='OVER'?'Over ':'Under ')+b,
+  header:(t,b)=>'DIGITS · '+(t==='OVER'?'OVER ':'UNDER ')+b,
+  state:(d,t,b)=>d===b?'sel':((t==='OVER'?d>b:d<b)?'':'dim'),
+  tag:(d,t,b)=>d===b?'BARRIER':'',
+  scan:(a,t,b)=>{
+    const over={tab:'OVER',h:b<=8?a.pOver(b)-(9-b)/10:-1}, under={tab:'UNDER',h:b>=1?a.pUnder(b)-b/10:-1};
+    const best=over.h>=under.h?over:under, s=TW.strength(best.h);
+    return {tab:best.tab,pick:b,strength:s,text:`Recent digits favour <b>${best.tab} ${b}</b> by ${(best.h*100).toFixed(1)} points over its normal odds.`};
+  }
+});
+</script>
+<script src="advisor.js"></script>
+</body>
+</html>

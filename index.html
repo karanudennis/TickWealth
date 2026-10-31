@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TickWealth – Trade with your eyes open</title>
+<meta name="description" content="Live Deriv analytics, honest strategy tests and paper-first trading, built for Kenya.">
+<link rel="stylesheet" href="core.css">
+<style>
+.lp{max-width:1140px;margin:0 auto;padding:0 18px 60px;color:#d7e0f2}
+.lp h1{font-size:clamp(34px,6vw,60px);line-height:1.05;margin:0 0 14px;letter-spacing:-1px}
+.lp h2{font-size:clamp(24px,3.4vw,34px);margin:0 0 8px;letter-spacing:-.5px}
+.gr{background:linear-gradient(90deg,#00ffa3,#00b2ff);-webkit-background-clip:text;background-clip:text;color:transparent}
+.lp p{color:#9fb0cc;line-height:1.6}
+.hero{display:grid;gap:30px;grid-template-columns:1.1fr .9fr;align-items:center;padding:56px 0 40px}
+@media(max-width:820px){.hero{grid-template-columns:1fr;padding-top:30px}}
+.tag{display:inline-block;padding:5px 12px;border:1px solid rgba(0,255,163,.4);border-radius:99px;color:#00ffa3;font-size:12px;margin-bottom:16px;background:rgba(0,255,163,.07)}
+.ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}
+.cta{padding:13px 22px;border-radius:12px;font-weight:700;text-decoration:none;font-size:15px;transition:.2s}
+.cta.p{background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;box-shadow:0 0 28px rgba(0,255,163,.3)}
+.cta.s{border:1px solid rgba(255,255,255,.22);color:#d7e0f2;background:rgba(255,255,255,.04)}
+.cta:hover{transform:translateY(-2px)}
+.live{position:relative;border-radius:18px;padding:2px;background:conic-gradient(from var(--a,0deg),#00ffa3,#00b2ff,#7c3aed,#00ffa3);animation:spin 6s linear infinite}
+@property --a{syntax:'<angle>';inherits:false;initial-value:0deg}
+@keyframes spin{to{--a:360deg}}
+.live>div{border-radius:16px;background:rgba(8,12,24,.92);padding:18px;backdrop-filter:blur(14px)}
+.lv-h{display:flex;justify-content:space-between;font-size:12px;color:#8e9ab3}
+#lpSpot{font:700 40px ui-monospace,Consolas,monospace;margin:6px 0}#lpSpot.up{color:#00ffa3}#lpSpot.dn{color:#ff3b69}
+.dg{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin-top:10px}
+.dg i{font-style:normal;text-align:center;padding:6px 0;border-radius:8px;border:1px solid rgba(255,255,255,.12);font:12px ui-monospace,monospace;transition:.8s}
+.dg i.h{background:rgba(0,255,163,.25);border-color:#00ffa3;box-shadow:0 0 14px #00ffa3;transition:none}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
+.gc{display:block;text-decoration:none;color:inherit;padding:18px;border-radius:16px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);backdrop-filter:blur(10px);transition:.25s}
+.gc:hover{transform:translateY(-4px);border-color:#00b2ff;box-shadow:0 10px 30px rgba(0,178,255,.18)}
+.gc b{display:block;font-size:16px;margin:6px 0 4px;color:#fff}.gc span{font-size:13px;color:#9fb0cc}.gc em{font-style:normal;font-size:22px}
+.sec{padding:34px 0}.st{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.sn{padding:18px;border-radius:16px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04)}
+.sn b{display:block;font-size:30px}.stp{counter-reset:s}.stp .sn::before{counter-increment:s;content:"0" counter(s);color:#00b2ff;font:700 13px ui-monospace,monospace}
+.risk{border-left:3px solid #ff3b69;padding:12px 16px;background:rgba(255,59,105,.07);border-radius:10px;color:#d7e0f2;font-size:14px}
+.rv{opacity:0;transform:translateY(18px);transition:.7s}.rv.in{opacity:1;transform:none}
+footer.lpf{text-align:center;color:#7d8aa5;font-size:12px;padding:30px 18px}
+</style>
+</head>
+<body>
+<div id="top"></div>
+<div id="app">
+<main class="lp">
+  <section class="hero">
+    <div>
+      <img src="logo.svg" alt="TickWealth" width="300" height="64" style="display:block;margin-bottom:18px;max-width:100%;height:auto"><span class="tag">Live Deriv analytics · paper-first · built for Kenya</span>
+      <h1>Trade with your <span class="gr">eyes open.</span></h1>
+      <p>TickWealth shows the true odds behind every contract, tests strategy ideas against random chance, and counts you in when your own rule fires. No fake win rates. No promises. Just clear numbers.</p>
+      <div class="ctas"><a class="cta p" href="rise-fall.html">Start on paper</a><a class="cta s" href="playbook.html">Explore the Playbook</a></div>
+    </div>
+    <div class="live"><div>
+      <div class="lv-h"><span id="lpMkt">Volatility 100 Index · live</span><span id="lpSt">connecting...</span></div>
+      <div id="lpSpot">--</div>
+      <svg id="lpSp" viewBox="0 0 300 60" width="100%" height="60" role="img" aria-label="Live price line"></svg>
+      <div class="dg" id="lpDg" aria-label="Last digit"></div>
+    </div></div>
+  </section>
+
+  <section class="sec rv"><h2>Everything you need, <span class="gr">one terminal</span></h2><p>Every page shares the same live data and the same risk limits.</p>
+    <div class="grid">
+      <a class="gc" href="rise-fall.html"><em>📈</em><b>Rise / Fall</b><span>Live candles and one-tap trades.</span></a>
+      <a class="gc" href="over-under.html"><em>🎯</em><b>Over / Under</b><span>Barrier odds with live payout.</span></a>
+      <a class="gc" href="even-odd.html"><em>⚖️</em><b>Even / Odd</b><span>Parity share against the true 50%.</span></a>
+      <a class="gc" href="matches-differs.html"><em>🔢</em><b>Matches / Differs</b><span>Digit frequency circles in real time.</span></a>
+      <a class="gc" href="analyzer.html"><em>🔬</em><b>Analyzer</b><span>Volatility, streaks and digit heatmaps.</span></a>
+      <a class="gc" href="playbook.html"><em>📘</em><b>Playbook</b><span>10 entry rules with a countdown and a random-chance test.</span></a>
+      <a class="gc" href="bots-library.html"><em>🤖</em><b>Bots</b><span>Rule-based bots, paper first, with stop-loss.</span></a>
+      <a class="gc" href="insight.html"><em>🧪</em><b>Insight Lab</b><span>Randomness tests, an AI Truth Test and a risk simulator.</span></a>
+      <a class="gc" href="settings.html"><em>🛡️</em><b>Settings</b><span>Stake, stop-loss and account limits.</span></a>
+    </div></section>
+
+  <section class="sec rv"><h2>The <span class="gr">honest</span> difference</h2>
+    <div class="st">
+      <div class="sn"><b class="gr">True odds</b><p>Every trade shows the real chance of winning and the break-even rate the payout needs.</p></div>
+      <div class="sn"><b class="gr">Tested vs chance</b><p>Strategies run against 200 random-entry runs, so luck does not pass for skill.</p></div>
+      <div class="sn"><b class="gr">Advisor</b><p>A built-in Advisor gives probabilities and a rule countdown. It never claims to predict the next tick.</p></div>
+      <div class="sn"><b class="gr">Risk limits</b><p>Max stake, session stop-loss and a demo-first account check on every trade.</p></div>
+    </div></section>
+
+  <section class="sec rv"><h2>How it <span class="gr">works</span></h2>
+    <div class="st stp">
+      <div class="sn"><p><b style="font-size:16px">Pick a market</b>Any Volatility, Boom or Crash index, streaming live.</p></div>
+      <div class="sn"><p><b style="font-size:16px">Read the odds</b>See the true chance, payout and expected result.</p></div>
+      <div class="sn"><p><b style="font-size:16px">Arm a rule</b>Choose an entry rule and get a countdown when it fires.</p></div>
+      <div class="sn"><p><b style="font-size:16px">Practice first</b>Paper trade, then demo, and only then consider real money.</p></div>
+    </div></section>
+
+  <div class="risk rv"><b>Risk warning.</b> Deriv synthetic-index ticks are random. Statistics describe the past and cannot predict the next tick, and trading can lose your whole stake. Only trade money you can afford to lose.</div>
+</main>
+<footer class="lpf">TickWealth is an independent third-party tool and is not affiliated with Deriv. Not financial advice.</footer>
+</div>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script>
+TW.mountTop({active:'index'});
+const $=i=>document.getElementById(i), dg=$('lpDg');
+for(let i=0;i<10;i++){const e=document.createElement('i');e.textContent=i;dg.appendChild(e)}
+function draw(f){
+  const p=f.prices.slice(-60);if(p.length<2)return;
+  const q=p[p.length-1],up=q>=p[p.length-2],lo=Math.min(...p),r=(Math.max(...p)-lo)||1;
+  $('lpSpot').textContent=q.toFixed(f.pip);$('lpSpot').className=up?'up':'dn';
+  const pl=document.createElementNS('http://www.w3.org/2000/svg','polyline');
+  pl.setAttribute('points',p.map((y,i)=>(i/(p.length-1)*300).toFixed(1)+','+(54-(y-lo)/r*48).toFixed(1)).join(' '));
+  pl.setAttribute('fill','none');pl.setAttribute('stroke',up?'#00ffa3':'#ff3b69');pl.setAttribute('stroke-width','2');
+  $('lpSp').textContent='';$('lpSp').appendChild(pl);
+  dg.querySelectorAll('.h').forEach(x=>x.classList.remove('h'));const d=dg.children[f.digits[f.digits.length-1]];void d.offsetWidth;d.classList.add('h');
+}
+TW.tickFeed('R_100',{primary:false,count:80,onStatus:s=>{$('lpSt').textContent=s==='live'?'● live':s;TW.setStatus&&TW.setStatus(s)},onHistory:draw,onTick:draw});
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
+document.querySelectorAll('.rv').forEach(e=>io.observe(e));
+</script>
+</body>
+</html>

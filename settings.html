@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TickWealth – Settings</title>
+<meta name="description" content="Risk limits, paper trading, martingale defaults and connection settings.">
+<link rel="stylesheet" href="core.css">
+</head>
+<body class="t-violet">
+<div id="top"></div>
+<div class="wrap" style="max-width:760px">
+  <div class="card">
+    <div class="h">TRADING MODE & ACCOUNT</div>
+    <div class="sub" id="modeTxt"></div>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn" id="openAcc">Account & mode…</button><button class="btn ghost" id="resetPaper">Reset paper balance</button></div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="h">RISK LIMITS (apply to manual, auto and bot trades)</div>
+    <label class="lbl" for="maxStake">MAX STAKE PER TRADE</label><input class="inp" id="maxStake" type="number" min="0.35" step="0.5">
+    <label class="lbl" for="stopLoss">SESSION STOP-LOSS (0 = off) — trading pauses when session loss reaches this</label><input class="inp" id="stopLoss" type="number" min="0" step="1">
+    <label class="switch"><span>Confirm every manual live trade</span><input type="checkbox" id="confirm"></label>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="h">BOT MARTINGALE DEFAULTS</div>
+    <div class="sub">Martingale multiplies the stake after each loss. It can wipe out an account quickly — it is off by default in the bots and still capped by your max stake.</div>
+    <label class="lbl" for="martMult">MULTIPLIER AFTER A LOSS</label><input class="inp" id="martMult" type="number" min="1" max="5" step="0.1">
+    <label class="lbl" for="martSteps">MAX STEPS</label><input class="inp" id="martSteps" type="number" min="1" max="8" step="1">
+    <label class="lbl" for="paperStart">PAPER STARTING BALANCE</label><input class="inp" id="paperStart" type="number" min="100" step="100">
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="h">AI COACH</div>
+    <label class="lbl" for="aiEndpoint">AI SERVER URL (optional — blank uses the on-device explainer)</label><input class="inp" id="aiEndpoint" type="url" placeholder="https://ai.yoursite.com/ai" autocomplete="off">
+    <div class="sub">The coach explains numbers; it never places trades. The server (server/ai-proxy.js) holds the API key — never paste a key here.</div>
+  </div>
+
+  <div class="card" style="margin-top:12px">
+    <div class="h">CONNECTION (advanced)</div>
+    <label class="lbl" for="endpoint">WEBSOCKET ENDPOINT</label><input class="inp" id="endpoint" type="text" autocomplete="off">
+    <label class="lbl" for="appId">DERIV APP ID</label><input class="inp" id="appId" type="text" autocomplete="off">
+    <div class="sub">1089 is Deriv's public test app id. Register your own app id at api.deriv.com so your trades are attributed to your site.</div>
+  </div>
+
+  <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+    <button class="btn" id="save">Save settings</button>
+    <button class="btn ghost" id="defaults">Restore defaults</button>
+    <button class="btn ghost" id="sess">Reset session P/L (re-arms stop-loss)</button>
+  </div>
+  <div class="notice" id="disc"></div>
+</div>
+<div class="foot">TickWealth is an independent tool and is not affiliated with Deriv.</div>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script src="coach.js"></script>
+<script>
+TW.ready(function(){
+  const $=TW.$, F=['maxStake','stopLoss','martMult','martSteps','paperStart','endpoint','appId','aiEndpoint'];
+  $('#disc').textContent=TW.DISCLAIMER;
+  TW.mountTop({active:'settings'});
+  function load(){ F.forEach(k=>$('#'+k).value=TW.settings[k]==null?'':TW.settings[k]); $('#confirm').checked=!!TW.settings.confirm; mode(); }
+  function mode(){ $('#modeTxt').innerHTML=TW.mode()==='live'?`Trading on Deriv account <b>${TW.esc(TW.account.loginid)}</b> (${TW.account.virtual?'demo':'<b style="color:var(--red)">REAL money</b>'}).`:'Paper (ghost) trading: live prices, virtual money. Balance '+TW.money(TW.paper.balance)+'.'; }
+  TW.on('account',mode);
+  $('#openAcc').onclick=TW.openAccount;
+  $('#resetPaper').onclick=()=>{TW.resetPaper();TW.toast('Paper balance reset','ok');};
+  $('#save').onclick=()=>{
+    const n=k=>parseFloat($('#'+k).value), s=TW.settings;
+    if(!(n('maxStake')>=0.35)){TW.toast('Max stake must be at least 0.35','err');return;}
+    s.maxStake=n('maxStake'); s.stopLoss=Math.max(0,n('stopLoss')||0); s.martMult=Math.min(5,Math.max(1,n('martMult')||2)); s.martSteps=Math.min(8,Math.max(1,Math.round(n('martSteps')||3))); s.paperStart=Math.max(100,n('paperStart')||10000);
+    s.confirm=$('#confirm').checked; s.endpoint=$('#endpoint').value.trim()||TW.DEFAULTS.endpoint; s.appId=$('#appId').value.trim()||TW.DEFAULTS.appId;
+    s.aiEndpoint=$('#aiEndpoint').value.trim(); if(s.aiEndpoint&&!/^https?:\/\//.test(s.aiEndpoint)){TW.toast('AI server URL must start with https://','err');return;}
+    if(!/^wss:\/\//.test(s.endpoint)){TW.toast('Endpoint must start with wss://','err');return;}
+    TW.saveSettings(); TW.toast('Saved. Reload other pages to use a new endpoint / app id.','ok');
+  };
+  $('#defaults').onclick=async()=>{ if(await TW.modal({title:'Restore defaults?',html:'<div class="sub">Limits, martingale and connection settings go back to defaults. Your account connection is unchanged.</div>',buttons:[{label:'Cancel',cls:'ghost',value:false},{label:'Restore',value:true}]})){ const m=TW.settings.mode; Object.assign(TW.settings,TW.DEFAULTS,{mode:m}); TW.saveSettings(); load(); TW.toast('Defaults restored','ok'); } };
+  $('#sess').onclick=()=>{TW.resetSession();TW.toast('Session P/L reset — trading limits start fresh','ok');};
+  load();
+});
+</script>
+</body>
+</html>

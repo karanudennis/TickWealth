@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TickWealth – Analyzer</title>
+<meta name="description" content="Digit analyzer: compares Even/Odd, Over/Under and Matches/Differs on live Deriv data and scans all volatility indices.">
+<link rel="stylesheet" href="core.css">
+<style>
+.wrap2{max-width:1100px;margin:0 auto;padding:14px}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
+@media(max-width:800px){.cards{grid-template-columns:1fr}}
+.cards .card .v{font-size:14px;font-weight:800;margin-top:6px}
+.adv{margin-top:16px;border-radius:16px;padding:16px;background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#111827}
+.adv h2{margin:0;font-size:13px;letter-spacing:.6px}
+.adv .line{margin-top:8px;background:#11182714;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.adv .line b{background:#fff;padding:2px 9px;border-radius:12px;font-size:12px}
+.adv .why{margin-top:10px;font-size:12px;font-weight:600;line-height:1.55;background:#111827;color:#fbbf24;padding:12px;border-radius:10px}
+.adv a.go{display:inline-block;margin-top:10px;background:#111827;color:#fbbf24;padding:10px 14px;border-radius:12px;font-weight:800;font-size:12px;text-decoration:none}
+.res{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+@media(max-width:600px){.res{grid-template-columns:1fr}}
+.res .card{padding:10px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:12px}
+.chip{padding:8px 12px;border-radius:12px;border:1px solid var(--line);background:var(--p2);color:var(--mut);font-weight:800;font-size:11px}
+.chip.active{background:var(--acc);color:var(--ink);border-color:var(--acc)}
+</style>
+</head>
+<body>
+<div id="top"></div>
+<div class="wrap2">
+  <div class="h" id="hdr">DIGIT ANALYZER</div>
+  <div class="sub">Compares every digit market on the same scale: <b>heat</b> = how far the recent frequency of an outcome is above its normal probability. Recent 50 ticks count double.</div>
+  <div class="d-grid" id="dGrid"></div>
+
+  <div class="chips"><span class="lbl" style="margin:0">BARRIER</span><div class="bgrid" id="bGrid" style="grid-template-columns:repeat(10,minmax(0,1fr));width:min(100%,420px);margin:0"></div></div>
+  <div class="chips"><span class="lbl" style="margin:0">NEXT</span>
+    <button class="chip" data-d="1">1 tick</button><button class="chip active" data-d="5">5 ticks</button><button class="chip" data-d="10">10 ticks</button></div>
+
+  <div class="cards">
+    <div class="card"><div class="h">EVEN / ODD</div><div class="v" id="eoVal">Waiting…</div><div class="sub" id="eoDet"></div></div>
+    <div class="card"><div class="h">OVER / UNDER <span id="bTxt">4</span></div><div class="v" id="ouVal">Waiting…</div><div class="sub" id="ouDet"></div></div>
+    <div class="card"><div class="h">MATCHES / DIFFERS</div><div class="v" id="mdVal">Waiting…</div><div class="sub" id="mdDet"></div></div>
+  </div>
+
+  <div class="adv">
+    <h2>🧭 ANALYZER ADVISORY</h2>
+    <div class="line">Market: <b id="aMarket">—</b> Volatility: <b id="aVol">—</b> Next: <b id="aNext">5 ticks</b> Place: <b id="aPlace">—</b></div>
+    <div class="line">Signal strength: <b id="aConf">—</b> Barrier: <b id="aBar">4</b></div>
+    <div class="why" id="aWhy">Waiting for live ticks…</div>
+    <a class="go" id="aGo" href="#" style="display:none">Open this market to trade →</a> <button class="go" id="askAi" style="border:0;cursor:pointer;margin-left:6px">✦ Ask AI why</button>
+  </div>
+
+  <button class="btn full" id="scanAll" style="margin-top:14px;padding:14px;font-size:13px">✦ SCAN ALL VOLATILITIES (live data)</button>
+  <div class="sub" id="allMsg"></div>
+  <div class="res" id="allRes"></div>
+  <div class="notice" id="disc"></div>
+</div>
+<div class="foot">TickWealth is an independent tool and is not affiliated with Deriv.</div>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script src="coach.js"></script>
+<script>
+TW.ready(function(){
+  const $=TW.$; $('#disc').textContent=TW.DISCLAIMER;
+  let feed=null, barrier=4, dur=5;
+  const top=TW.mountTop({active:'analyzer',symbols:'digits',defaultSymbol:'R_25',onSymbol:restart});
+  const pb=TW.digitButtons($('#bGrid'),d=>{barrier=d;$('#bTxt').textContent=d;update();});
+  document.querySelectorAll('.chip').forEach(c=>c.onclick=()=>{document.querySelectorAll('.chip').forEach(x=>x.classList.remove('active'));c.classList.add('active');dur=+c.dataset.d;$('#aNext').textContent=dur+(dur===1?' tick':' ticks');update();});
+  const PAGE={DIGITEVEN:'EVEN',DIGITODD:'ODD',DIGITOVER:'OVER',DIGITUNDER:'UNDER',DIGITMATCH:'MATCHES',DIGITDIFF:'DIFFERS'};
+  const link=(sym,c)=>`${c.page}?vol=${sym}&type=${PAGE[c.type]}${c.barrier!=null?'&barrier='+c.barrier:''}&dur=${dur}`;
+
+  function restart(){
+    if(feed)feed.close();
+    $('#aWhy').textContent='Waiting for live ticks…';
+    feed=TW.tickFeed(top.symbol,{count:500,onStatus:s=>TW.setStatus(s),onError:m=>{TW.setStatus('error',m);$('#aWhy').textContent='Market error: '+m;},onHistory:update,onTick:update});
+    update();
+  }
+  function update(){
+    pb.mark(barrier);
+    const d=feed?feed.digits:[]; TW.renderCircles($('#dGrid'),d,{state:x=>x===barrier?'sel':'',tag:x=>x===barrier?'BARRIER':''});
+    $('#hdr').textContent='DIGIT ANALYZER · '+TW.volName(top.symbol)+' · '+d.length+' TICKS';
+    if(d.length<30){$('#aWhy').textContent=feed&&feed.error?'Market error: '+feed.error:'Need at least 30 live ticks… ('+d.length+'/30)';$('#aGo').style.display='none';return;}
+    const a=TW.analyze(d), pct=x=>(x*100).toFixed(1)+'%';
+    $('#eoVal').textContent=`Even ${pct(a.pEven)} · Odd ${pct(1-a.pEven)}`; $('#eoDet').textContent='Normal odds 50% / 50%.';
+    const ov=a.pOver(barrier), un=a.pUnder(barrier);
+    $('#ouVal').textContent=`Over ${pct(ov)} · Under ${pct(un)}`; $('#ouDet').textContent=`Normal odds for barrier ${barrier}: Over ${(9-barrier)*10}% · Under ${barrier*10}% (digit equal to barrier loses both).`;
+    $('#mdVal').textContent=`Hot ${a.hot} ${pct(a.f[a.hot])} · Cold ${a.cold} ${pct(a.f[a.cold])}`; $('#mdDet').textContent='Normal frequency of any digit is 10%.';
+    const c=TW.candidates(a,barrier)[0], s=TW.strength(c.heat);
+    $('#aMarket').textContent=c.market; $('#aVol').textContent=TW.volName(top.symbol); $('#aPlace').textContent=c.place; $('#aBar').textContent=barrier;
+    $('#aConf').innerHTML=s+'%'; $('#aNext').textContent=dur+(dur===1?' tick':' ticks');
+    $('#aWhy').innerHTML=`Because <b>${c.place}</b> has the largest gap between its recent frequency and its normal odds on this market (${c.heat>=0?'+':''}${(c.heat*100).toFixed(1)} points). That describes the last ${a.n} ticks; each new tick is still independent, so treat it as a lead, not a promise.`;
+    const g=$('#aGo'); g.style.display='inline-block'; g.href=link(top.symbol,c);
+  }
+
+  /* real multi-market scan: one request per volatility index over a single socket */
+  $('#scanAll').onclick=function(){
+    const syms=TW.VOLS.filter(v=>v.digits), btn=this, out=[]; let got=0;
+    btn.disabled=true; $('#allRes').innerHTML=''; $('#allMsg').textContent='Scanning 0/'+syms.length+'…';
+    const sock=new TW.Socket({url:TW.tickUrl(),
+      onOpen:s=>syms.forEach((v,i)=>s.send({ticks_history:v.id,end:'latest',count:300,style:'ticks',req_id:i+1})),
+      onMessage:d=>{
+        if(!d.req_id)return; const v=syms[d.req_id-1]; if(!v)return; got++;
+        if(d.history){ const dg=d.history.prices.map(p=>TW.digitOf(p,d.pip_size)), a=TW.analyze(dg), c=TW.candidates(a,barrier)[0]; out.push({v,c,n:dg.length}); }
+        $('#allMsg').textContent='Scanning '+got+'/'+syms.length+'…';
+        if(got>=syms.length) finish();
+      }});
+    const to=setTimeout(finish,20000);
+    function finish(){
+      clearTimeout(to); sock.close(); btn.disabled=false;
+      if(!out.length){$('#allMsg').textContent='No data received — check your connection and try again.';return;}
+      out.sort((x,y)=>y.c.heat-x.c.heat);
+      $('#allMsg').textContent='Scanned '+out.length+' markets on real ticks (barrier '+barrier+').';
+      $('#allRes').innerHTML=out.slice(0,8).map((r,i)=>`<div class="card" ${i===0?'style="border-color:var(--acc)"':''}><div class="h">${i===0?'⭐ TOP · ':''}${TW.esc(r.v.name)}</div><div class="v" style="margin-top:6px;font-weight:800">${TW.esc(r.c.market)} → ${TW.esc(r.c.place)} ${TW.sigHtml(TW.strength(r.c.heat))}</div><div class="sub">${r.c.heat>=0?'+':''}${(r.c.heat*100).toFixed(1)} pts vs normal odds · ${r.n} ticks · <a href="${link(r.v.id,r.c)}">open →</a></div></div>`).join('');
+    }
+  };
+  $('#askAi').onclick=()=>TW.ai&&TW.ai.ask('Explain the analyzer advisory for this market: why this lead, and how much weight it deserves.');
+  restart();
+});
+</script>
+<script src="advisor.js"></script>
+</body>
+</html>

@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TickWealth – Rise / Fall</title>
+<meta name="description" content="Rise/Fall with a live candlestick chart from Deriv, momentum signal, paper and live trading.">
+<link rel="stylesheet" href="core.css">
+</head>
+<body>
+<div id="top"></div>
+<div class="layout">
+  <section class="left">
+    <div class="chartbar" id="gran"></div>
+    <div class="chartbox" id="chartBox"></div>
+    <div class="scanbar" id="scanBar">
+      <div class="t" id="scanTxt">Waiting for live ticks…</div>
+      <button class="btn" id="scanBtn">✦ MOMENTUM SCAN</button><button class="btn ghost" id="askAi">✦ Ask AI</button>
+    </div>
+    <div class="panel" style="margin:12px 0 0">
+      <div class="h">AUTO MODE (optional)</div>
+      <label class="switch"><span>Trade automatically when signal ≥ threshold</span><input type="checkbox" id="autoOn"></label>
+      <div class="ctrl"><button data-for="thr" data-step="-5">−</button><input id="thr" type="number" min="55" max="90" step="5" value="75"><button data-for="thr" data-step="5">+</button><span class="u">% min</span></div>
+      <div class="sub">Uses the stake and duration on the right, one trade at a time, and obeys your max-stake and session stop-loss from Settings. Off by default.</div>
+    </div>
+    <div class="notice" id="disc"></div>
+  </section>
+  <aside class="side">
+    <div class="panel">
+      <div class="h">RISE / FALL</div>
+      <div class="seg"><button id="tRise" class="active">▲ Rise</button><button id="tFall">▼ Fall</button></div>
+      <div class="lbl">DURATION</div>
+      <div class="ctrl"><select id="unit" aria-label="Duration unit"><option value="t">Ticks</option><option value="s">Seconds</option><option value="m">Minutes</option><option value="h">Hours</option></select></div>
+      <div class="ctrl"><button data-for="dur" data-step="-1">−</button><input id="dur" type="number" min="5" max="10" step="1" value="5"><button data-for="dur" data-step="1">+</button><span class="u" id="durU">ticks</span></div>
+      <div class="lbl">STAKE</div>
+      <div class="ctrl"><button data-for="stake" data-step="-1">−</button><input id="stake" type="number" min="0.35" step="0.5" value="1.00"><button data-for="stake" data-step="1">+</button><span class="u">USD</span></div>
+      <div class="quote"><span id="qTxt">Payout …</span><span id="qProfit"></span></div>
+      <button class="buy" id="buyBtn">Buy Rise<small id="buySub">&nbsp;</small></button>
+    </div>
+    <div class="panel" id="logPanel"></div>
+  </aside>
+</div>
+<div class="foot" id="foot"></div>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script src="coach.js"></script>
+<script>
+TW.ready(function(){
+  const $=TW.$; let type='CALL', gran=60, feed=null, csock=null, scan=null, lastAuto=0, busy=false;
+  $('#disc').textContent=TW.DISCLAIMER; $('#foot').textContent='TickWealth is an independent tool and is not affiliated with Deriv. '+TW.DISCLAIMER;
+  const top=TW.mountTop({active:'rise-fall',symbols:'all',defaultSymbol:'R_100',onSymbol:()=>restart()});
+  const chart=TW.Chart($('#chartBox'));
+  TW.mountLog($('#logPanel'));
+
+  /* granularity buttons + zoom */
+  const G=[[0,'Ticks'],[60,'1m'],[300,'5m'],[900,'15m'],[3600,'1h']];
+  $('#gran').innerHTML=G.map(g=>`<button class="btn ${g[0]===gran?'active':''}" data-g="${g[0]}">${g[1]}</button>`).join('')+'<span class="spacer"></span><button class="btn" id="zo" title="Zoom out">−</button><button class="btn" id="zi" title="Zoom in">+</button><button class="btn" id="zl" title="Jump to latest">⇥</button>';
+  $('#gran').onclick=e=>{const b=e.target.closest('[data-g]'); if(!b)return; gran=+b.dataset.g; document.querySelectorAll('[data-g]').forEach(x=>x.classList.toggle('active',x===b)); startChart();};
+  const IB=[['ma','MA 20/50'],['ema','EMA 20'],['bb','Bollinger'],['rsi','RSI 14'],['macd','MACD']]; let IND={}; try{IND=JSON.parse(sessionStorage.getItem('tw_ind'))||{}}catch(e){}
+  const ib=document.createElement('div'); ib.className='chartbar indbar'; ib.setAttribute('aria-label','Indicators'); $('#gran').after(ib);
+  IB.forEach(([k,l])=>{const b=document.createElement('button'); b.className='btn'+(IND[k]?' active':''); b.textContent=l; b.type='button'; b.setAttribute('aria-pressed',!!IND[k]); b.onclick=()=>{IND[k]=!IND[k]; b.classList.toggle('active',IND[k]); b.setAttribute('aria-pressed',!!IND[k]); sessionStorage.setItem('tw_ind',JSON.stringify(IND)); chart.setIndicators(IND)}; ib.appendChild(b)});
+  chart.setIndicators(IND);
+  $('#zo').onclick=()=>chart.zoom(1.3); $('#zi').onclick=()=>chart.zoom(.77); $('#zl').onclick=()=>chart.latest();
+
+  function restart(){ if(feed)feed.close(); chart.clear(); chart.message('Connecting…'); scan=null; $('#scanTxt').textContent='Waiting for live ticks…';
+    feed=TW.tickFeed(top.symbol,{count:500,
+      onStatus:(s)=>{TW.setStatus(s)},
+      onError:m=>{TW.setStatus('error',m); chart.message(m); $('#scanTxt').textContent='Market error: '+m;},
+      onHistory:st=>{ if(gran===0) chart.setData(st.prices.map((p,i)=>({t:st.epochs[i],o:p,h:p,l:p,c:p})),true,st.pip); doScan(true); refreshQuote(); },
+      onTick:(st,t)=>{ if(gran===0) chart.update({t:t.epoch,o:t.price,h:t.price,l:t.price,c:t.price}); doScan(true); maybeAuto(); }});
+    startChart(); refreshQuote();
+  }
+  function startChart(){
+    if(csock){csock.close();csock=null;}
+    if(gran===0){ if(feed&&feed.prices.length) chart.setData(feed.prices.map((p,i)=>({t:feed.epochs[i],o:p,h:p,l:p,c:p})),true,feed.pip); else {chart.clear(); chart.message('Connecting…');} return; }
+    chart.clear(); chart.message('Loading candles…'); const sym=top.symbol;
+    csock=new TW.Socket({url:TW.tickUrl(),
+      onOpen:s=>s.send({ticks_history:sym,end:'latest',count:300,style:'candles',granularity:gran,subscribe:1}),
+      onMessage:d=>{
+        if(d.error){chart.message(d.error.message||'Chart error'); return;}
+        if(d.msg_type==='candles'&&d.candles){ chart.setData(d.candles.map(c=>({t:c.epoch,o:+c.open,h:+c.high,l:+c.low,c:+c.close})),false,d.pip_size); }
+        else if(d.msg_type==='ohlc'&&d.ohlc){ const c=d.ohlc; chart.update({t:+c.open_time,o:+c.open,h:+c.high,l:+c.low,c:+c.close}); }
+      }});
+  }
+
+  /* momentum scan: describes recent movement; it does not predict the next tick */
+  function calcScan(){
+    if(!feed||feed.prices.length<30) return null; const p=feed.prices, n=p.length;
+    const avg=a=>a.reduce((x,y)=>x+y,0)/a.length, s7=avg(p.slice(-7)), s21=avg(p.slice(-21));
+    let up=0; for(let i=n-20;i<n;i++) if(p[i]>p[i-1]) up++;
+    const x=(s7>s21?12:-12)+(up/20-.5)*60, strength=Math.max(50,Math.min(90,Math.round(50+Math.abs(x))));
+    return {dir:x>=0?'CALL':'PUT',strength,up,s7,s21};
+  }
+  function doScan(silent){
+    scan=calcScan(); if(!scan){ if(!silent)TW.toast('Need at least 30 ticks first.'); return; }
+    const rise=scan.dir==='CALL';
+    $('#scanTxt').innerHTML=`Momentum: <b>${rise?'RISE':'FALL'}</b> ${TW.sigHtml(scan.strength)} · SMA7 ${rise?'above':'below'} SMA21 · ${scan.up}/20 recent ticks up <span class="dim">(descriptive, not a prediction)</span>`;
+    if(!silent) setType(scan.dir);
+  }
+  $('#scanBtn').onclick=()=>doScan(false);
+  $('#askAi').onclick=()=>TW.ai&&TW.ai.ask('Explain the current momentum read on this chart and what it does not tell me.');
+
+  function setType(t){
+    type=t; $('#tRise').classList.toggle('active',t==='CALL'); $('#tFall').classList.toggle('active',t==='PUT'); $('#tFall').classList.toggle('neg',t==='PUT');
+    $('#buyBtn').classList.toggle('neg',t==='PUT'); $('#buyBtn').firstChild.textContent=t==='CALL'?'Buy Rise':'Buy Fall';
+    document.body.classList.toggle('t-red',t==='PUT'); refreshQuote();
+  }
+  $('#tRise').onclick=()=>setType('CALL'); $('#tFall').onclick=()=>setType('PUT');
+
+  const UNITS={t:{min:5,max:10,def:5,l:'ticks'},s:{min:15,max:3600,def:30,l:'seconds'},m:{min:1,max:1440,def:1,l:'minutes'},h:{min:1,max:24,def:1,l:'hours'}};
+  $('#unit').onchange=()=>{const u=UNITS[$('#unit').value],d=$('#dur'); d.min=u.min; d.max=u.max; d.value=u.def; $('#durU').textContent=u.l; refreshQuote();};
+  const params=()=>({contract_type:type,symbol:top.symbol,amount:+$('#stake').value||1,duration:+$('#dur').value,duration_unit:$('#unit').value});
+  const refreshQuote=TW.watchQuote(params,(q,msg)=>{
+    if(q){const st=+$('#stake').value||1; $('#qTxt').innerHTML='Payout <b>'+TW.money(q.payout)+'</b>'; $('#qProfit').innerHTML='Profit <b>'+TW.money(q.payout-st)+'</b>'; $('#buySub').textContent='Payout '+TW.money(q.payout);}
+    else {$('#qTxt').textContent=msg==='loading'?'Getting price…':msg; $('#qProfit').textContent=''; if(msg!=='loading')$('#buySub').innerHTML='&nbsp;';}
+  });
+  ['stake','dur'].forEach(i=>$('#'+i).addEventListener('input',refreshQuote));
+
+  async function buy(opts){
+    if(busy)return; busy=true; $('#buyBtn').disabled=true;
+    try{ const t=await TW.trade(Object.assign(params(),{label:type==='CALL'?'Rise':'Fall'}),opts); TW.toast('Bought '+(type==='CALL'?'Rise':'Fall')+' — waiting for result','ok'); t.done.then(r=>TW.toast((r.profit>0?'WON +':'LOST ')+TW.money(r.profit),r.profit>0?'ok':'err')); return t; }
+    catch(e){ if(!e.quiet)TW.toast(e.message,'err',5000); }
+    finally{ busy=false; $('#buyBtn').disabled=false; }
+  }
+  $('#buyBtn').onclick=()=>buy();
+
+  /* auto mode: one trade at a time, 5s cooldown, all safety limits apply */
+  let autoTrade=null;
+  $('#autoOn').onchange=async e=>{
+    if(e.target.checked && TW.mode()==='live'){
+      const ok=await TW.modal({title:'Enable auto-trading on '+(TW.account.virtual?'DEMO':'REAL')+' account?',html:'<div class="warn">Auto mode will place trades without asking each time. You can lose your stake repeatedly. Max stake and session stop-loss from Settings still apply.</div>',buttons:[{label:'Cancel',cls:'ghost',value:false},{label:'Enable',cls:'red',value:true}]});
+      if(!ok) e.target.checked=false;
+    }
+  };
+  async function maybeAuto(){
+    if(!$('#autoOn').checked||busy||!scan) return;
+    if(autoTrade&&autoTrade.status==='open') return;
+    if(Date.now()-lastAuto<5000) return;
+    if(scan.strength<(+$('#thr').value||75)) return;
+    lastAuto=Date.now(); setType(scan.dir);
+    try{ autoTrade=await TW.trade(Object.assign(params(),{contract_type:scan.dir,label:scan.dir==='CALL'?'Rise':'Fall',bot:'Auto'}),{silent:true}); autoTrade.done.then(()=>{lastAuto=Date.now();}); }
+    catch(e){ if(!e.quiet){TW.toast('Auto stopped: '+e.message,'err',5000);} $('#autoOn').checked=false; }
+  }
+
+  setType('CALL'); restart();
+});
+</script>
+<script src="advisor.js"></script>
+</body>
+</html>

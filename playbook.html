@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TickWealth – Playbook</title>
+<meta name="description" content="Strategy playbook: topics, subtopics and one-click variants such as Under 9 to Under 1, with true odds, a random-chance test and a countdown when your rule fires.">
+<link rel="stylesheet" href="core.css">
+<style>
+.pb{max-width:1100px;margin:0 auto;padding:14px;display:grid;gap:14px}
+.pb-c{border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px;background:rgba(255,255,255,.04)}
+.pb-c h3{margin:0 0 4px;font-size:17px}.pb-t{font-size:11px;color:#00b2ff;letter-spacing:.5px;margin-bottom:6px}
+.pb-l{font-size:13px;margin:5px 0;color:#c9d3e8;line-height:1.5}.pb-w{font-size:12px;color:#8e9ab3;margin-top:8px}
+.pbg{display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px}.pbg .lb{width:100%;font-size:11px;color:#8e9ab3;letter-spacing:.4px}
+.pbt{padding:8px 14px;border-radius:99px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.04);color:#d7e0f2;cursor:pointer;font:600 13px system-ui;transition:.15s}
+.pbt:hover{border-color:#00b2ff}.pbt[aria-pressed=true]{background:linear-gradient(90deg,rgba(0,255,163,.25),rgba(0,178,255,.25));border-color:#00ffa3;color:#fff;box-shadow:0 0 14px rgba(0,255,163,.25)}
+.pbt small{opacity:.7;font-weight:500;margin-left:4px}
+.pb-s{margin:10px 0;padding:10px;border-radius:8px;border:1px dashed rgba(255,255,255,.2);font-size:13px}.pb-s.on{border:1px solid #00ffa3;color:#00ffa3}
+.pb-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}.pb-row input[type=number]{width:90px;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.35);color:#d7e0f2}
+.pb-v.good{color:#00ffa3}.pb-v.bad{color:#ff3b69}.pb-warn{border-left:3px solid #f5b83d;padding:10px 14px;border-radius:8px;background:rgba(245,184,61,.08);font-size:13px}
+</style>
+</head>
+<body>
+<div id="top"></div>
+<div id="app"><div class="pb" id="pb"></div></div>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script src="pillars.js"></script>
+<script src="coach.js"></script>
+<script>
+TW.guard('Playbook', () => {
+/* Playbook: Topic > Subtopic > Variant buttons. Each variant is an ENTRY RULE + the true odds + a test on recent real ticks vs random entries.
+   A rule firing is NOT a forecast. Ticks on synthetic indices are independent. */
+const CTYPE={RISE:'CALL',FALL:'PUT',OVER:'DIGITOVER',UNDER:'DIGITUNDER',EVEN:'DIGITEVEN',ODD:'DIGITODD',MATCH:'DIGITMATCH',DIFF:'DIGITDIFF'};
+const NAME={RISE:'Rise',FALL:'Fall',OVER:'Over',UNDER:'Under',EVEN:'Even',ODD:'Odd',MATCH:'Matches',DIFF:'Differs'};
+const pc=(c,b)=>({RISE:.5,FALL:.5,EVEN:.5,ODD:.5,MATCH:.1,DIFF:.9,OVER:(9-b)/10,UNDER:b/10})[c];
+const payEst=p=>0.96/p-1; // estimate: real payouts come from Deriv's live price
+const hasB=c=>['OVER','UNDER','MATCH','DIFF'].includes(c);
+const winV=(c,b,p0,p1,d)=>c==='RISE'?p1>p0:c==='FALL'?p1<p0:c==='OVER'?d>b:c==='UNDER'?d<b:c==='EVEN'?d%2===0:c==='ODD'?d%2===1:c==='MATCH'?d===b:d!==b;
+const run=(f,i,n)=>{for(let k=0;k<n;k++){if(i-k<1||!f(i-k))return false}return true};
+const share=(D,i,d)=>D.slice(i-99,i+1).filter(x=>x===d).length;
+const mean=(P,i)=>{let s=0;for(let k=i-99;k<=i;k++)s+=Math.abs(P[k]-P[k-1]);return s/100};
+const rg=(a,b)=>{const r=[];for(let x=a;x<=b;x++)r.push(x);return r}, vs=(arr,f)=>arr.map(k=>({k,l:f(k)}));
+const TOP=[
+ {id:'ou',name:'Over/Under',digit:1,subs:[{id:'under',name:'Under',c:'UNDER',vars:vs(rg(1,9).reverse(),k=>'Under '+k),def:7},{id:'over',name:'Over',c:'OVER',vars:vs(rg(0,8),k=>'Over '+k),def:2}],
+  rules:[['patience','Patience: enter after 2 digits that would have lost, in a row'],['momentum','Momentum: enter after 2 digits that would have won, in a row'],['bench','Benchmark: every 10th tick (a control, not a strategy)']],
+  why:'The barrier sets the true chance: Under 9 wins on 0 to 8 (90%), Under 1 wins only on 0 (10%). A higher chance pays less, so one loss erases several wins. The entry rule is a way to enter with discipline. It does not change the odds.'},
+ {id:'eo',name:'Even/Odd',digit:1,subs:[{id:'even',name:'Even',c:'EVEN',vars:vs(rg(2,6),k=>'after '+k),def:3},{id:'odd',name:'Odd',c:'ODD',vars:vs(rg(2,6),k=>'after '+k),def:3}],
+  rules:[['fade','Fade: after N digits of the opposite kind in a row'],['follow','Follow: after N digits of the same kind in a row'],['bench','Benchmark: every 10th tick (a control)']],
+  why:'Five digits are even and five are odd, so the true chance is 50% after any streak. Digits have no memory, so "it is due" has no effect. Compare Fade with Follow: they should look alike, and that is the point.'},
+ {id:'md',name:'Matches/Differs',digit:1,subs:[{id:'match',name:'Matches',c:'MATCH',vars:vs(rg(0,9),k=>'Digit '+k),def:5},{id:'diff',name:'Differs',c:'DIFF',vars:vs(rg(0,9),k=>'Digit '+k),def:5}],
+  rules:[['hot','Hot digit: it appeared 13 or more times in the last 100 ticks'],['cold','Cold digit: it appeared 7 or fewer times in the last 100 ticks'],['bench','Benchmark: every 10th tick (a control)']],
+  why:'Matches wins 10% of the time with a large payout. Differs wins 90% with a very small payout, so one loss erases about 10 wins. A digit that is hot or cold now has the same chance next tick.'},
+ {id:'rf',name:'Rise/Fall',subs:[{id:'rise',name:'Rise',c:'RISE',vars:vs([1,2,3,5,7,10],k=>k+' tick'+(k>1?'s':'')),def:5},{id:'fall',name:'Fall',c:'FALL',vars:vs([1,2,3,5,7,10],k=>k+' tick'+(k>1?'s':'')),def:5}],
+  rules:[['momentum','Momentum: after 3 moves in this direction'],['reversal','Reversal: after 3 moves against this direction'],['bench','Benchmark: every 10th tick (a control)']],
+  why:'On a random walk the next move is 50/50 whatever came before, and the payout is below fair. If both momentum and reversal look good in a test, the result is luck.'},
+ {id:'bc',name:'Boom/Crash',bc:1,subs:[{id:'boom',name:'Boom',c:'FALL',need:'BOOM',vars:vs([5,10,20],k=>k+' ticks'),def:5},{id:'crash',name:'Crash',c:'RISE',need:'CRASH',vars:vs([5,10,20],k=>k+' ticks'),def:5}],
+  rules:[['spike','After a spike: enter 2 ticks after a move over 4 times the average'],['bench','Benchmark: every 10th tick (a control)']],
+  why:'Boom drifts down between upward spikes and Crash drifts up between downward spikes, but the spikes cost what the drift earns. Select a Boom or Crash market at the top first.'}];
+let sel; try{sel=JSON.parse(sessionStorage.getItem('tw_pb'))}catch(e){}
+sel=sel&&TOP.find(t=>t.id===sel.t)?sel:{t:'ou',s:'under',v:7,r:'patience'};
+let SYM='R_100',F=null,cd=0,cdT=null,cur=null,armed=false;
+const T=()=>TOP.find(t=>t.id===sel.t), S=()=>T().subs.find(s=>s.id===sel.s)||T().subs[0], V=()=>S().vars.find(v=>v.k===sel.v)||S().vars.find(v=>v.k===S().def);
+const el=(t,c,x)=>{const e=document.createElement(t);if(c)e.className=c;if(x!=null)e.textContent=x;return e};
+const pb=document.getElementById('pb'), top=TW.mountTop({active:'playbook',symbols:'all',defaultSymbol:'R_100',onSymbol:s=>setSym(s)});
+const intro=el('div','pb-c');intro.appendChild(el('h3',0,'Playbook: pick a topic, a subtopic, then a variant'));
+intro.appendChild(el('div','pb-l','Every variant is an entry rule you can test and arm. You get the true odds, a test on the last 1000 ticks against random entries, and a 10-second countdown when your rule fires. A rule firing is not a forecast: ticks are random, so no entry timing changes the true chance.'));pb.appendChild(intro);
+const note=el('div','pb-c');pb.appendChild(note);
+const nav=el('div','pb-c');pb.appendChild(nav);const det=el('div','pb-c');pb.appendChild(det);
+function info(sym){let m;
+ if(m=sym.match(/^R_(\d+)$/))return{n:'Volatility '+m[1]+' Index',t:2,fit:'d',w:'Constant '+m[1]+'% volatility. A new tick about every 2 seconds. A larger number means bigger tick moves, so Rise/Fall results swing more, while digit odds stay exactly the same.'};
+ if(m=sym.match(/^1HZ(\d+)V$/))return{n:'Volatility '+m[1]+' (1s) Index',t:1,fit:'d',w:'Constant '+m[1]+'% volatility with a tick every second. Contracts finish twice as fast as on the 2-second indices, so a run of losses also arrives faster. Keep stakes small.'};
+ if(m=sym.match(/^BOOM(\d+)$/))return{n:'Boom '+m[1]+' Index',t:1,fit:'b',w:'Slow downward drift with an upward spike about once every '+m[1]+' ticks on average. Spike timing is random, so a long wait does not make one due. A spike can wipe out a Fall position at once.'};
+ if(m=sym.match(/^CRASH(\d+)$/))return{n:'Crash '+m[1]+' Index',t:1,fit:'b',w:'Slow upward drift with a downward spike about once every '+m[1]+' ticks on average. The mirror of Boom: a spike can wipe out a Rise position at once.'};
+ if(sym==='RDBULL')return{n:'Bull Market Index',t:2,fit:'r',w:'Designed with an upward tendency and random variation. A tendency in the design does not decide the next contract. Check Deriv\'s description for its exact behaviour.'};
+ if(sym==='RDBEAR')return{n:'Bear Market Index',t:2,fit:'r',w:'Designed with a downward tendency and random variation. A tendency in the design does not decide the next contract. Check Deriv\'s description for its exact behaviour.'};
+ return{n:sym,t:2,fit:'r',w:'No special notes. Treat every tick as independent.'}}
+function setNote(sym){const x=info(sym);note.textContent='';note.appendChild(el('div','pb-t','NOTES FOR THIS MARKET'));note.appendChild(el('h3',0,x.n));
+ const fit=x.fit==='d'?'The three digit topics (Over/Under, Even/Odd, Matches/Differs) and Rise/Fall all fit.':x.fit==='b'?'The Boom/Crash and Rise/Fall topics fit. Digit contracts are not offered on this market.':'The Rise/Fall topic fits. Digit contracts are not offered on this market.';
+ [['What it is: '+x.w],['1000 ticks covers about '+(x.t*1000/60).toFixed(0)+' minutes of this market.'],['Topics that fit: '+fit],['Reminder: these notes describe how the market is built. They do not predict the next tick, and the true odds of every contract stay the same.']].forEach(l=>note.appendChild(el('div','pb-l',l[0])))}
+function save(){sessionStorage.setItem('tw_pb',JSON.stringify(sel))}
+function grp(label,items,isOn,pick){const g=el('div','pbg');if(label)g.appendChild(el('div','lb',label));items.forEach(it=>{const b=el('button','pbt',it.l);b.type='button';b.setAttribute('aria-pressed',isOn(it)?'true':'false');b.onclick=()=>pick(it);if(it.sm)b.appendChild(el('small',0,it.sm));g.appendChild(b)});return g}
+function compat(){const t=T(),s=S();if(t.digit&&!TW.VOLS.some(v=>v.id===SYM&&v.digits))return 'Digit contracts are not offered on this market. Pick a Volatility index at the top.';
+ if(t.bc&&!SYM.startsWith(s.need))return 'This needs a '+s.name+' market. Pick one at the top (for example '+s.need+'500).';return ''}
+function contract(){const t=T(),s=S(),k=V().k;return t.id==='ou'||t.id==='md'?{c:s.c,b:k,dur:1}:t.id==='eo'?{c:s.c,dur:1}:{c:s.c,dur:k}}
+function mkTrig(){const t=T(),s=S(),k=V().k,c=s.c,r=sel.r;if(r==='bench')return(P,D,i,tc)=>(tc===undefined?i:tc)%10===0; // live: count ticks, because the buffer index stops moving once it is full
+ if(t.id==='ou'){const w=d=>c==='UNDER'?d<k:d>k;return r==='patience'?(P,D,i)=>run(x=>!w(D[x]),i,2):(P,D,i)=>run(x=>w(D[x]),i,2)}
+ if(t.id==='eo'){const same=x=>c==='EVEN'?x%2===0:x%2===1;return r==='fade'?(P,D,i)=>run(x=>!same(D[x]),i,k):(P,D,i)=>run(x=>same(D[x]),i,k)}
+ if(t.id==='md')return r==='hot'?(P,D,i)=>i>=100&&share(D,i,k)>=13:(P,D,i)=>i>=100&&share(D,i,k)<=7;
+ if(t.id==='rf'){const up=c==='RISE';return r==='momentum'?(P,D,i)=>run(x=>up?P[x]>P[x-1]:P[x]<P[x-1],i,3):(P,D,i)=>run(x=>up?P[x]<P[x-1]:P[x]>P[x-1],i,3)}
+ return(P,D,i)=>{if(i<104)return false;return Math.abs(P[i-2]-P[i-3])>4*mean(P,i-2)}}
+function drawNav(){nav.textContent='';nav.appendChild(el('div','pb-t','TOPIC'));
+ nav.appendChild(grp('',TOP.map(t=>({l:t.name,t})),it=>it.t.id===sel.t,it=>{const t=it.t,s=t.subs[0];sel={t:t.id,s:s.id,v:s.def,r:t.rules[0][0]};save();draw()}));
+ nav.appendChild(grp('SUBTOPIC',T().subs.map(s=>({l:s.name,s})),it=>it.s.id===S().id,it=>{sel={t:sel.t,s:it.s.id,v:it.s.def,r:T().rules.some(r=>r[0]===sel.r)?sel.r:T().rules[0][0]};save();draw()}));
+ const s=S();nav.appendChild(grp('VARIANT',s.vars.map(v=>{const p=pc(s.c,v.k);return{l:v.l,v,sm:T().id==='ou'||T().id==='md'?Math.round(p*100)+'%':''}}),it=>it.v.k===V().k,it=>{sel.v=it.v.k;save();draw()}));
+ nav.appendChild(grp('ENTRY RULE',T().rules.map(r=>({l:r[1],r:r[0]})),it=>it.r===sel.r,it=>{sel.r=it.r;save();draw()}))}
+function draw(){drawNav();det.textContent='';clearInterval(cdT);cd=0;cur=null;const t=T(),s=S(),v=V(),k=contract(),why=compat();
+ det.appendChild(el('div','pb-t',t.name.toUpperCase()+' › '+s.name.toUpperCase()+' › '+v.l.toUpperCase()));
+ det.appendChild(el('h3',0,NAME[k.c]+(hasB(k.c)?' '+k.b:'')+' for '+k.dur+' tick'+(k.dur>1?'s':'')));
+ const p=pc(k.c,k.b),pay=payEst(p);det.appendChild(el('div','pb-l',`True chance of a win: ${(p*100).toFixed(0)}%. Estimated payout ${(pay*100).toFixed(0)}%, so break-even needs ${(100/(1+pay)).toFixed(0)}%. Expected result: ${(p*pay-(1-p)).toFixed(3)} per 1 staked. One loss erases about ${(1/pay).toFixed(1)} wins.`));
+ if(why)det.appendChild(el('div','pb-warn',why));
+ const bt=el('div','pb-l','Test: waiting for ticks...'),rn=el('div','pb-l'),vd=el('div','pb-l pb-v');det.append(bt,rn,vd);
+ const live=el('div','pb-s','Status: not armed'),row=el('div','pb-row'),arm=el('input');arm.type='checkbox';arm.id='arm';arm.checked=armed&&!why;arm.disabled=!!why;const lb=el('label',0,'Arm this rule (countdown when it fires)');lb.htmlFor='arm';
+ const st=el('input');st.type='number';st.min='0.35';st.step='0.01';st.value='0.35';st.setAttribute('aria-label','Stake');const go=el('button','btn','Trade now');go.disabled=true;row.append(arm,lb,st,go);det.append(live,row,el('div','pb-w','Why: '+t.why));
+ if(!why&&arm.checked)live.textContent='Status: armed, waiting for your rule';
+ arm.onchange=()=>{armed=arm.checked;live.textContent=armed?'Status: armed, waiting for your rule':'Status: not armed';live.className='pb-s'};
+ go.onclick=()=>{if(!cur)return;TW.trade({contract_type:CTYPE[k.c],symbol:SYM,amount:+st.value,duration:k.dur,duration_unit:'t',barrier:hasB(k.c)?String(k.b):undefined,label:'Playbook '+t.name,bot:'Playbook'}).then(()=>TW.toast('Trade placed ('+TW.mode()+')','ok',3000)).catch(e=>TW.toast(e.message||String(e),'err',5000))};
+ det._ui={bt,rn,vd,live,go,k,trig:mkTrig(),why};if(F)test()}
+function test(){const u=det._ui;if(!u)return;if(u.why){u.bt.textContent='Test: not available on this market.';return}const P=F.prices,D=F.digits,n=P.length,k=u.k,p=pc(k.c,k.b),pay=payEst(p);
+ if(n<300){u.bt.textContent='Test: need 300+ ticks, loaded '+n;return}
+ const tr=[];let last=-9;for(let i=100;i<n-k.dur-1;i++){if(i-last<5)continue;if(u.trig(P,D,i)){tr.push(i);last=i}}const K=tr.length;
+ if(!K){u.bt.textContent='Test: this rule never fired in the last '+n+' ticks.';u.rn.textContent='';u.vd.textContent='';return}
+ let W=0,net=0;tr.forEach(i=>{if(winV(k.c,k.b,P[i],P[i+k.dur],D[i+k.dur])){W++;net+=pay}else net-=1});
+ const base=[];for(let r=0;r<200;r++){let x=0;for(let q=0;q<K;q++){const j=100+Math.floor(Math.random()*(n-k.dur-101));x+=winV(k.c,k.b,P[j],P[j+k.dur],D[j+k.dur])?pay:-1}base.push(x)}base.sort((a,b)=>a-b);
+ u.bt.textContent=`Test (last ${n} ticks): fired ${K} times, won ${(W/K*100).toFixed(0)}% (break-even ${(100/(1+pay)).toFixed(0)}%), net ${net.toFixed(2)} units.`;
+ u.rn.textContent=`Random entries: median ${base[100].toFixed(2)}, range ${base[10].toFixed(2)} to ${base[190].toFixed(2)}.`;
+ const beat=K>=30&&net>base[190];u.vd.textContent=K<30?'Verdict: too few trades to judge.':beat?'Verdict: above 95% of random runs on this sample. It may still be luck or overfitting.':'Verdict: within the range of random chance.';u.vd.className='pb-l pb-v '+(beat?'good':'bad')}
+function fire(){const u=det._ui;cur=u.k;cd=10;u.go.disabled=false;u.live.className='pb-s on';clearInterval(cdT);const k=u.k,p=pc(k.c,k.b);
+ const tick=()=>{if(cd>0){u.live.textContent=`RULE MET: ${NAME[k.c]}${hasB(k.c)?' '+k.b:''} for ${k.dur} tick(s). Valid for ${cd}s. True chance ${(p*100).toFixed(0)}%.`;cd--}else{clearInterval(cdT);u.live.textContent='Prompt expired. Waiting for the rule again.';u.live.className='pb-s';u.go.disabled=true;cur=null}};tick();cdT=setInterval(tick,1000)}
+let TC=0;
+function liveTick(f){TC++;const u=det._ui,i=f.prices.length-1;if(!u||u.why||!armed||cd>0||i<110)return;if(u.trig(f.prices,f.digits,i,TC))fire()}
+function setSym(sym){SYM=sym;setNote(sym);if(F)F.close();draw();F=TW.tickFeed(sym,{primary:false,count:1000,onHistory:()=>test(),onTick:f=>liveTick(f)})}
+setSym(top.symbol||'R_100');
+});
+</script>
+<script src="advisor.js"></script>
+</body>
+</html>

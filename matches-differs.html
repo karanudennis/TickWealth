@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TickWealth – Matches / Differs</title>
+<meta name="description" content="Digit Matches/Differs with live Deriv ticks, hot and cold digit detection and paper or live trading.">
+<link rel="stylesheet" href="core.css">
+</head>
+<body>
+<div id="top"></div>
+<div id="app"></div>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script src="coach.js"></script>
+<script src="digitpage.js"></script>
+<script>
+TW.digitPage({
+  active:'matches-differs', theme:'cyan', title:'DIGIT MATCHES / DIFFERS', dur:1,
+  hint:'<b>Matches</b> wins if the exit digit equals your digit (about 1 in 10, high payout). <b>Differs</b> wins if it does not (about 9 in 10, low payout). Scan picks the hottest digit for Matches and the coldest for Differs.',
+  tabs:[{id:'MATCHES',label:'◉ Matches'},{id:'DIFFERS',label:'◎ Differs',cls:'alt'}],
+  picker:{label:'YOUR DIGIT (0–9)',def:4},
+  contract:t=>t==='MATCHES'?'DIGITMATCH':'DIGITDIFF',
+  label:(t,d)=>(t==='MATCHES'?'Matches ':'Differs ')+d,
+  header:(t,d)=>'DIGITS · '+t+' '+d,
+  state:(d,t,p)=>d===p?'sel':'',
+  tag:(d,t,p)=>d===p?(t==='MATCHES'?'MATCHES':'DIFFERS'):'',
+  scan:(a,t)=>{
+    if(t==='MATCHES'){ const h=a.f[a.hot]-.1; return {tab:t,pick:a.hot,strength:TW.strength(h),text:`Hottest digit <b>${a.hot}</b> — ${(a.f[a.hot]*100).toFixed(1)}% of recent ticks (normal 10%).`}; }
+    const h=.1-a.f[a.cold]; return {tab:t,pick:a.cold,strength:TW.strength(h),text:`Coldest digit <b>${a.cold}</b> — ${(a.f[a.cold]*100).toFixed(1)}% of recent ticks (normal 10%). Differs already wins ~90% of the time; the payout is small.`};
+  }
+});
+</script>
+<script src="advisor.js"></script>
+</body>
+</html>

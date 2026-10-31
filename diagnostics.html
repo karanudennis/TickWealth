@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TickWealth – Diagnostics</title>
+<link rel="stylesheet" href="core.css">
+<style>.pb{max-width:900px;margin:0 auto;padding:14px;display:grid;gap:14px}.pc{border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px;background:rgba(255,255,255,.04)}
+.ck{display:flex;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.08);font-size:14px}.ck b{min-width:64px}.pass{color:#00ffa3}.fail{color:#ff3b69}.warn{color:#f5b83d}.skip{color:#8e9ab3}.ck span{flex:1;color:#c9d3e8}</style>
+</head>
+<body>
+<div id="top"></div>
+<div id="app"><div class="pb"><div class="pc"><h3>Diagnostics</h3><p style="color:#9fb0cc;font-size:13px">Checks each step of the connection and shows pass or fail. If something fails, press Copy report and send it. The report never includes your token.</p>
+<button class="btn" id="run">Run checks</button> <button class="btn ghost" id="cp">Copy report</button><div id="out"></div></div></div></div>
+<script src="config.js"></script><script src="core.js"></script><script src="pillars.js"></script>
+<script src="coach.js"></script>
+<script>
+TW.guard('Diagnostics', () => {
+  TW.mountTop({ active: 'diagnostics' });
+  const $ = id => document.getElementById(id), out = $('out'), lines = [];
+  function add(name, st, detail) { const r = document.createElement('div'); r.className = 'ck'; const b = document.createElement('b'); b.className = st; b.textContent = st.toUpperCase(); const n = document.createElement('span'); n.textContent = name + (detail ? ': ' + detail : ''); r.append(b, n); out.appendChild(r); lines.push(st.toUpperCase() + ' | ' + name + (detail ? ': ' + detail : '')); }
+  const open = url => new Promise((res, rej) => { const ws = new WebSocket(url), t = setTimeout(() => { ws.close(); rej(new Error('timed out')); }, 8000); ws.onopen = () => { clearTimeout(t); res(ws); }; ws.onerror = () => { clearTimeout(t); rej(new Error('could not connect')); }; });
+  const ask = (ws, msg, ms = 9000) => new Promise((res, rej) => { const id = Math.floor(Math.random() * 1e9), t = setTimeout(() => { ws.removeEventListener('message', h); rej(new Error('no reply')); }, ms);
+    function h(e) { const d = JSON.parse(e.data); if (d.req_id === id) { clearTimeout(t); ws.removeEventListener('message', h); d.error ? rej(new Error(d.error.message)) : res(d); } } ws.addEventListener('message', h); ws.send(JSON.stringify(Object.assign({ req_id: id }, msg))); });
+  async function step(name, fn) { try { const d = await fn(); add(name, d && d.warn ? 'warn' : 'pass', d && d.t); return d; } catch (e) { add(name, 'fail', e.message); return null; } }
+  async function run() {
+    out.textContent = ''; lines.length = 0; let ws = null, legacy = false;
+    add('Browser WebSocket support', 'WebSocket' in window ? 'pass' : 'fail');
+    const t0 = Date.now();
+    ws = await step('Connect to Deriv public data (' + TW.settings.endpoint.replace('wss://', '') + ')', async () => { const w = await open(TW.settings.endpoint); return Object.assign(w, { _t: 'opened in ' + (Date.now() - t0) + ' ms' }); });
+    if (!ws) { ws = await step('Fallback: legacy endpoint', async () => { const w = await open(TW.LEGACY); legacy = true; return w; }); }
+    if (ws) {
+      await step('Ping', async () => { const t = Date.now(); await ask(ws, { ping: 1 }); return { t: (Date.now() - t) + ' ms' }; });
+      await step('Market list (active_symbols)', async () => { const d = await ask(ws, { active_symbols: 'brief' }); const n = (d.active_symbols || []).length; if (!n) throw new Error('empty list'); return { t: n + ' markets' }; });
+      await step('Live tick (R_100)', async () => { const d = await ask(ws, { ticks: 'R_100', subscribe: 1 }); ws.send(JSON.stringify({ forget_all: 'ticks' })); return { t: 'quote ' + d.tick.quote }; });
+      await step('History: 1000 ticks', async () => { const d = await ask(ws, { ticks_history: 'R_100', end: 'latest', count: 1000, style: 'ticks' }); const n = d.history.prices.length; return n >= 1000 ? { t: n + ' ticks' } : { warn: 1, t: 'only ' + n + ' ticks' }; });
+      await step('Candles for the chart (1 minute)', async () => { const d = await ask(ws, { ticks_history: 'R_100', end: 'latest', count: 20, style: 'candles', granularity: 60 }); return { t: d.candles.length + ' candles' }; });
+      await step('Price quote (Rise, 5 ticks, 1 USD)', async () => { const base = { proposal: 1, basis: 'stake', amount: 1, contract_type: 'CALL', currency: 'USD', duration: 5, duration_unit: 't' };
+        try { const d = await ask(ws, Object.assign({ [legacy ? 'symbol' : 'underlying_symbol']: 'R_100' }, base)); return { t: 'payout ' + d.proposal.payout }; }
+        catch (e) { const d = await ask(ws, Object.assign({ [legacy ? 'underlying_symbol' : 'symbol']: 'R_100' }, base)); return { warn: 1, t: 'worked only with the other symbol field name (' + e.message + ')' }; } });
+      ws.close();
+    }
+    const app = String(TW.settings.appId || '');
+    add('App ID configured', !app || app === '1089' || app === 'YOUR_APP_ID' ? 'fail' : 'pass', !app || app === '1089' ? 'still the old test ID' : app.slice(0, 6) + '...');
+    await step('Deriv REST API reachable from this browser', async () => { try { const r = await fetch('https://api.derivws.com/trading/v1/options/accounts', { headers: { 'Deriv-App-ID': app } }); return { t: 'HTTP ' + r.status + ' (a reply without a token is expected)' }; } catch (e) { throw new Error('blocked (CORS or network). Login from this site may fail'); } });
+    add('Login state', TW.account.authed ? 'pass' : 'skip', TW.account.authed ? TW.account.loginid + (TW.account.virtual ? ' (demo)' : ' (REAL)') + ', balance ' + TW.account.balance : 'not logged in');
+    add('Trading mode', 'skip', TW.mode ? TW.mode() : 'unknown');
+  }
+  $('run').onclick = run; $('cp').onclick = () => { const t = 'TickWealth diagnostics ' + new Date().toISOString() + '\n' + lines.join('\n');
+    const show = () => { let ta = $('rep'); if (!ta) { ta = document.createElement('textarea'); ta.id = 'rep'; ta.readOnly = true; ta.rows = 12; ta.style.cssText = 'width:100%;margin-top:10px;background:rgba(0,0,0,.4);color:#d7e0f2;border:1px solid rgba(255,255,255,.15);border-radius:8px;padding:8px;font:12px ui-monospace,monospace'; out.after(ta); } ta.value = t; ta.focus(); ta.select(); TW.toast('Select and copy the report below', 'ok'); };
+    if (!lines.length) { TW.toast('Run the checks first', 'err'); return; }
+    try { navigator.clipboard.writeText(t).then(() => TW.toast('Report copied', 'ok')).catch(show); } catch (e) { show(); } };
+});
+</script>
+</body>
+</html>

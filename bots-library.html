@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TickWealth – Bots</title>
+<meta name="description" content="Independent bots: each with its own market, contract, rules, risk limits and optional Martingale. Add, delete, upload and export.">
+<link rel="stylesheet" href="core.css">
+<style>
+.bw{max-width:1100px;margin:0 auto;padding:14px;display:grid;gap:14px}
+.bt{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.bt .btn{width:auto}
+.bl{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+.bc{border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px;background:rgba(255,255,255,.04)}
+.bh{display:flex;gap:8px;align-items:center}.bh input{flex:1;font-weight:700}.bs{font-size:12px;color:#8e9ab3}.bs.on{color:#00ffa3}
+.bg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.bg label{font-size:11px;color:#8e9ab3;display:block}
+.bg input,.bg select,.bh input{width:100%;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.35);color:#d7e0f2;font:inherit}
+.bg .w{grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#c9d3e8;font-size:12px}.bg .w input[type=checkbox]{width:auto;margin:0}.bg .w input[type=number]{width:72px}.br{display:flex;gap:8px;flex-wrap:wrap}.br button{width:auto;padding:8px 12px}
+.bi{font-size:12.5px;margin-top:8px;color:#c9d3e8}.wn{border-left:3px solid #ff3b69;padding:10px 14px;border-radius:8px;background:rgba(255,59,105,.07);font-size:13px}
+</style>
+</head>
+<body>
+<div id="top"></div>
+<div id="app"><div class="bw">
+  <div class="wn"><b>Read this.</b> Bots follow your rules on live ticks. They cannot predict the next tick, and trading can lose your whole stake. Martingale multiplies the stake after each loss and can empty an account in a few trades, so it is off by default and capped by a step limit. Bots run in paper mode unless you are logged in and in live mode. Bots only run while this page is open.</div>
+  <div class="bt" id="tb"><button class="btn" id="add" type="button">+ New bot</button><button class="btn ghost" id="up" type="button">Import (JSON or Deriv XML)</button><button class="btn ghost" id="dl" type="button">Download all (JSON)</button><button class="btn" id="runall" type="button">Run all</button><button class="btn ghost" id="stopall" type="button">Stop all</button><button class="btn ghost" id="rst" type="button">Reset results</button><button class="btn ghost" id="ex" type="button">Load example bots</button><button class="btn ghost" id="undo" type="button" hidden>Undo delete</button><span id="md" class="bs"></span><input type="file" id="file" accept=".json,.xml,application/json,text/xml,application/xml" multiple hidden></div>
+  <div class="bi" id="dz">Tip: drag and drop bot files (.json or Deriv Bot .xml) anywhere on this page to import them.</div>
+  <div class="bc" id="lib"><div class="bh"><b>Bot library: ready-made bots for every market</b></div>
+    <div class="bg"><label>Market<select id="lm"></select></label><label>Market scanner<span style="display:flex;gap:6px"><button class="btn ghost" id="qs" type="button">Quick scan</button><button class="btn ghost" id="ds" type="button">Deep scan (10s)</button></span></label></div>
+    <div class="bi" id="sc">Pick a market, then scan it. The scanner measures the last 1000 ticks and reports whether anything is unusual. It cannot predict the next tick.</div>
+    <div id="pl" class="br" style="margin-top:10px"></div></div>
+  <div class="bl" id="list"></div>
+</div></div>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script src="stats.js"></script>
+<script src="coach.js"></script>
+<script>
+/* Independent bots. Each bot is plain JSON: its own market, contract, entry rule, risk limits and optional Martingale.
+   Bots are stored in this browser. Upload, export or delete any of them. Nothing here predicts ticks. */
+TW.mountTop({active:'bots'});
+TW.tickFeed('R_100',{primary:false,count:5}); // keeps the top-bar connection status live on this page
+const $=TW.$, BOTKEY='tw_bots2', CT=['CALL','PUT','DIGITOVER','DIGITUNDER','DIGITEVEN','DIGITODD','DIGITMATCH','DIGITDIFF'], CONDS=['even','odd','over','under','rise','fall'];
+const MK=TW.VOLS.map(v=>[v.id,v.name]), R={};
+const num=(v,lo,hi,d)=>{v=+v;return isFinite(v)?Math.min(hi,Math.max(lo,v)):d};
+function clean(b){b=b&&typeof b==='object'?b:{};const r=b.rule||{},m=b.mart||{};return{id:'b'+Date.now()+Math.floor(Math.random()*1e5),name:String(b.name||'New bot').slice(0,40),symbol:TW.VOLS.some(v=>v.id===b.symbol)?b.symbol:'R_100',contract:CT.includes(b.contract)?b.contract:'DIGITOVER',barrier:num(b.barrier,0,9,4),duration:num(b.duration,1,10,1),stake:num(b.stake,0.35,1000,0.35),
+ rule:{kind:r.kind==='every'?'every':'streak',cond:CONDS.includes(r.cond)?r.cond:'even',n:num(r.n,1,50,3),cb:num(r.cb,0,9,4)},mart:{on:!!m.on,mult:num(m.mult,1.1,5,2),steps:num(m.steps,1,8,3)},sl:num(b.sl,0,100000,5),tp:num(b.tp,0,100000,5),max:num(b.max,0,10000,0)}}
+const EX=[{name:'Example: Under 7 after two 8-9s',symbol:'R_100',contract:'DIGITUNDER',barrier:7,duration:1,rule:{kind:'streak',cond:'over',cb:7,n:2}},{name:'Example: Even after three odds',symbol:'R_50',contract:'DIGITEVEN',duration:1,rule:{kind:'streak',cond:'odd',n:3}}];
+function load(){try{const a=JSON.parse(localStorage.getItem(BOTKEY));if(Array.isArray(a))return a.map(clean).map((b,i)=>Object.assign(b,{id:a[i].id||b.id}))}catch(e){}return EX.map(clean)}
+let bots=load();const save=()=>localStorage.setItem(BOTKEY,JSON.stringify(bots));
+const opts=(l,s)=>l.map(x=>{const v=Array.isArray(x)?x[0]:x,t=Array.isArray(x)?x[1]:x;return`<option value="${TW.esc(v)}"${v==s?' selected':''}>${TW.esc(t)}</option>`}).join('');
+const f=(l,k,v,x='')=>`<label>${l}<input data-k="${k}" type="number" value="${v}" ${x}></label>`;
+function card(b){return`<div class="bc" data-id="${b.id}"><div class="bh"><input data-k="name" value="${TW.esc(b.name)}" aria-label="Bot name"><span class="bs" id="st-${b.id}">stopped</span></div>
+<div class="bg"><label>Market<select data-k="symbol">${opts(MK,b.symbol)}</select></label><label>Contract<select data-k="contract">${opts(CT,b.contract)}</select></label>
+${f('Barrier / digit','barrier',b.barrier,'min="0" max="9"')}${f('Ticks','duration',b.duration,'min="1" max="10"')}${f('Stake (USD)','stake',b.stake,'min="0.35" step="0.01"')}
+<label>Entry rule<select data-k="rule.kind">${opts([['streak','After a streak'],['every','Every N ticks']],b.rule.kind)}</select></label>
+<label>Condition<select data-k="rule.cond">${opts(CONDS,b.rule.cond)}</select></label>${f('Streak or N','rule.n',b.rule.n,'min="1" max="50"')}${f('Cond. digit (over/under)','rule.cb',b.rule.cb,'min="0" max="9"')}
+${f('Stop-loss (USD, 0 = off)','sl',b.sl,'min="0"')}${f('Take-profit (USD, 0 = off)','tp',b.tp,'min="0"')}${f('Max trades (0 = no limit)','max',b.max,'min="0"')}
+<label class="w"><input type="checkbox" data-k="mart.on"${b.mart.on?' checked':''}> Martingale (risky) &nbsp;multiplier <input data-k="mart.mult" type="number" step="0.1" min="1.1" max="5" value="${b.mart.mult}" style="width:70px"> &nbsp;max steps <input data-k="mart.steps" type="number" min="1" max="8" value="${b.mart.steps}" style="width:60px"></label></div>
+<div class="br"><button class="btn" data-a="run" type="button">Start</button><button class="btn ghost" data-a="scan" type="button">Scan market</button><button class="btn ghost" data-a="exp" type="button">Download JSON</button><button class="btn ghost" data-a="xml" type="button">Deriv XML (experimental)</button><button class="btn ghost" data-a="dup" type="button">Duplicate</button><button class="btn ghost" data-a="rst" type="button">Reset</button><button class="btn ghost" data-a="del" type="button">Delete</button></div><div class="bi" id="in-${b.id}"></div></div>`}
+function draw(){$('#list').innerHTML=bots.map(card).join('')||'<div class="bi">No bots yet. Add one, upload a .json file, or load the examples.</div>';bots.forEach(info);$('#md').textContent='Mode: '+TW.mode().toUpperCase()}
+function info(b){const r=R[b.id],i=$('#in-'+b.id),s=$('#st-'+b.id);if(!i)return;const on=r&&r.on;s.textContent=on?'running':'stopped';const rb=document.querySelector('.bc[data-id="'+b.id+'"] [data-a=run]');if(rb)rb.textContent=on?'Stop':'Start';s.className='bs'+(on?' on':'');
+ i.textContent=r?`Trades ${r.n}, wins ${r.w}, P/L ${r.pnl.toFixed(2)} USD${r.step?`, Martingale step ${r.step}`:''}${r.msg?'. '+r.msg:''}`:'Not started yet.'}
+let lastDel=null;const get=id=>bots.find(b=>b.id===id);
+const cond=(c,cb,P,D,j)=>c==='rise'?P[j]>P[j-1]:c==='fall'?P[j]<P[j-1]:c==='over'?D[j]>cb:c==='under'?D[j]<cb:c==='even'?D[j]%2===0:D[j]%2===1;
+function start(b){stop(b);const r=R[b.id]=Object.assign(R[b.id]||{n:0,w:0,pnl:0,step:0},{on:true,busy:false,k:0,msg:''});r.pnl=0;r.n=0;r.w=0;r.step=0;
+ r.feed=TW.tickFeed(b.symbol,{primary:false,count:60,onTick:fd=>tick(b,fd)});info(b)}
+function stop(b,why){const r=R[b.id];if(!r)return;r.on=false;if(r.feed){r.feed.close();r.feed=null}if(why)r.msg=why;info(b)}
+function tick(b,fd){const r=R[b.id];if(!r||!r.on||r.busy)return;r.k++;const P=fd.prices,D=fd.digits,i=P.length-1;let go=false;
+ if(b.rule.kind==='every')go=r.k%b.rule.n===0;else{let s=0;for(let j=i;j>=1&&s<b.rule.n&&cond(b.rule.cond,b.rule.cb,P,D,j);j--)s++;go=s>=b.rule.n}
+ if(go)place(b,r)}
+async function place(b,r){const st=+(b.stake*(b.mart.on?Math.pow(b.mart.mult,r.step):1)).toFixed(2);r.busy=true;
+ try{const t=await TW.trade({contract_type:b.contract,symbol:b.symbol,amount:st,duration:b.duration,duration_unit:'t',barrier:/OVER|UNDER|MATCH|DIFF/.test(b.contract)?b.barrier:undefined,label:b.name,bot:b.name});
+  const res=await t.done,p=+res.profit;r.n++;r.pnl+=p;if(p>0){r.w++;r.step=0}else r.step=b.mart.on?(r.step+1>=b.mart.steps?0:r.step+1):0;
+  if(b.sl>0&&r.pnl<=-b.sl)stop(b,'Stopped: stop-loss reached');else if(b.tp>0&&r.pnl>=b.tp)stop(b,'Stopped: take-profit reached');else if(b.max>0&&r.n>=b.max)stop(b,'Stopped: max trades reached')}
+ catch(e){stop(b,'Stopped: '+(e.message||e))}finally{r.busy=false;info(b)}}
+$('#list').addEventListener('change',e=>{const c=e.target.closest('.bc');if(!c||!e.target.dataset.k)return;const b=get(c.dataset.id),p=e.target.dataset.k.split('.'),t=e.target;
+ let v=t.type==='checkbox'?t.checked:t.type==='number'?+t.value:t.value;let o=b;for(let i=0;i<p.length-1;i++)o=o[p[i]];o[p[p.length-1]]=v;Object.assign(b,Object.assign(clean(b),{id:b.id}));save();if(R[b.id]&&R[b.id].on&&e.target.dataset.k==='symbol')start(b)});
+$('#list').addEventListener('click',e=>{const a=e.target.dataset.a,c=e.target.closest('.bc');if(!a||!c)return;const b=get(c.dataset.id);
+ if(a==='run'){const r=R[b.id];if(r&&r.on){stop(b,'Stopped by you');e.target.textContent='Start'}else{if(b.mart.on&&!confirm('Martingale doubles risk after each loss. Start this bot with Martingale on?'))return;if(TW.mode()==='live'&&!confirm('LIVE mode: this bot will use real money. Start it?'))return;start(b);e.target.textContent='Stop'}}
+ if(a==='scan'){scanInto(b.symbol,$('#in-'+b.id),false);return}
+ if(a==='exp'){const x=Object.assign({},b);delete x.id;const u=URL.createObjectURL(new Blob([JSON.stringify(x,null,2)],{type:'application/json'})),l=document.createElement('a');l.href=u;l.download=(b.name.replace(/[^a-z0-9]+/gi,'-')||'bot')+'.json';l.click()}
+ if(a==='del'&&confirm('Delete this bot?')){lastDel=b;$('#undo').hidden=false;stop(b);delete R[b.id];bots=bots.filter(x=>x.id!==b.id);save();draw()}});
+$('#add').onclick=()=>{bots.push(clean({}));save();draw()};
+$('#ex').onclick=()=>{EX.forEach(x=>bots.push(clean(x)));save();draw()};
+/* ---- Library: ready-made bots for the chosen market ---- */
+$('#lm').innerHTML=opts(MK,'R_100');
+function presets(sym){const dg=TW.VOLS.some(v=>v.id===sym&&v.digits),nm=(TW.VOLS.find(v=>v.id===sym)||{}).name||sym,L=[];
+ if(dg)L.push({name:nm+': Under 7 patience',symbol:sym,contract:'DIGITUNDER',barrier:7,duration:1,rule:{kind:'streak',cond:'over',cb:7,n:2}},{name:nm+': Over 2 patience',symbol:sym,contract:'DIGITOVER',barrier:2,duration:1,rule:{kind:'streak',cond:'under',cb:2,n:2}},
+  {name:nm+': Even after 3 odds',symbol:sym,contract:'DIGITEVEN',duration:1,rule:{kind:'streak',cond:'odd',n:3}},{name:nm+': Odd after 3 evens',symbol:sym,contract:'DIGITODD',duration:1,rule:{kind:'streak',cond:'even',n:3}});
+ L.push({name:nm+': Rise after 3 up ticks',symbol:sym,contract:'CALL',duration:5,rule:{kind:'streak',cond:'rise',n:3}},{name:nm+': Fall after 3 down ticks',symbol:sym,contract:'PUT',duration:5,rule:{kind:'streak',cond:'fall',n:3}});return L}
+function drawLib(){const box=$('#pl');box.textContent='';const L=presets($('#lm').value);
+ L.forEach(p=>{const b=document.createElement('button');b.className='btn ghost';b.type='button';b.textContent='+ '+p.name.split(': ')[1];b.onclick=()=>{bots.push(clean(p));save();draw();TW.toast('Added: '+p.name,'ok',2500)};box.appendChild(b)});
+ const all=document.createElement('button');all.className='btn';all.type='button';all.textContent='Add all '+L.length;all.onclick=()=>{L.forEach(p=>bots.push(clean(p)));save();draw();TW.toast('Added '+L.length+' bots for this market. They start stopped.','ok',3500)};box.appendChild(all)}
+$('#lm').onchange=drawLib;drawLib();
+/* ---- Market scanner: quick = last 1000 ticks; deep = adds 10 seconds of live ticks first. Honest statistics, no prediction. ---- */
+let SF=null,SCD=null;
+function report(f,out,pre){const D=f.digits,P=f.prices;if(D.length<200){out.textContent='Not enough ticks yet ('+D.length+' of 1000).';return}
+ const ds=TWS.digitStats(D),p=Math.min(1,ds.p*4),c=ds.counts,hot=c.indexOf(Math.max(...c)),cold=c.indexOf(Math.min(...c)),tt=TWS.truthTest(D,P),best=tt.slice().sort((a,b)=>a.padj-b.padj)[0],above=tt.filter(r=>r.padj<.01&&r.rate>r.p0);
+ const odd=above.length||p<.01;out.textContent=[(pre||''),`Digits (${D.length} ticks): hottest ${hot} at ${(c[hot]/D.length*100).toFixed(1)}%, coldest ${cold} at ${(c[cold]/D.length*100).toFixed(1)}%. Uniformity: ${p<.01?'deviation, recheck':'consistent with random'} (adjusted p ${p.toFixed(3)}).`,
+  `AI Truth Test: ${above.length?above.length+' model(s) above chance, verify on new ticks':'all '+tt.length+' prediction models are at chance'}${best?'. Closest: '+best.name+' at '+(best.rate*100).toFixed(1)+'% vs '+(best.p0*100).toFixed(0)+'% chance':''}.`,
+  'Verdict: '+(odd?'something looks unusual. Collect more ticks and test again before acting.':'no measurable edge on this market right now. Expect a coin flip with a house margin.')].filter(Boolean).join(' ')}
+function scanInto(sym,out,deep){if(SCD)clearInterval(SCD);if(SF)SF.close();out.textContent='Loading 1000 ticks of '+sym+'...';
+ SF=TW.tickFeed(sym,{primary:false,count:1000,onHistory:f=>{if(!deep){report(f,out);return}let n=10;SCD=setInterval(()=>{if(n>0){out.textContent='Deep scan: sampling live ticks, '+n+'s left ('+f.digits.length+' ticks so far)...';n--}else{clearInterval(SCD);report(f,out,'Deep scan complete.');}},1000)}})}
+$('#qs').onclick=()=>scanInto($('#lm').value,$('#sc'),false);$('#ds').onclick=()=>scanInto($('#lm').value,$('#sc'),true);
+/* ---- Download, import (JSON bundle or Deriv Bot XML), drag and drop, run/stop all ---- */
+const dl=(name,text,type)=>{const u=URL.createObjectURL(new Blob([text],{type:type||'application/json'})),a=document.createElement('a');a.href=u;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),2000)};
+const strip=b=>{const x=JSON.parse(JSON.stringify(b));delete x.id;return x};
+const fname=b=>(b.name.replace(/[^a-z0-9]+/gi,'-').replace(/^-|-$/g,'')||'bot');
+const xe=s=>String(s).replace(/[<>&"]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;'}[c]));
+/* Experimental: a basic Deriv Bot (DBot) trade loop with this bot's market, contract, stake and duration. Entry rules are not exported. */
+function toXml(b){const dig=/^DIGIT/.test(b.contract),pred=/OVER|UNDER|MATCH|DIFF/.test(b.contract),cat=dig?'digits':'callput',tt=!dig?'risefall':/OVER|UNDER/.test(b.contract)?'overunder':/EVEN|ODD/.test(b.contract)?'evenodd':'matchesdiffers';let n=0;const id=()=>'tw'+(++n);
+ return `<xml xmlns="https://developers.google.com/blockly/xml" is_dbot="true" collection="false">
+<block type="trade_definition" id="${id()}" deletable="false" x="0" y="0"><statement name="TRADE_OPTIONS"><block type="trade_definition_market" id="${id()}" deletable="false" movable="false"><field name="MARKET_LIST">synthetic_index</field><field name="SUBMARKET_LIST">random_index</field><field name="SYMBOL_LIST">${xe(b.symbol)}</field><next><block type="trade_definition_tradetype" id="${id()}" deletable="false" movable="false"><field name="TRADETYPE_CATEGORY_LIST">${cat}</field><field name="TRADETYPE_LIST">${tt}</field><next><block type="trade_definition_contracttype" id="${id()}" deletable="false" movable="false"><field name="TYPE_LIST">${b.contract}</field><next><block type="trade_definition_candleinterval" id="${id()}" deletable="false" movable="false"><field name="CANDLEINTERVAL_LIST">60</field><next><block type="trade_definition_restartbuysell" id="${id()}" deletable="false" movable="false"><field name="TIME_MACHINE_ENABLED">FALSE</field><next><block type="trade_definition_restartonerror" id="${id()}" deletable="false" movable="false"><field name="RESTARTONERROR">TRUE</field></block></next></block></next></block></next></block></next></block></next></block></statement>
+<statement name="SUBMARKET"><block type="trade_definition_tradeoptions" id="${id()}"><mutation xmlns="http://www.w3.org/1999/xhtml" has_first_barrier="false" has_second_barrier="false" has_prediction="${pred}"></mutation><field name="DURATIONTYPE_LIST">t</field><value name="DURATION"><shadow type="math_number" id="${id()}"><field name="NUM">${b.duration}</field></shadow></value><value name="AMOUNT"><shadow type="math_number" id="${id()}"><field name="NUM">${b.stake}</field></shadow></value>${pred?`<value name="PREDICTION"><shadow type="math_number_positive" id="${id()}"><field name="NUM">${b.barrier}</field></shadow></value>`:''}</block></statement></block>
+<block type="before_purchase" id="${id()}" deletable="false" x="0" y="420"><statement name="BEFOREPURCHASE_STACK"><block type="purchase" id="${id()}"><field name="PURCHASE_LIST">${b.contract}</field></block></statement></block>
+<block type="after_purchase" id="${id()}" x="0" y="620"><statement name="AFTERPURCHASE_STACK"><block type="trade_again" id="${id()}"></block></statement></block>
+</xml>`}
+function fromXml(text,name){const d=new DOMParser().parseFromString(text,'text/xml');if(d.querySelector('parsererror'))throw new Error('not valid XML');
+ const f=n=>{const e=[...d.querySelectorAll('field')].find(x=>x.getAttribute('name')===n);return e?e.textContent.trim():''};
+ const num=n=>{const e=[...d.querySelectorAll('value')].find(x=>x.getAttribute('name')===n),fl=e&&e.querySelector('field[name="NUM"]');return fl?+fl.textContent:NaN};
+ const sym=f('SYMBOL_LIST'),ct=f('TYPE_LIST')||f('PURCHASE_LIST');if(!sym&&!ct)throw new Error('this does not look like a Deriv Bot file');
+ const notes=['Only the basic trade settings were imported. Custom logic (conditions, indicators, Martingale maths) is not converted.'];let contract=ct,dur=num('DURATION'),unit=f('DURATIONTYPE_LIST');
+ if(!CT.includes(contract)){notes.push('Contract '+(ct||'?')+' is not supported, so Over was used.');contract='DIGITOVER'}
+ if(unit&&unit!=='t'){notes.push('Duration unit "'+unit+'" is not supported (ticks only), so 5 ticks was used.');dur=5}
+ const sy=TW.VOLS.some(v=>v.id===sym);if(!sy)notes.push('Market '+(sym||'?')+' is not available here, so Volatility 100 was used.');
+ return{bot:{name:name||'Imported Deriv bot',symbol:sy?sym:'R_100',contract,barrier:num('PREDICTION'),duration:dur,stake:num('AMOUNT'),rule:{kind:'every',n:1},sl:5,tp:5,max:0},notes}}
+async function importFile(fl){if(fl.size>200000)throw new Error(fl.name+' is too large (max 200 KB).');const t=await fl.text();let list,notes=[];
+ if(t.trim().startsWith('<')){const r=fromXml(t,fl.name.replace(/\.[^.]+$/,''));list=[r.bot];notes=r.notes}else{let j;try{j=JSON.parse(t)}catch(e){throw new Error(fl.name+' is not valid JSON.')}list=Array.isArray(j)?j:Array.isArray(j.bots)?j.bots:[j]}
+ if(bots.length+list.length>30)throw new Error('Too many bots (max 30).');list.forEach(x=>bots.push(clean(x)));return{n:list.length,notes}}
+async function importFiles(files){let n=0;const notes=[];for(const fl of files){try{const r=await importFile(fl);n+=r.n;notes.push(...r.notes)}catch(e){TW.toast('Import failed: '+e.message,'err',7000)}}
+ if(n){save();draw();TW.toast('Imported '+n+' bot(s). Values are checked and limited to safe ranges.'+(notes.length?' '+notes[0]:''),'ok',7000)}}
+$('#up').onclick=()=>$('#file').click();$('#file').onchange=e=>{const fs=[...e.target.files];e.target.value='';importFiles(fs)};
+addEventListener('dragover',e=>e.preventDefault());addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer&&e.dataTransfer.files.length)importFiles([...e.dataTransfer.files])});
+$('#dl').onclick=()=>{if(!bots.length){TW.toast('No bots to download yet.','err');return}dl('tickwealth-bots.json',JSON.stringify({app:'TickWealth',version:1,bots:bots.map(strip)},null,2))};
+$('#runall').onclick=()=>{if(!bots.length)return;if(TW.mode()==='live'&&!confirm('LIVE mode: every bot will use real money. Start them all?'))return;if(bots.some(b=>b.mart.on)&&!confirm('Some bots use Martingale (risky). Start all anyway?'))return;bots.forEach(b=>{const r=R[b.id];if(!r||!r.on)start(b)})};
+$('#stopall').onclick=()=>bots.forEach(b=>{if(R[b.id]&&R[b.id].on)stop(b,'Stopped by you')});
+const reset=b=>{const r=R[b.id];if(r){r.n=r.w=r.pnl=r.step=0;r.msg=''}info(b)};
+$('#rst').onclick=()=>bots.forEach(reset);
+$('#undo').onclick=()=>{if(lastDel){bots.push(lastDel);lastDel=null;save();draw()}$('#undo').hidden=true};
+$('#list').addEventListener('click',e=>{const a=e.target.dataset.a,c=e.target.closest('.bc');if(!a||!c)return;const b=get(c.dataset.id);if(!b)return;
+ if(a==='dup'){const x=clean(strip(b));x.name=(b.name+' (copy)').slice(0,40);bots.push(x);save();draw()}
+ if(a==='rst')reset(b);
+ if(a==='xml'){if(!TW.VOLS.some(v=>v.id===b.symbol&&/^(R_|1HZ)/.test(v.id))){TW.toast('Deriv XML export supports Volatility indices only.','err');return}dl(fname(b)+'.xml',toXml(b),'application/xml');TW.toast('Experimental file. Load it in Deriv Bot and check it before running. Entry rules are not included.','ok',7000)}});
+draw();
+</script>
+</body>
+</html>
