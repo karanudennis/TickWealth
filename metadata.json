@@ -1,0 +1,6 @@
+{
+  "name": "Tickwealth Quantum Terminal",
+  "description": "Institutional-grade algorithmic trading terminal and real-time execution engine with 3-factor quantitative scanning, TradingView lightweight charting, and low-latency network telemetry.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -5,8 +5,7 @@ window.TW_CONFIG = {
   paymentsEnabled: false,
   mpesaApi: '',            // e.g. 'https://api.yoursite.com'  (must implement POST /stkpush and GET /status — see README)
   priceKES: 1500,
-  // AI coach. Leave '' to use the built-in on-device explainer. For full AI answers, run server/ai-proxy.js
-  // and put its URL here, e.g. 'https://ai.yoursite.com/ai'. The API key stays on that server.
-  aiEndpoint: '',
+  // AI coach backed by Gemini 3.8 Flash via full-stack /api/ai/chat
+  aiEndpoint: '/api/ai/chat',
   freeBots: ['phantom', 'raptor']
 };

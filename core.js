@@ -409,7 +409,7 @@
       tm = setTimeout(async () => {
         const my = ++seq; cb(null, 'loading');
         try { const q = await TW.quote(getParams()); if (my === seq) cb(q); } catch (e) { if (my === seq) cb(null, e.message); }
-      }, 350);
+      }, 120);
     };
   };
 
@@ -468,6 +468,16 @@
     });
   }
 
+  // Fast mathematical payout estimation for zero-latency paper execution
+  function estimatePayout(type, barrier, stake) {
+    const b = +barrier;
+    if (type === 'DIGITOVER') return +(stake / (Math.max(1, 9 - b) / 10) * 0.95).toFixed(2);
+    if (type === 'DIGITUNDER') return +(stake / (Math.max(1, b) / 10) * 0.95).toFixed(2);
+    if (type === 'DIGITMATCH') return +(stake * 9.5).toFixed(2);
+    if (type === 'DIGITDIFF') return +(stake * 1.05).toFixed(2);
+    return +(stake * 1.95).toFixed(2);
+  }
+
   TW.trade = async function (p, o) {
     o = o || {};
     const s = TW.settings, mode = TW.mode(), amount = +(+p.amount).toFixed(2);
@@ -476,9 +486,10 @@
     if (s.stopLoss > 0 && TW.session.pnl <= -s.stopLoss) throw err(`Session stop-loss reached (-${s.stopLoss}). Trading is paused — reset the session in Settings.`);
     if (mode === 'paper' && amount > TW.paper.balance) throw err('Not enough paper balance. Reset it in Settings.');
     const params = { contract_type: p.contract_type, symbol: p.symbol, duration: +p.duration, duration_unit: p.duration_unit || 't', amount, barrier: p.barrier };
-    let q;
-    q = await TW.quote(params);
+    
+    // Live modal confirmation if required
     if (mode === 'live' && !o.silent && s.confirm) {
+      const q = await TW.quote(params);
       const ok = await TW.modal({
         title: TW.account.virtual ? 'Confirm DEMO trade' : '⚠ Confirm REAL-MONEY trade',
         html: `<div class="sub">${TW.esc(q ? q.longcode : p.label || p.contract_type)}</div><div class="stats"><div><b>${TW.money(amount)}</b>Stake</div><div><b>${q ? TW.money(q.payout) : '—'}</b>Payout</div><div><b>${TW.esc(TW.account.loginid)}</b>${TW.account.virtual ? 'Demo' : 'Real'} account</div></div>${TW.account.virtual ? '' : '<div class="warn">This uses real money. You can lose the entire stake.</div>'}`,
@@ -486,17 +497,26 @@
       });
       if (!ok) throw err('Cancelled', true);
     }
+
     if (mode === 'live') {
       const par = { amount, basis: 'stake', contract_type: params.contract_type, currency: TW.account.currency, duration: params.duration, duration_unit: params.duration_unit, [TW.symKey()]: params.symbol };
       if (params.barrier != null && params.barrier !== '') par.barrier = String(params.barrier);
+      // Direct buy request without extra proposal roundtrip for instant execution speed
       const r = await req({ buy: 1, price: amount, parameters: par }, 20000);
       const b = r.buy, t = newTrade(p, 'live', { id: b.contract_id, payout: b.payout, stake: b.buy_price, longcode: b.longcode });
       watch[b.contract_id] = { trade: t };
       tsock.send({ proposal_open_contract: 1, contract_id: b.contract_id, subscribe: 1 });
       emit('trade', t); return t;
     }
-    const t = newTrade(p, 'paper', { id: 'P' + Date.now().toString(36), payout: +q.payout, count: 0, longcode: q.longcode });
-    paperOpen.push(t); paperEnsureFeed(params.symbol); emit('trade', t); return t;
+
+    // Paper trade: instant local execution with mathematical payout or live quote
+    const estPayout = estimatePayout(params.contract_type, params.barrier, amount);
+    const t = newTrade(p, 'paper', { id: 'P' + Date.now().toString(36), payout: estPayout, count: 0, longcode: p.label || p.contract_type });
+    paperOpen.push(t); paperEnsureFeed(params.symbol); emit('trade', t);
+    
+    // Background quote refinement (non-blocking)
+    TW.quote(params).then(q => { if (q && q.payout) t.payout = +q.payout; }).catch(() => {});
+    return t;
   };
 
   TW.mountLog = function (el) {

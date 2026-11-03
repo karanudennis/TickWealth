@@ -33,7 +33,7 @@
     if (c.ticks) { const s = c.digitSharesPct, hot = s.indexOf(Math.max(...s)), cold = s.indexOf(Math.min(...s)); return 'On ' + c.market + ', over the last ' + c.ticks + ' ticks the most frequent digit is ' + hot + ' (' + s[hot] + '%) and the rarest is ' + cold + ' (' + s[cold] + '%). The true chance of every digit is 10%, so gaps like this are normal random variation.' + tail; }
     return 'Open a market first and I can explain its numbers. I can also explain contract types, risk, Martingale and what statistics can and cannot tell you.';
   }
-  async function answer(q) { const ep = (TW.settings && TW.settings.aiEndpoint) || (window.TW_CONFIG && window.TW_CONFIG.aiEndpoint) || '';
+  async function answer(q) { const ep = (TW.settings && TW.settings.aiEndpoint) || (window.TW_CONFIG && window.TW_CONFIG.aiEndpoint) || '/api/ai/chat';
     if (ep) { try { const r = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: hist.slice(-8), context: ctx() }) }); const j = await r.json(); if (r.ok && j.reply) return j.reply; } catch (e) { /* fall back */ } }
     return local(q); }
   async function send(q) { q = (q || '').trim(); if (!q) return; add('tc-u', q); hist.push({ role: 'user', content: q }); inp.value = ''; const a = await answer(q); hist.push({ role: 'assistant', content: a }); add('tc-a', a); }
