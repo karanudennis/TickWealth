@@ -55,19 +55,25 @@
   const emit = (n, a) => (ev[n] || []).forEach(f => { try { f(a); } catch (e) { console.error(e); } });
 
   TW.VOLS = [
-    { id: 'R_10', name: 'Volatility 10 Index', digits: true }, { id: 'R_25', name: 'Volatility 25 Index', digits: true },
-    { id: 'R_50', name: 'Volatility 50 Index', digits: true }, { id: 'R_75', name: 'Volatility 75 Index', digits: true },
-    { id: 'R_100', name: 'Volatility 100 Index', digits: true },
-    { id: '1HZ10V', name: 'Volatility 10 (1s) Index', digits: true }, { id: '1HZ25V', name: 'Volatility 25 (1s) Index', digits: true },
-    { id: '1HZ50V', name: 'Volatility 50 (1s) Index', digits: true }, { id: '1HZ75V', name: 'Volatility 75 (1s) Index', digits: true },
-    { id: '1HZ100V', name: 'Volatility 100 (1s) Index', digits: true },
-    { id: '1HZ150V', name: 'Volatility 150 (1s) Index', digits: true },
-    { id: '1HZ250V', name: 'Volatility 250 (1s) Index', digits: true },
+    { id: 'R_10', name: 'Volatility 10 Index', digits: true, pip: 3 },
+    { id: 'R_25', name: 'Volatility 25 Index', digits: true, pip: 3 },
+    { id: 'R_50', name: 'Volatility 50 Index', digits: true, pip: 4 },
+    { id: 'R_75', name: 'Volatility 75 Index', digits: true, pip: 4 },
+    { id: 'R_100', name: 'Volatility 100 Index', digits: true, pip: 2 },
+    { id: '1HZ10V', name: 'Volatility 10 (1s) Index', digits: true, pip: 2 },
+    { id: '1HZ15V', name: 'Volatility 15 (1s) Index', digits: true, pip: 3 },
+    { id: '1HZ25V', name: 'Volatility 25 (1s) Index', digits: true, pip: 2 },
+    { id: '1HZ30V', name: 'Volatility 30 (1s) Index', digits: true, pip: 3 },
+    { id: '1HZ50V', name: 'Volatility 50 (1s) Index', digits: true, pip: 2 },
+    { id: '1HZ75V', name: 'Volatility 75 (1s) Index', digits: true, pip: 2 },
+    { id: '1HZ90V', name: 'Volatility 90 (1s) Index', digits: true, pip: 3 },
+    { id: '1HZ100V', name: 'Volatility 100 (1s) Index', digits: true, pip: 2 },
     { id: 'BOOM500', name: 'Boom 500 Index' }, { id: 'BOOM1000', name: 'Boom 1000 Index' },
     { id: 'CRASH500', name: 'Crash 500 Index' }, { id: 'CRASH1000', name: 'Crash 1000 Index' },
     { id: 'RDBULL', name: 'Bull Market Index' }, { id: 'RDBEAR', name: 'Bear Market Index' }
   ];
   TW.volName = id => (TW.VOLS.find(v => v.id === id) || { name: id }).name;
+  TW.volPip = id => (TW.VOLS.find(v => v.id === id) || { pip: 2 }).pip || 2;
   TW.DIGIT_COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'].map(c => ({ c, bg: `linear-gradient(135deg,${c},${c}bb)` }));
   TW.digitOf = (q, pip) => { const s = Number(q).toFixed(pip == null ? 2 : pip); return +s[s.length - 1]; };
 
@@ -530,7 +536,7 @@
     TW.on('trade', draw); TW.on('account', draw); draw();
   };
 
-  const PAGES = [['index.html', 'Home'], ['rise-fall.html', 'Rise/Fall'], ['over-under.html', 'Over/Under'], ['even-odd.html', 'Even/Odd'], ['matches-differs.html', 'Matches/Differs'], ['analyzer.html', 'Analyzer'], ['playbook.html', 'Playbook'], ['insight.html', 'Insight Lab'], ['diagnostics.html', 'Diagnostics'], ['bots-library.html', 'Bots'], ['settings.html', 'Settings']];
+  const PAGES = [['index.html', 'Home'], ['rise-fall.html', 'Rise/Fall'], ['over-under.html', 'Over/Under'], ['even-odd.html', 'Even/Odd'], ['matches-differs.html', 'Matches/Differs'], ['analyzer.html', 'Analyzer'], ['strategies.html', 'Strategies'], ['bots-library.html', 'Bots'], ['playbook.html', 'Playbook'], ['insight.html', 'Insight Lab'], ['diagnostics.html', 'Diagnostics'], ['settings.html', 'Settings']];
   TW.setStatus = function (s, msg) {
     const d = $('#twDot'), t = $('#twStatus'); if (!d) return;
     d.className = 'dot ' + s;
@@ -579,7 +585,8 @@
   TW.mountTop = function (o) {
     o = o || {};
     const el = $('#top'); el.className = 'top';
-    el.innerHTML = `<div class="top-row"><a class="brand" href="index.html" aria-label="TickWealth home"><img src="logo-mark.svg" alt="" width="30" height="30"><span>Tick<b style="color:#00ffa3">Wealth</b></span></a>${o.symbols ? '<select class="sel" id="twSym" aria-label="Market"></select>' : ''}<span class="dot" id="twDot"></span><span class="mut" id="twStatus" style="font-size:11px"></span><span class="spacer"></span><button class="pill" id="twAcc" title="Account & mode"></button></div><nav class="nav">${PAGES.map(p => `<a href="${p[0]}" class="${p[0] === o.active ? 'on' : ''}">${p[1]}</a>`).join('')}</nav>`;
+    const isAct = p => p[0] === o.active || p[0].replace('.html','') === String(o.active).replace('.html','') || (p[0] === 'bots-library.html' && o.active === 'bots');
+    el.innerHTML = `<div class="top-row"><a class="brand" href="index.html" aria-label="TickWealth home"><img src="logo-mark.svg" alt="" width="30" height="30"><span>Tick<b style="color:#00ffa3">Wealth</b></span></a>${o.symbols ? '<select class="sel" id="twSym" aria-label="Market"></select>' : ''}<span class="dot" id="twDot"></span><span class="mut" id="twStatus" style="font-size:11px"></span><span class="spacer"></span><button class="pill" id="twAcc" title="Account & mode"></button></div><nav class="nav">${PAGES.map(p => `<a href="${p[0]}" class="${isAct(p) ? 'on' : ''}">${p[1]}</a>`).join('')}</nav>`;
     const out = { symbol: o.defaultSymbol || 'R_25' };
     if (o.symbols) {
       const sel = $('#twSym'), list = TW.VOLS.filter(v => o.symbols === 'all' || v.digits);

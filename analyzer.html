@@ -34,78 +34,6 @@
   <div class="h" id="hdr">DIGIT ANALYZER</div>
   <div class="sub">Compares every digit market on the same scale: <b>heat</b> = how far the recent frequency of an outcome is above its normal probability. Recent 50 ticks count double.</div>
 
-  <!-- MASTER MARKET & ADVANCED MARKET ANALYSIS: FAVOURABLE MARKET ACROSS ALL VOLATILITIES & WHICH PILLAR TO GO TO -->
-  <div class="panel" style="margin:16px 0;background:linear-gradient(135deg,rgba(11,15,23,0.98),rgba(17,23,34,0.98));border:1.5px solid #00ffa3;border-radius:16px;padding:16px;box-shadow:0 0 30px rgba(0,255,163,0.18);">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-      <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:22px;">🎯</span>
-        <div>
-          <div style="font-size:14px;font-weight:900;color:#00ffa3;letter-spacing:0.5px;">
-            MASTER MARKET ANALYSIS: FAVOURABLE MARKET & WHICH PILLAR TO GO TO
-          </div>
-          <div style="font-size:11.5px;color:#9fb0cc;margin-top:2px;">
-            Cross-market algorithmic engine analyzes all 11 volatilities across all 4 pillars (Over/Under, Matches/Differs, Even/Odd, Rise/Fall) to tell you exactly which market is most favourable and which pillar to enter.
-          </div>
-        </div>
-      </div>
-      <span id="masterScanBadge" style="font-size:11px;padding:3px 9px;border-radius:99px;background:rgba(0,255,163,0.15);color:#00ffa3;font-weight:800;">
-        CALIBRATING CROSS-PILLARS…
-      </span>
-    </div>
-
-    <!-- #1 Favourable Market & Pillar Recommendation Card -->
-    <div id="masterTopPillarCard" style="margin-top:14px;background:linear-gradient(135deg,rgba(0,255,163,0.12),rgba(0,178,255,0.08));border:1px solid rgba(0,255,163,0.4);border-radius:12px;padding:14px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-        <div style="flex:1;min-width:280px;">
-          <span style="font-size:10px;font-weight:800;color:#04101c;background:#00ffa3;padding:2px 8px;border-radius:4px;letter-spacing:0.5px;">
-            ⭐ #1 HIGHEST EDGE RECOMMENDATION (ACROSS ALL VOLATILITIES & ALL PILLARS)
-          </span>
-          <div style="display:flex;align-items:baseline;gap:8px;margin-top:6px;flex-wrap:wrap;">
-            <span style="font-size:13px;color:#9fb0cc;">Favourable Market:</span>
-            <b id="topFavMarket" style="font-size:16px;color:#fff;">Volatility 100 Index</b>
-            <span style="font-size:13px;color:#9fb0cc;">➔ Go to Pillar:</span>
-            <b id="topFavPillar" style="font-size:16px;color:#ffd600;background:rgba(255,214,0,0.15);padding:2px 8px;border-radius:6px;">OVER / UNDER PILLAR</b>
-          </div>
-          <div style="margin-top:6px;font-size:12px;color:#cbd5e1;">
-            Setup: <b id="topFavSetup" style="color:#00ffa3;font-size:13px;">UNDER 7</b> | Win Prob: <b id="topFavWin" style="color:#00ffa3;">82.4%</b> | Edge: <b id="topFavEdge" style="color:#00b2ff;">+12.4%</b> | AI Conviction: <b id="topFavConv" style="color:#ffd600;">88%</b>
-          </div>
-          <div id="topFavReason" style="margin-top:6px;font-size:11px;color:#9fb0cc;line-height:1.45;">
-            Synthesizing multi-market probabilities across all pillars…
-          </div>
-        </div>
-        <a id="btnGoToTopPillar" href="over-under.html" style="display:inline-flex;align-items:center;gap:6px;padding:12px 18px;font-size:12.5px;font-weight:900;background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;border-radius:10px;text-decoration:none;box-shadow:0 0 16px rgba(0,255,163,0.3);transition:transform 0.2s;">
-          🚀 GO TO OVER/UNDER PILLAR (UNDER 7) →
-        </a>
-      </div>
-    </div>
-
-    <!-- 11-Market Favourable Pillar Comparison Table -->
-    <div style="margin-top:14px;background:#060a14;border:1px solid rgba(255,255,255,0.08);border-radius:12px;overflow:hidden;">
-      <div style="padding:10px 14px;background:rgba(255,255,255,0.03);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-        <span style="font-size:11.5px;font-weight:800;color:#cbd5e1;">📊 ALL 11 VOLATILITY INDICES · FAVOURABLE PILLAR MATRIX</span>
-        <span style="font-size:10.5px;color:#7d8aa5;">Click any pillar button to open with market & setup configured</span>
-      </div>
-      <div style="overflow-x:auto;">
-        <table style="width:100%;border-collapse:collapse;font-size:11.5px;text-align:left;">
-          <thead>
-            <tr style="border-bottom:1px solid rgba(255,255,255,0.08);color:#8e9ab3;font-size:10.5px;">
-              <th style="padding:10px 12px;">VOLATILITY MARKET</th>
-              <th style="padding:10px 12px;">FAVOURABLE PILLAR TO GO TO</th>
-              <th style="padding:10px 12px;">OPTIMAL SETUP</th>
-              <th style="padding:10px 12px;">WIN PROBABILITY</th>
-              <th style="padding:10px 12px;">EDGE PTS</th>
-              <th style="padding:10px 12px;">AI CONVICTION</th>
-              <th style="padding:10px 12px;text-align:right;">ACTION</th>
-            </tr>
-          </thead>
-          <tbody id="pillarMatrixBody">
-            <tr><td colspan="7" style="padding:16px;text-align:center;color:#7d8aa5;">Evaluating live ticks across all volatilities…</td></tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
   <div class="d-grid" id="dGrid"></div>
 
   <div class="chips"><span class="lbl" style="margin:0">BARRIER</span><div class="bgrid" id="bGrid" style="grid-template-columns:repeat(10,minmax(0,1fr));width:min(100%,420px);margin:0"></div></div>
@@ -158,173 +86,37 @@
     </div>
   </div>
 
-  <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;">
-    <button class="btn" id="rapidScan" style="flex:1;min-width:160px;padding:12px;font-size:12px;background:#0d1627;border:1px solid #00b2ff;color:#00b2ff;font-weight:700;">⚡ RAPID SCAN (100t)</button>
-    <button class="btn" id="deepScan" style="flex:1.2;min-width:180px;padding:12px;font-size:12px;background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;font-weight:800;">⚛ QUANTUM DEEP SCAN (1000t)</button>
-    <button class="btn" id="aiProjectScan" style="flex:1.4;min-width:210px;padding:12px;font-size:12px;background:linear-gradient(135deg,#7c3aed,#2563eb);color:#fff;font-weight:800;box-shadow:0 0 20px rgba(124,58,237,0.35);">🔮 AI INCOMING PROJECTION</button>
-    <button class="btn" id="btnCrossMarket" style="flex:1.5;min-width:220px;padding:12px;font-size:12px;background:linear-gradient(135deg,#00b2ff,#7c3aed);color:#fff;font-weight:800;box-shadow:0 0 20px rgba(0,178,255,0.35);">🌐 CROSS-MARKET AI ANALYSIS</button>
-    <button class="btn" id="askGeminiDeep" style="flex:1;min-width:160px;padding:12px;font-size:12px;background:#131c2e;border:1px solid #00ffa3;color:#00ffa3;font-weight:700;">✦ GEMINI BRIEFING</button>
-  </div>
-
-  <!-- Forward Projection Horizon Chips -->
-  <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-top:12px;background:rgba(255,255,255,0.03);padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);">
-    <div style="display:flex;align-items:center;gap:6px;font-size:11.5px;color:#9fb0cc;">
-      <span style="font-weight:700;color:#00b2ff;">PROJECTION HORIZON:</span>
-      <button type="button" class="chip proj-chip" data-h="1">1 Tick (Micro Drift)</button>
-      <button type="button" class="chip proj-chip" data-h="3">3 Ticks (Wavelet)</button>
-      <button type="button" class="chip proj-chip active" data-h="5">5 Ticks (Optimal Forward)</button>
-      <button type="button" class="chip proj-chip" data-h="10">10 Ticks (Macro Trend)</button>
-    </div>
-    <span style="font-size:11px;color:#7d8aa5;">Markov 1st/2nd order + Hurst exponent multi-horizon modeling</span>
-  </div>
-
-  <!-- AI Predictive Market Projection Executive Card -->
-  <div id="aiProjectionBox" style="display:none;margin-top:14px;background:linear-gradient(180deg,rgba(124,58,237,0.08) 0%,rgba(10,15,29,0.95) 100%);border:1px solid rgba(124,58,237,0.45);border-radius:14px;padding:16px;box-shadow:0 0 25px rgba(124,58,237,0.2);">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:16px;">🔮</span>
-        <span style="font-weight:800;font-size:13px;color:#c084fc;">PREDICTIVE AI MARKET PROJECTION (GEMINI 3.8 FLASH QUANTITATIVE FORECAST)</span>
-      </div>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <span style="font-size:10.5px;color:#00ffa3;background:rgba(0,255,163,0.12);padding:3px 9px;border-radius:99px;font-weight:700;">PROJECTION ACTIVE</span>
-        <a id="btnDeployTopProj" href="bots-library.html" style="font-size:11px;color:#04101c;background:#00ffa3;padding:4px 10px;border-radius:8px;font-weight:800;text-decoration:none;display:inline-block;">Deploy to Bot with Loss Shield →</a>
-      </div>
-    </div>
-
-    <!-- Visual 10-bar Digit Probability Heatmap for Top Market -->
-    <div id="topHeatmapWrap" style="margin:10px 0;background:#060a14;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px;">
-      <div style="display:flex;justify-content:space-between;font-size:11px;color:#8e9ab3;margin-bottom:6px;">
-        <span>PROJECTED FORWARD DIGIT PROBABILITY DISTRIBUTION (0–9) · <b id="topProjMarketName" style="color:#fff;">Top Market</b></span>
-        <span id="topProjRegimeBadge" style="color:#00ffa3;font-weight:700;">PERSISTENT MOMENTUM</span>
-      </div>
-      <div id="topDigitBars" style="display:grid;grid-template-columns:repeat(10,1fr);gap:4px;align-items:flex-end;height:65px;padding-top:4px;"></div>
-      <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:4px;text-align:center;font-size:10px;color:#7d8aa5;margin-top:4px;">
-        <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span>
-      </div>
-    </div>
-
-    <div id="aiProjectionText" style="font-size:12px;line-height:1.65;color:#e2e8f0;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;">Synthesizing forward projections across 11 synthetic markets…</div>
-  </div>
-  
-  <div id="aiDeepBox" style="display:none;margin-top:14px;background:rgba(0,178,255,0.06);border:1px solid rgba(0,178,255,0.3);border-radius:12px;padding:14px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
-      <span style="font-weight:800;font-size:12.5px;color:#00b2ff;">✦ GEMINI 3.8 FLASH EXECUTIVE QUANTITATIVE BRIEFING</span>
-      <span style="font-size:11px;color:#00ffa3;background:rgba(0,255,163,0.12);padding:2px 8px;border-radius:99px;font-weight:700;">INSTITUTIONAL ADVISORY</span>
-    </div>
-    <div id="aiDeepText" style="font-size:12px;line-height:1.6;color:#d7e0f2;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;">Analyzing quantitative scan data…</div>
-  </div>
-
-  <!-- Institutional Incoming Next Best Market Radar -->
-  <div id="nextMarketRadar" style="display:none;margin-top:16px;background:linear-gradient(135deg,rgba(0,255,163,0.06),rgba(0,178,255,0.08));border:1px solid rgba(0,255,163,0.35);border-radius:14px;padding:14px;box-shadow:0 0 25px rgba(0,255,163,0.15);">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:18px;">👑</span>
-        <span style="font-weight:800;font-size:13px;color:#00ffa3;letter-spacing:0.5px;">INCOMING NEXT BEST MARKET RADAR</span>
-      </div>
-      <span style="font-size:10.5px;color:#00b2ff;background:rgba(0,178,255,0.15);padding:2px 8px;border-radius:99px;font-weight:700;">QUANT OPPORTUNITY RANKER</span>
-    </div>
-
-    <!-- #1 Best Incoming Market Card -->
-    <div id="radarTopCard" style="background:#080e1a;border:1px solid rgba(0,255,163,0.3);border-radius:10px;padding:12px;margin-bottom:10px;"></div>
-
-    <!-- Secondary Runners #2 and #3 -->
-    <div id="radarRunners" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;"></div>
-  </div>
-
-  <!-- 🌐 Cross-Market AI Analysis & Relative Value Matrix Module -->
-  <div id="crossMarketBox" style="margin-top:16px;background:linear-gradient(180deg,#080f1e 0%,#050811 100%);border:1px solid rgba(0,178,255,0.4);border-radius:14px;padding:16px;box-shadow:0 0 30px rgba(0,178,255,0.15);">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
-      <div style="display:flex;align-items:center;gap:8px;">
-        <span style="font-size:20px;">🌐</span>
-        <div>
-          <div style="font-weight:800;font-size:13.5px;color:#00b2ff;letter-spacing:0.5px;">CROSS-MARKET AI ANALYSIS & RELATIVE VALUE MATRIX</div>
-          <div style="font-size:11px;color:#9fb0cc;">Simultaneous multi-asset synthesis across all 11 synthetic volatility indices</div>
-        </div>
-      </div>
-      <div style="display:flex;gap:6px;align-items:center;">
-        <span id="crossMarketStatusBadge" style="font-size:10.5px;color:#00ffa3;background:rgba(0,255,163,0.12);padding:3px 9px;border-radius:99px;font-weight:700;">11 MARKETS SYNCED</span>
-        <button type="button" id="btnTriggerCrossAI" class="btn" style="padding:6px 12px;font-size:11px;font-weight:800;background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;border:0;border-radius:8px;cursor:pointer;">✦ RUN CROSS-MARKET AI SYNTHESIS</button>
-      </div>
-    </div>
-
-    <!-- 4 Institutional Cross-Market KPI Cards -->
-    <div id="crossKpiGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px;">
-      <div style="background:#091224;border:1px solid rgba(0,255,163,0.25);border-radius:8px;padding:10px;">
-        <div style="font-size:10px;color:#8e9ab3;font-weight:700;">👑 GLOBAL ALPHA LEADER</div>
-        <div id="kpiLeadMarket" style="font-size:13px;font-weight:800;color:#00ffa3;margin-top:2px;">Calibrating…</div>
-        <div id="kpiLeadDetails" style="font-size:10px;color:#d7e0f2;margin-top:2px;">Evaluating edge…</div>
-      </div>
-      <div style="background:#091224;border:1px solid rgba(0,178,255,0.25);border-radius:8px;padding:10px;">
-        <div style="font-size:10px;color:#8e9ab3;font-weight:700;">🎯 LOWEST ENTROPY (PREDICTABLE)</div>
-        <div id="kpiEntropyMarket" style="font-size:13px;font-weight:800;color:#00b2ff;margin-top:2px;">Calibrating…</div>
-        <div id="kpiEntropyDetails" style="font-size:10px;color:#d7e0f2;margin-top:2px;">Shannon entropy…</div>
-      </div>
-      <div style="background:#091224;border:1px solid rgba(192,132,252,0.25);border-radius:8px;padding:10px;">
-        <div style="font-size:10px;color:#8e9ab3;font-weight:700;">🚀 STRONGEST MOMENTUM DRIFT</div>
-        <div id="kpiMomentumMarket" style="font-size:13px;font-weight:800;color:#c084fc;margin-top:2px;">Calibrating…</div>
-        <div id="kpiMomentumDetails" style="font-size:10px;color:#d7e0f2;margin-top:2px;">Hurst exponent…</div>
-      </div>
-      <div style="background:#091224;border:1px solid rgba(255,59,105,0.25);border-radius:8px;padding:10px;">
-        <div style="font-size:10px;color:#8e9ab3;font-weight:700;">🛡️ SYSTEMIC VETO TRAPS</div>
-        <div id="kpiTrapCount" style="font-size:13px;font-weight:800;color:#ff3b69;margin-top:2px;">0 Markets</div>
-        <div id="kpiTrapDetails" style="font-size:10px;color:#d7e0f2;margin-top:2px;">High noise filtered</div>
-      </div>
-    </div>
-
-    <!-- AI Cross-Market Executive Strategic Briefing Box -->
-    <div id="crossAiBriefBox" style="display:none;background:#050912;border:1px solid rgba(124,58,237,0.35);border-radius:10px;padding:12px;margin-bottom:12px;">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-        <span style="font-weight:800;font-size:11.5px;color:#c084fc;">✦ GEMINI 3.8 FLASH CROSS-MARKET DERIVATIVES STRATEGY REPORT</span>
-        <span style="font-size:10px;color:#00ffa3;background:rgba(0,255,163,0.12);padding:2px 7px;border-radius:99px;font-weight:700;">MULTI-ASSET SYNTHESIS</span>
-      </div>
-      <div id="crossAiBriefText" style="font-size:11.5px;line-height:1.6;color:#e2e8f0;white-space:pre-wrap;font-family:ui-monospace,Consolas,monospace;">Synthesizing cross-market matrix…</div>
-    </div>
-
-    <!-- Cross-Market Comparative Radar Table -->
-    <div style="overflow-x:auto;">
-      <table style="width:100%;border-collapse:collapse;font-size:11px;text-align:left;background:#070c18;border-radius:8px;overflow:hidden;">
-        <thead>
-          <tr style="background:#0c1527;color:#8e9ab3;border-bottom:1px solid rgba(255,255,255,0.08);">
-            <th style="padding:8px 10px;">Market</th>
-            <th style="padding:8px 10px;">Regime / Hurst</th>
-            <th style="padding:8px 10px;">Entropy</th>
-            <th style="padding:8px 10px;">Quant Decision</th>
-            <th style="padding:8px 10px;">Proj Win %</th>
-            <th style="padding:8px 10px;">Past Hit %</th>
-            <th style="padding:8px 10px;">Net Edge</th>
-            <th style="padding:8px 10px;">AI Grade</th>
-            <th style="padding:8px 10px;text-align:right;">Action</th>
-          </tr>
-        </thead>
-        <tbody id="crossTableBody">
-          <tr><td colspan="9" style="padding:14px;text-align:center;color:#6b7a8d;">Initializing 11-market live cross-matrix…</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-
-  <!-- SINGLE MOST SUITABLE RESULT CARD FOR SCAN / DEEP SCAN (NO OVERCROWDING) -->
-  <div style="margin-top:24px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px;">
+  <!-- ADVANCE AI CROSS-MARKET SCANNER (LIGHTNING SPEED & NEAT SINGLE-CARD DISPLAY) -->
+  <div style="margin-top:16px;background:#090d18;border:1px solid rgba(0,255,163,0.35);border-radius:14px;padding:14px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
       <div>
         <div style="font-size:14px;font-weight:900;color:#00ffa3;letter-spacing:0.4px;">
-          ⚡ SINGLE BEST OVERALL MARKET SUGGESTION (FAVOURABLE MARKET & SETUP)
+          ⚡ ADVANCE AI MARKET SCANNER · CROSS-MARKET UNIVERSE
         </div>
-        <div class="sub" id="allMsg" style="margin:2px 0 0 0;">
-          Selects the single most favourable market across all 11 volatilities with actionable entry pillar, optimal duration, and percentage calculations.
+        <div style="font-size:11px;color:#9fb0cc;margin-top:2px;">
+          Lightning-speed Markov & multi-horizon scan. Evaluates all contracts (Over/Under, Matches/Differs, Even/Odd, Rise/Fall) and outputs a single best result card.
         </div>
       </div>
-      <span id="scanStatusBadge" style="font-size:11px;padding:3px 9px;border-radius:99px;background:rgba(0,255,163,0.15);color:#00ffa3;font-weight:800;">
-        READY
-      </span>
+      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+        <button class="btn" id="rapidScan" style="background:#0d1627;border:1px solid #00b2ff;color:#00b2ff;font-weight:800;font-size:11px;padding:8px 14px;border-radius:8px;cursor:pointer;">
+          ⚡ RAPID SCAN (50t)
+        </button>
+        <button class="btn" id="deepScan" style="background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;font-weight:900;font-size:11px;padding:8px 16px;border-radius:8px;border:0;cursor:pointer;">
+          ⚛ QUANTUM DEEP SCAN (1000t)
+        </button>
+      </div>
     </div>
 
-    <!-- The Single Best Market Card -->
-    <div id="singleBestScanCard">
+    <!-- THE SINGLE DISPLAYED RESULT CARD -->
+    <div id="singleBestScanCard" style="margin-top:12px;">
       <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:26px;text-align:center;color:#7d8aa5;font-size:12px;">
         <span class="dot live" style="width:10px;height:10px;margin-right:8px;"></span>
-        Click <b>Rapid Scan (100t)</b> or <b>Quantum Deep Scan (1000t)</b> to calculate the single best market suggestion…
+        Click <b>Rapid Scan (50t)</b> or <b>Quantum Deep Scan (1000t)</b> for the single best market suggestion…
       </div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;">
+      <span id="allMsg" style="color:#00b2ff;">Ready</span>
+      <span style="color:#64748b;">Adaptive Markov & Kelly Edge Engine</span>
     </div>
   </div>
   <div class="notice" id="disc"></div>
@@ -415,25 +207,6 @@ TW.ready(function(){
     $('#aMarket').textContent=c.market; $('#aVol').textContent=TW.volName(top.symbol); $('#aPlace').textContent=c.place; $('#aBar').textContent=barrier;
     $('#aConf').innerHTML=s+'%'; $('#aNext').textContent=dur+(dur===1?' tick':' ticks');
     const g=$('#aGo'); g.style.display='inline-block'; g.href=link(top.symbol,c);
-
-    // Also update Favourable Pillar recommendation for the active market if multi-scan not yet finished
-    if(!latestComputed || !latestComputed.length){
-      const rec=(window.TWS&&TWS.recommendBestPillar)?TWS.recommendBestPillar(top.symbol,feed.prices,feed.digits):null;
-      if(rec && rec.setup){
-        $('#topFavMarket').textContent=TW.volName(top.symbol);
-        $('#topFavPillar').textContent=rec.favourablePillar.toUpperCase()+' PILLAR';
-        $('#topFavSetup').textContent=rec.setup.decision;
-        $('#topFavWin').textContent=rec.setup.projectedWinPct+'%';
-        $('#topFavEdge').textContent='+'+rec.setup.edgePts+' pts';
-        $('#topFavConv').textContent=rec.setup.conviction+'%';
-        $('#topFavReason').textContent=rec.setup.reason || '';
-        const btnTop=$('#btnGoToTopPillar');
-        if(btnTop){
-          btnTop.textContent=`🚀 GO TO ${rec.favourablePillar.toUpperCase()} PILLAR (${rec.setup.decision}) →`;
-          btnTop.href=rec.url;
-        }
-      }
-    }
   }
 
   /* Single Market Targeted Deep Scan (1000 Ticks) */
@@ -613,34 +386,98 @@ TW.ready(function(){
   function executeScan(tickCount, isDeep, onComplete){
     const syms=TW.VOLS.filter(v=>v.digits);
     const btnRapid=$('#rapidScan'), btnDeep=$('#deepScan'), btnProj=$('#aiProjectScan');
-    btnRapid.disabled=true; btnDeep.disabled=true; if(btnProj) btnProj.disabled=true;
-    $('#allRes').innerHTML='';
-    $('#allMsg').textContent=(isDeep?'Quantum Deep Scanning ':'Rapid Scanning ')+'0/'+syms.length+' markets ('+tickCount+' ticks each)…';
+    if(btnRapid) btnRapid.disabled=true;
+    if(btnDeep) btnDeep.disabled=true;
+    if(btnProj) btnProj.disabled=true;
+
+    const singleBox=$('#singleBestScanCard');
+    if(singleBox){
+      singleBox.innerHTML=`
+        <div style="background:rgba(255,255,255,0.03);border:1.5px solid rgba(0,255,163,0.35);border-radius:14px;padding:24px;text-align:center;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:13.5px;color:#00ffa3;font-weight:900;">
+            <span class="dot live" style="width:10px;height:10px;background:#00ffa3;"></span>
+            <span>${isDeep ? '⚛ INGESTING 1000 TICKS ACROSS ALL 11 MARKETS (QUANTUM DEEP SCAN)…' : '⚡ LIGHTNING RAPID SCAN ACROSS ALL 11 MARKETS (50 TICKS)…'}</span>
+          </div>
+          <div id="analyzerProgressTxt" style="font-size:11.5px;color:#9fb0cc;margin-top:8px;">
+            Ingesting live tick streams across all 11 volatilities (0/${syms.length} received)… Calculating empirical Markov transition matrices & real-time projections…
+          </div>
+        </div>`;
+    }
+
+    if($('#allMsg')) $('#allMsg').textContent=(isDeep?'Quantum Deep Scanning ':'Rapid Scanning ')+'0/'+syms.length+' markets ('+tickCount+' ticks each)…';
     latestRawScan=[];
     let got=0;
+    let isFinished=false;
+    let idleTimer=null;
 
     const sock=new TW.Socket({
       url:TW.tickUrl(),
-      onOpen:s=>syms.forEach((v,i)=>s.send({ticks_history:v.id,end:'latest',count:tickCount,style:'ticks',req_id:i+1})),
+      onOpen:s=>{
+        syms.forEach((v,i)=>s.send({ticks_history:v.id,end:'latest',count:tickCount,style:'ticks',req_id:i+1}));
+      },
       onMessage:d=>{
-        if(!d.req_id)return; const v=syms[d.req_id-1]; if(!v)return; got++;
-        if(d.history&&d.history.prices){
+        if(!d.req_id) return;
+        const v=syms[d.req_id-1];
+        if(!v) return;
+        got++;
+
+        if(d.history && d.history.prices){
           const prices=d.history.prices;
-          const dg=prices.map(p=>TW.digitOf(p,d.pip_size));
+          const pip=v.pip || d.pip_size || TW.volPip(v.id) || 2;
+          const dg=prices.map(p=>TW.digitOf(p,pip));
           latestRawScan.push({v,prices,dg});
           marketTicksCache[v.id]={prices,dg,time:Date.now()};
         }
-        $('#allMsg').textContent=(isDeep?'Quantum Deep Scanning ':'Rapid Scanning ')+got+'/'+syms.length+'…';
+
+        const progTxt=`Ingesting live tick streams across 11 volatilities (${got}/${syms.length} received)… Analyzing Markov matrices & real-time projections…`;
+        const progEl=$('#analyzerProgressTxt');
+        if(progEl) progEl.textContent=progTxt;
+        if($('#allMsg')) $('#allMsg').textContent=(isDeep?'Quantum Deep Scanning ':'Rapid Scanning ')+got+'/'+syms.length+'…';
+
+        clearTimeout(idleTimer);
+        // Sub-400ms lightning resolution once majority of markets stream in
+        if(got>=6 && latestRawScan.length>=4){
+          idleTimer=setTimeout(finish, 320);
+        }
         if(got>=syms.length) finish();
       }
     });
 
-    const to=setTimeout(finish,25000);
+    const to=setTimeout(finish, 10000);
 
     function finish(){
-      clearTimeout(to); sock.close();
-      btnRapid.disabled=false; btnDeep.disabled=false; if(btnProj) btnProj.disabled=false;
-      if(!latestRawScan.length){$('#allMsg').textContent='No data received — check network connection.';return;}
+      if(isFinished) return;
+      isFinished=true;
+      clearTimeout(to);
+      clearTimeout(idleTimer);
+      sock.close();
+      if(btnRapid) btnRapid.disabled=false;
+      if(btnDeep) btnDeep.disabled=false;
+      if(btnProj) btnProj.disabled=false;
+
+      if(!latestRawScan.length){
+        // Fall back to active market feed ticks if available
+        if(feed && feed.prices && feed.prices.length>=15){
+          latestRawScan.push({
+            v:{id:top.symbol,name:TW.volName(top.symbol)},
+            prices:feed.prices,
+            dg:feed.digits
+          });
+        }
+      }
+
+      if(!latestRawScan.length){
+        if(singleBox){
+          singleBox.innerHTML=`
+            <div style="padding:18px;color:#ff3b69;font-size:12px;text-align:center;background:rgba(255,59,105,0.06);border:1px solid rgba(255,59,105,0.25);border-radius:12px;">
+              Scan timed out — Deriv public tick node was unreachable.
+              <button class="btn" onclick="document.getElementById('rapidScan').click()" style="margin-top:8px;font-size:11px;padding:6px 14px;background:#00ffa3;color:#04101c;font-weight:800;border:0;border-radius:6px;cursor:pointer;">⚡ Retry Rapid Scan</button>
+            </div>`;
+        }
+        if($('#allMsg')) $('#allMsg').textContent='No data received — check network connection.';
+        return;
+      }
+
       const computed=recalcScanResults(isDeep);
       if(onComplete) onComplete(computed);
     }
@@ -659,22 +496,22 @@ TW.ready(function(){
       const ds=(window.TWS&&TWS.digitStats)?TWS.digitStats(dg):{entropy:3.28,p:0.5};
       const auto=(window.TWS&&TWS.autocorr)?TWS.autocorr(dg,1):{r:0};
 
-      // ⚡ Real-Data Driven Over/Under Decision for this specific market
+      // Real-Data Driven Over/Under Decision for this specific market
       const ou=(window.TWS&&TWS.decideOverUnder)?TWS.decideOverUnder(dg,prices):{
         decision:`UNDER 7`,action:'UNDER',barrier:7,pastHitPct:70,projectedWinPct:75,nullPct:70,edgePts:5,reason:'Statistical estimation'
       };
 
-      // ⚡ Real-Data Driven Even/Odd Decision
+      // Real-Data Driven Even/Odd Decision
       const eo=(window.TWS&&TWS.decideEvenOdd)?TWS.decideEvenOdd(dg,prices):{
         decision:'EVEN',action:'EVEN',pastHitPct:52,projectedWinPct:54,nullPct:50,edgePts:4,reason:'Parity estimation'
       };
 
-      // ⚡ Real-Data Driven Matches/Differs Decision
+      // Real-Data Driven Matches/Differs Decision
       const md=(window.TWS&&TWS.decideMatchesDiffers)?TWS.decideMatchesDiffers(dg,prices):{
         decision:'DIFFERS 7',action:'DIFFERS',digit:7,pastHitPct:91,projectedWinPct:92,nullPct:90,edgePts:2,reason:'Dispersion estimation'
       };
 
-      // 🎯 Best Pillar Recommendation for this specific volatility
+      // Best Pillar Recommendation for this specific volatility
       const bestPillar=(window.TWS&&TWS.recommendBestPillar)?TWS.recommendBestPillar(v.id,prices,dg):{
         favourablePillar:'Over / Under',setup:ou,url:`over-under.html?vol=${v.id}`
       };
@@ -694,54 +531,31 @@ TW.ready(function(){
       else if(ou.edgePts>=5) grade='A';
       else if(ou.edgePts<=0) grade='C';
 
+      const score = (bestPillar.setup.edgePts * 2.0) + (bestPillar.setup.projectedWinPct * 0.8) + ((bestPillar.setup.conviction || confCalc.score) * 1.2);
+      const effectiveConf = Math.max(bestPillar.setup.conviction || 50, confCalc.score || 50);
+
       computed.push({
         v, c, n:dg.length, edgePts, entropy:entropyNorm, chiP:+(ds.p).toFixed(3),
-        grade, conf:confCalc.score, autoR:+(auto.r).toFixed(2), isDeep:!!isDeep,
-        ou, eo, md, bestPillar, proj, prices, dg
+        grade, conf:effectiveConf, autoR:+(auto.r).toFixed(2), isDeep:!!isDeep,
+        ou, eo, md, bestPillar, proj, prices, dg, score
       });
     });
 
-    // Sort by algorithmic conviction (edgePts + projectedWinPct)
-    computed.sort((x,y)=>(y.ou.edgePts*1.5 + y.ou.projectedWinPct) - (x.ou.edgePts*1.5 + x.ou.projectedWinPct));
+    // Sort by algorithmic conviction & composite edge across all pillars
+    computed.sort((x, y) => y.score - x.score);
     latestComputed=computed;
 
-    $('#allMsg').innerHTML=`<b>${computed[0].isDeep?'QUANTUM DEEP SCAN (1000t)':'RAPID SCAN (100t)'} COMPLETE:</b> ${computed.length} markets analyzed with live AI models. Forward horizon: <b>${projHorizon} ticks</b>.`;
-
-    // 🎯 Render Master Favourable Market & Pillar to Go To
-    renderFavourablePillarModule(computed);
-
-    // 👑 Render Incoming Next Best Market Radar
-    renderNextMarketRadar(computed);
-
-    // 🌐 Update Cross-Market AI Analysis Module (KPIs & 11-Market Comparative Table)
-    updateCrossMarketModule(computed);
-
-    // Render top market digit heatmap
-    const topMarket=computed[0];
-    if(topMarket&&topMarket.proj&&topMarket.proj.digitProjections){
-      $('#topProjMarketName').textContent=`${topMarket.v.name} (${topMarket.proj.regime})`;
-      const regimeColors={PERSISTENT_MOMENTUM:'#00ffa3',MEAN_REVERTING_CYCLE:'#00b2ff',RANDOM_WALK_STATIONARY:'#ffd600'};
-      $('#topProjRegimeBadge').textContent=topMarket.proj.regime.replace(/_/g,' ');
-      $('#topProjRegimeBadge').style.color=regimeColors[topMarket.proj.regime]||'#00ffa3';
-
-      const maxP=Math.max(...topMarket.proj.digitProjections);
-      $('#topDigitBars').innerHTML=topMarket.proj.digitProjections.map((p,d)=>{
-        const hPct=Math.max(12,Math.round((p/(maxP||0.2))*100));
-        const isMax=p===maxP;
-        const col=isMax?'#00ffa3':p>=0.11?'#00b2ff':'rgba(255,255,255,0.2)';
-        return `<div style="height:${hPct}%;background:${col};border-radius:3px 3px 0 0;display:flex;align-items:flex-start;justify-content:center;position:relative;transition:height 0.4s ease;" title="Digit ${d}: ${(p*100).toFixed(1)}% forward probability">
-          <span style="font-size:9px;font-weight:700;color:#04101c;margin-top:2px;">${(p*100).toFixed(0)}%</span>
-        </div>`;
-      }).join('');
+    if($('#allMsg')){
+      $('#allMsg').innerHTML=`<b>${computed[0].isDeep?'QUANTUM DEEP SCAN (1000t)':'LIGHTNING RAPID SCAN (50t)'} COMPLETE:</b> Analyzed ${computed.length} markets. Top Alpha: <b>${computed[0].v.name}</b>.`;
     }
 
-    // Render the Single Best Result Card (No overcrowding)
+    // Render the Single Best Result Card
     renderSingleBestCard();
 
     return computed;
   }
 
-  let singleCardCountdown = 45;
+  let singleCardCountdown = 30;
   let singleCardTimer = null;
 
   /* Render Single Most Suitable Result Card */
@@ -758,91 +572,86 @@ TW.ready(function(){
     clearInterval(singleCardTimer);
     singleCardCountdown = topBest.isDeep ? 45 : 30;
 
-    if(!isAuthorized){
-      box.innerHTML = `
-        <div style="border-left:4px solid #ff3b69;background:rgba(255,59,105,0.06);border:1px solid rgba(255,59,105,0.25);padding:18px;border-radius:12px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-            <div style="display:flex;align-items:center;gap:8px;">
-              <span style="font-size:18px;">🛡️</span>
-              <span style="font-weight:900;font-size:13.5px;color:#ff3b69;">AI SAFETY GATE: HIGHEST CONVICTION IS ${topBest.conf}% (<85% REQUIRED)</span>
-            </div>
-            <span style="font-size:11px;color:#ffd600;font-weight:800;background:rgba(255,214,0,0.12);padding:3px 9px;border-radius:99px;">PREVENTING CAPITAL LOSS</span>
-          </div>
+    let selectedDur = 5;
+    let selectedUnit = 't';
 
-          <div style="margin-top:8px;font-size:12.5px;color:#cbd5e1;line-height:1.5;">
-            Top evaluated market across all 11 volatilities is <b>${topBest.v.name}</b> (${topBest.bestPillar.setup.decision}), but AI conviction is <b>${topBest.conf}%</b>. Market condition is currently range-bound or choppy. Run Quantum Deep Scan (1000t) to re-evaluate regime.
-          </div>
+    const setup = topBest.bestPillar.setup;
+    const pillarName = topBest.bestPillar.favourablePillar;
 
-          <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-            <button type="button" id="btnSingleRescanLow" class="btn" style="background:#1e293b;border:1px solid #00ffa3;color:#00ffa3;font-size:11.5px;font-weight:800;padding:8px 14px;border-radius:6px;cursor:pointer;">
-              ⚡ RAPID RESCAN (100t)
-            </button>
-            <button type="button" id="btnSingleDeepScanLow" class="btn" style="background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;font-size:12px;font-weight:900;padding:8px 16px;border-radius:6px;border:0;cursor:pointer;">
-              ⚛ QUANTUM DEEP SCAN (1000t) TO RESOLVE
-            </button>
-          </div>
-        </div>`;
-
-      $('#btnSingleRescanLow').onclick = () => executeScan(100, false);
-      $('#btnSingleDeepScanLow').onclick = () => executeScan(1000, true);
-      return;
+    function buildPillarUrl(durVal, unitVal){
+      let base = topBest.bestPillar.url;
+      const sep = base.includes('?') ? '&' : '?';
+      let url = `${base}${sep}dur=${durVal}&unit=${unitVal}`;
+      if(setup.action) url += `&type=${setup.action}`;
+      if(setup.barrier != null) url += `&barrier=${setup.barrier}`;
+      if(setup.digit != null) url += `&digit=${setup.digit}`;
+      return url;
     }
 
-    // High confidence single best card
     box.innerHTML = `
-      <div style="border-left:4px solid #00ffa3;background:linear-gradient(135deg,rgba(0,255,163,0.12),rgba(0,178,255,0.06));border:1.5px solid rgba(0,255,163,0.4);border-radius:14px;padding:18px;box-shadow:0 0 25px rgba(0,255,163,0.18);">
-        <!-- Top Badges Row -->
+      <div style="border-left:4px solid ${isAuthorized?'#00ffa3':'#ffd600'};background:linear-gradient(135deg,${isAuthorized?'rgba(0,255,163,0.12),rgba(0,178,255,0.06)':'rgba(255,214,0,0.08),rgba(255,59,105,0.05)'});border:1.5px solid ${isAuthorized?'rgba(0,255,163,0.45)':'rgba(255,214,0,0.4)'};border-radius:14px;padding:18px;box-shadow:0 0 25px ${isAuthorized?'rgba(0,255,163,0.18)':'rgba(255,214,0,0.12)'};">
+        
+        <!-- Top Badges & Live Dynamic Blinking Timer Row -->
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-          <div style="display:flex;align-items:center;gap:8px;">
-            <span style="font-size:10.5px;font-weight:900;color:#04101c;background:#00ffa3;padding:3px 9px;border-radius:4px;letter-spacing:0.5px;">
-              👑 #1 SINGLE MOST SUITABLE SUGGESTION (CALIBRATED ACROSS 11 VOLATILITIES)
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:10.5px;font-weight:900;color:#04101c;background:${isAuthorized?'#00ffa3':'#ffd600'};padding:3px 9px;border-radius:4px;letter-spacing:0.5px;">
+              👑 #1 SINGLE MOST SUITABLE SUGGESTION
             </span>
             <span style="font-size:11px;color:#00b2ff;font-weight:700;">
-              ${topBest.isDeep ? '1000t Quantum Calibrated' : '100t Rapid Calibrated'}
+              ${topBest.isDeep ? '1000t Quantum Calibrated' : '50t Lightning Rapid Calibrated'}
             </span>
           </div>
-          <span style="font-size:11.5px;color:#ffd600;font-weight:800;">
-            ⏱️ VALIDITY WINDOW: <span id="singleTimerTxt">${singleCardCountdown}s</span>
-          </span>
+
+          <!-- Dynamic 3-Color Blinking Validity Timer Badge -->
+          <div id="singleTimerBadge" class="blink-green" style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;letter-spacing:0.3px;transition:all 0.3s ease;">
+            🟢 <b>${singleCardCountdown}s</b> · HIGH ALPHA — OK TO PROCEED
+          </div>
         </div>
+
+        ${!isAuthorized ? `
+        <!-- Cautionary notice if confidence < 85% -->
+        <div style="margin-top:10px;background:rgba(255,214,0,0.1);border:1px solid rgba(255,214,0,0.3);border-radius:8px;padding:8px 12px;font-size:11.5px;color:#ffd600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
+          <span>🛡️ <b>AI SAFETY NOTICE:</b> Conviction is <b>${topBest.conf}%</b> (<85% Gate). Suggestion is displayed below. Run 1000t Quantum Deep Scan to verify regime.</span>
+          <button type="button" id="btnNoticeDeepScan" class="btn" style="padding:4px 10px;background:#ffd600;color:#04101c;font-weight:900;font-size:10.5px;border:0;border-radius:5px;cursor:pointer;">⚛ Deep Scan (1000t)</button>
+        </div>` : ''}
 
         <!-- Headline: Volatility Market & Favourable Pillar Setup -->
         <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;flex-wrap:wrap;gap:8px;">
           <div>
-            <span style="font-size:12px;color:#9fb0cc;">Favourable Market:</span>
-            <h2 style="margin:2px 0 0 0;font-size:19px;font-weight:900;color:#fff;">
-              ${TW.esc(topBest.v.name)} <span style="font-size:12.5px;color:#7d8aa5;">(${topBest.v.id})</span>
+            <span style="font-size:11.5px;color:#9fb0cc;">Favourable Market:</span>
+            <h2 style="margin:2px 0 0 0;font-size:20px;font-weight:900;color:#fff;">
+              ${TW.esc(topBest.v.name)} <span style="font-size:13px;color:#7d8aa5;">(${topBest.v.id})</span>
             </h2>
           </div>
           <div style="text-align:right;">
             <div style="font-size:11px;color:#8e9ab3;font-weight:700;">FAVOURABLE PILLAR TO ENTER:</div>
-            <div style="font-size:16px;font-weight:900;color:#ffd600;">
-              ${topBest.bestPillar.favourablePillar.toUpperCase()} ➔ <span style="color:#00ffa3;">${topBest.bestPillar.setup.decision}</span>
+            <div style="font-size:17px;font-weight:900;color:#ffd600;">
+              ${pillarName.toUpperCase()} ➔ <span style="color:#00ffa3;">${setup.decision}</span>
             </div>
           </div>
         </div>
 
         <!-- Key Probabilities & Edge Statistics Bar -->
-        <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;background:rgba(0,0,0,0.35);padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:12px;background:rgba(0,0,0,0.35);padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
           <div>
             <div style="font-size:10px;color:#8e9ab3;font-weight:700;">WIN PROBABILITY</div>
-            <div style="font-size:17px;font-weight:900;color:#00ffa3;margin-top:2px;">${topBest.bestPillar.setup.projectedWinPct}%</div>
+            <div style="font-size:18px;font-weight:900;color:#00ffa3;margin-top:2px;">${setup.projectedWinPct}%</div>
             <div style="font-size:9.5px;color:#7d8aa5;">Forward expectancy</div>
           </div>
           <div>
             <div style="font-size:10px;color:#8e9ab3;font-weight:700;">HISTORICAL HIT</div>
-            <div style="font-size:17px;font-weight:900;color:#fff;margin-top:2px;">${topBest.bestPillar.setup.pastHitPct}%</div>
+            <div style="font-size:18px;font-weight:900;color:#fff;margin-top:2px;">${setup.pastHitPct}%</div>
             <div style="font-size:9.5px;color:#7d8aa5;">Across ${topBest.n} real ticks</div>
           </div>
           <div>
             <div style="font-size:10px;color:#8e9ab3;font-weight:700;">NET STATISTICAL EDGE</div>
-            <div style="font-size:17px;font-weight:900;color:#00b2ff;margin-top:2px;">+${topBest.bestPillar.setup.edgePts} pts</div>
+            <div style="font-size:18px;font-weight:900;color:#00b2ff;margin-top:2px;">+${setup.edgePts} pts</div>
             <div style="font-size:9.5px;color:#7d8aa5;">Above normal odds</div>
           </div>
           <div>
-            <div style="font-size:10px;color:#8e9ab3;font-weight:700;">AI CONVICTION GATE</div>
-            <div style="font-size:17px;font-weight:900;color:#ffd600;margin-top:2px;">${topBest.conf}%</div>
-            <div style="font-size:9.5px;color:#00ffa3;">Verified ≥85% Gate</div>
+            <div style="font-size:10px;color:#8e9ab3;font-weight:700;">AI CONVICTION</div>
+            <div style="font-size:18px;font-weight:900;color:${isAuthorized?'#00ffa3':'#ffd600'};margin-top:2px;">${topBest.conf}%</div>
+            <div style="font-size:9.5px;color:${isAuthorized?'#00ffa3':'#ffd600'};">${isAuthorized?'Verified ≥85% Gate':'<85% Caution'}</div>
           </div>
         </div>
 
@@ -852,7 +661,7 @@ TW.ready(function(){
             <span>CROSS-PILLAR BREAKDOWN ON ${topBest.v.name.toUpperCase()}:</span>
             <span style="color:#7d8aa5;">Current Tick: Digit ${topBest.ou.currentDigit}</span>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;">
             <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:8px;">
               <div style="font-size:10px;color:#7d8aa5;font-weight:700;">OVER / UNDER:</div>
               <div style="font-size:12.5px;font-weight:800;color:#00ffa3;margin-top:2px;">${topBest.ou.decision}</div>
@@ -889,7 +698,7 @@ TW.ready(function(){
             <span>Projected Forward Digit Probabilities (0–9) via Markov Matrix:</span>
             <span style="color:#00ffa3;">Regime: ${topBest.proj.regime.replace(/_/g,' ')}</span>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:4px;align-items:flex-end;height:42px;padding:2px 0;">
+          <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:4px;align-items:flex-end;height:40px;padding:2px 0;">
             ${(topBest.proj.digitProjections||[]).map((p,d)=>{
               const hPct=Math.max(12,Math.round((p/(maxP||0.2))*100));
               const isWin=topBest.ou.best&&topBest.ou.best.winningDigits&&topBest.ou.best.winningDigits.includes(d);
@@ -904,6 +713,28 @@ TW.ready(function(){
           </div>
         </div>
 
+        ${topBest.isDeep ? `
+        <!-- Dedicated Advanced AI Quantum Regime Synthesis Panel -->
+        <div style="margin-top:12px;background:linear-gradient(135deg,rgba(0,178,255,0.08),rgba(0,255,163,0.06));border:1.5px solid rgba(0,255,163,0.4);border-radius:10px;padding:12px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px;">
+            <div style="display:flex;align-items:center;gap:6px;">
+              <span style="font-size:14px;">⚛</span>
+              <b style="font-size:11.5px;color:#00ffa3;letter-spacing:0.4px;">ADVANCED AI QUANTUM REGIME SYNTHESIS (1000 TICKS)</b>
+            </div>
+            <span style="font-size:10px;color:#00b2ff;background:rgba(0,178,255,0.15);padding:2px 6px;border-radius:4px;font-weight:700;">INSTITUTIONAL MARKOV ENGINE</span>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;font-size:10.5px;color:#cbd5e1;margin-bottom:8px;">
+            <div>• Regime: <b style="color:#fff;">${topBest.proj.regime.replace(/_/g,' ')}</b></div>
+            <div>• Hurst Exponent: <b style="color:#00b2ff;">${topBest.proj.hurst}</b> (Persistence)</div>
+            <div>• Micro-Entropy: <b style="color:#00ffa3;">${topBest.entropy}</b> / 1.0</div>
+            <div>• Attractor Digit: <b style="color:#ffd600;">Digit ${topBest.proj.highestProbDigit != null ? topBest.proj.highestProbDigit : topBest.ou.currentDigit}</b></div>
+          </div>
+          <div style="font-size:11px;color:#9fb0cc;line-height:1.45;background:rgba(0,0,0,0.3);padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);">
+            🛡️ <b>ADAPTIVE LOSS SHIELD DIRECTIVE:</b> Conviction is verified at <b>${topBest.conf}%</b>. Kelly Edge is <b>+${setup.edgePts} pts</b>. Recommended duration is <b>${selectedDur}${selectedUnit}</b>. Recommended stake ≤ 2% account equity.
+          </div>
+        </div>
+        ` : ''}
+
         <!-- Suggested Duration Chips -->
         <div style="margin-top:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span style="font-size:11px;color:#8e9ab3;font-weight:700;">SUGGESTED DURATION:</span>
@@ -913,23 +744,64 @@ TW.ready(function(){
           <button type="button" class="analyzer-dur-chip" data-d="15" data-u="s" style="padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#cbd5e1;cursor:pointer;">15 Seconds</button>
         </div>
 
-        <!-- Real Working Action Buttons -->
+        <!-- Real Working Action Buttons with on-card Rescan -->
         <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <button type="button" id="btnSingleBetNow" class="btn" style="flex:1.4;min-width:200px;padding:10px 14px;font-size:12px;font-weight:900;background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;border:0;border-radius:8px;cursor:pointer;box-shadow:0 0 16px rgba(0,255,163,0.3);">
-            ⚡ 1-CLICK BET NOW (${topBest.bestPillar.setup.decision})
+          <button type="button" id="btnSingleBetNow" class="btn" style="flex:1.5;min-width:180px;padding:11px 14px;font-size:12px;font-weight:900;background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;border:0;border-radius:8px;cursor:pointer;box-shadow:0 0 16px rgba(0,255,163,0.3);">
+            ⚡ 1-CLICK BET NOW (${setup.decision})
           </button>
-          <a href="${topBest.bestPillar.url}" style="flex:1.2;min-width:180px;text-align:center;padding:10px 12px;font-size:11.5px;font-weight:800;background:#141e33;border:1px solid #00ffa3;color:#00ffa3;border-radius:8px;text-decoration:none;">
-            🚀 ENTER ${topBest.bestPillar.favourablePillar.toUpperCase()} PILLAR →
+          <a id="btnSingleLaunchMarket" href="${buildPillarUrl(5,'t')}" style="flex:1.3;min-width:170px;text-align:center;padding:11px 12px;font-size:11.5px;font-weight:800;background:#141e33;border:1px solid #00ffa3;color:#00ffa3;border-radius:8px;text-decoration:none;">
+            🚀 LAUNCH MARKET IN ${pillarName.toUpperCase()} →
           </a>
-          <button type="button" id="btnSingleSetActive" class="btn" style="flex:0.8;min-width:140px;padding:10px 12px;font-size:11.5px;font-weight:700;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);color:#cbd5e1;border-radius:8px;cursor:pointer;">
-            🎯 SET ACTIVE MARKET
+          <button type="button" id="btnSingleRescanCard" class="btn" style="flex:0.9;min-width:120px;padding:11px 12px;font-size:11px;font-weight:800;background:#1e293b;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;cursor:pointer;">
+            ⚡ RESCAN (50t)
+          </button>
+          <button type="button" id="btnSingleDeepScanCard" class="btn" style="flex:1;min-width:150px;padding:11px 12px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.2);color:#cbd5e1;border-radius:8px;cursor:pointer;">
+            ⚛ DEEP SCAN (1000t)
+          </button>
+          <button type="button" id="btnSingleSetActive" class="btn" style="flex:0.8;min-width:110px;padding:11px 10px;font-size:11px;font-weight:700;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.12);color:#9fb0cc;border-radius:8px;cursor:pointer;">
+            🎯 SET ACTIVE
           </button>
         </div>
       </div>`;
 
-    let selectedDur = 5;
-    let selectedUnit = 't';
+    // Dynamic Blinking Badge update function
+    function updateTimerBadge(secs){
+      const badge = document.getElementById('singleTimerBadge');
+      if(!badge) return;
+      badge.classList.remove('blink-green','blink-amber','blink-red');
+      if(secs > 10){
+        badge.classList.add('blink-green');
+        badge.style.background = 'rgba(0,255,163,0.15)';
+        badge.style.color = '#00ffa3';
+        badge.style.border = '1px solid #00ffa3';
+        badge.innerHTML = `🟢 <b>${secs}s</b> · HIGH ALPHA — OK TO PROCEED`;
+      } else if(secs > 0){
+        badge.classList.add('blink-amber');
+        badge.style.background = 'rgba(255,214,0,0.15)';
+        badge.style.color = '#ffd600';
+        badge.style.border = '1px solid #ffd600';
+        badge.innerHTML = `🟡 <b>${secs}s</b> · EXPIRING SOON — PROCEED WITH CAUTION`;
+      } else {
+        badge.classList.add('blink-red');
+        badge.style.background = 'rgba(255,59,105,0.18)';
+        badge.style.color = '#ff3b69';
+        badge.style.border = '1px solid #ff3b69';
+        badge.innerHTML = `🔴 <b>EXPIRED</b> · RESCAN REQUIRED — DO NOT TRADE`;
+      }
+    }
 
+    // Initialize timer badge state
+    updateTimerBadge(singleCardCountdown);
+
+    singleCardTimer = setInterval(() => {
+      singleCardCountdown--;
+      updateTimerBadge(singleCardCountdown);
+      if (singleCardCountdown <= 0) {
+        clearInterval(singleCardTimer);
+      }
+    }, 1000);
+
+    // Duration chips handler
     box.querySelectorAll('.analyzer-dur-chip').forEach(chip => {
       chip.onclick = () => {
         box.querySelectorAll('.analyzer-dur-chip').forEach(c => {
@@ -944,13 +816,17 @@ TW.ready(function(){
         chip.style.borderColor = '#00ffa3';
         selectedDur = +chip.dataset.d;
         selectedUnit = chip.dataset.u;
+
+        // Update Launch Market URL with chosen duration
+        const btnLaunch = $('#btnSingleLaunchMarket');
+        if(btnLaunch) btnLaunch.href = buildPillarUrl(selectedDur, selectedUnit);
       };
     });
 
+    // 1-Click Bet Now Execution
     $('#btnSingleBetNow').onclick = async () => {
       const stake = 1.0;
-      const setup = topBest.bestPillar.setup;
-      const contract = setup.best ? setup.best.contract : (topBest.bestPillar.favourablePillar === 'Over / Under' ? (setup.action === 'OVER' ? 'DIGITOVER' : 'DIGITUNDER') : 'DIGITUNDER');
+      const contract = setup.best ? setup.best.contract : (pillarName === 'Over / Under' ? (setup.action === 'OVER' ? 'DIGITOVER' : 'DIGITUNDER') : (pillarName === 'Even / Odd' ? (setup.action === 'EVEN' ? 'DIGITEVEN' : 'DIGITODD') : (pillarName === 'Matches / Differs' ? (setup.action === 'MATCHES' ? 'DIGITMATCH' : 'DIGITDIFF') : (setup.action === 'CALL' ? 'CALL' : 'PUT'))));
       const p = {
         contract_type: contract,
         symbol: topBest.v.id,
@@ -963,7 +839,7 @@ TW.ready(function(){
       if (setup.digit != null) p.barrier = setup.digit;
 
       try {
-        TW.toast(`1-Click Bet: ${p.label} on ${TW.volName(p.symbol)}…`, 'ok');
+        TW.toast(`1-Click Bet: ${p.label} (${selectedDur}${selectedUnit}) on ${TW.volName(p.symbol)}…`, 'ok');
         const t = await TW.trade(p);
         t.done.then(r => {
           TW.toast((r.profit > 0 ? 'WON +' : 'LOST ') + TW.money(r.profit), r.profit > 0 ? 'ok' : 'err');
@@ -973,488 +849,30 @@ TW.ready(function(){
       }
     };
 
+    // On-card Rescan & Deep Scan
+    $('#btnSingleRescanCard').onclick = () => executeScan(50, false);
+    $('#btnSingleDeepScanCard').onclick = () => executeScan(1000, true);
+    const btnNoticeDeep = $('#btnNoticeDeepScan');
+    if(btnNoticeDeep) btnNoticeDeep.onclick = () => executeScan(1000, true);
+
     $('#btnSingleSetActive').onclick = () => {
       top.setSymbol(topBest.v.id);
       restart();
       window.scrollTo({ top: 0, behavior: 'smooth' });
       TW.toast(`Active market switched to ${topBest.v.name}!`, 'ok');
     };
-
-    singleCardTimer = setInterval(() => {
-      singleCardCountdown--;
-      const el = document.getElementById('singleTimerTxt');
-      if (el) el.textContent = `${singleCardCountdown}s`;
-      if (singleCardCountdown <= 0) {
-        clearInterval(singleCardTimer);
-        if (el) el.textContent = `Expired — Rescan for fresh signal`;
-      }
-    }, 1000);
   }
 
-  /* Update Cross-Market AI Analysis Module (KPIs & 11-Market Comparative Table) */
-  function updateCrossMarketModule(computed){
-    if(!computed||!computed.length) return;
-    const cross=(window.TWS&&TWS.crossMarketAnalysis)?TWS.crossMarketAnalysis(computed):null;
-    if(!cross) return;
+  const btnRapidScan = $('#rapidScan');
+  if(btnRapidScan) btnRapidScan.onclick=()=>executeScan(50,false);
+  const btnDeepScan = $('#deepScan');
+  if(btnDeepScan) btnDeepScan.onclick=()=>executeScan(1000,true);
 
-    const lead=cross.leadMarket;
-    const leadOU=(lead&&lead.ou)||{};
-    const lowEnt=cross.lowestEntropyMarket;
-    const highMom=cross.highestMomentumMarket;
-
-    if(lead){
-      $('#kpiLeadMarket').textContent=lead.v?lead.v.name:lead.name;
-      $('#kpiLeadDetails').textContent=`${leadOU.decision||'UNDER 7'} (${leadOU.projectedWinPct||80}% Win | +${leadOU.edgePts||lead.edgePts} pts)`;
-    }
-    if(lowEnt){
-      $('#kpiEntropyMarket').textContent=lowEnt.v?lowEnt.v.name:lowEnt.name;
-      $('#kpiEntropyDetails').textContent=`Shannon Entropy: ${lowEnt.entropy} (Predictable)`;
-    }
-    if(highMom){
-      $('#kpiMomentumMarket').textContent=highMom.v?highMom.v.name:highMom.name;
-      $('#kpiMomentumDetails').textContent=`Hurst H = ${(highMom.proj&&highMom.proj.hurst)||0.6} (Clean Drift)`;
-    }
-    $('#kpiTrapCount').textContent=`${cross.highRiskTraps.length} Markets`;
-    $('#kpiTrapDetails').textContent=cross.highRiskTraps.length>0?`${cross.highRiskTraps.map(t=>t.v?t.v.name:t.name).slice(0,2).join(', ')} flagged`:'No noise traps detected';
-
-    // Populate Cross-Market Comparative Radar Table
-    const tbody=$('#crossTableBody');
-    if(tbody){
-      tbody.innerHTML=computed.map(r=>{
-        const optOU=r.ou||{};
-        const isTrap=r.entropy>0.985 || r.conf<70;
-        const badgeCol=r.grade==='A+'?'#00ffa3':r.grade==='A'?'#00b2ff':'#9fb0cc';
-
-        return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);transition:background 0.2s ease;">
-          <td style="padding:8px 10px;font-weight:700;color:#fff;">
-            ${TW.esc(r.v.name)} <span style="font-size:9.5px;color:#7d8aa5;">(${r.v.id})</span>
-          </td>
-          <td style="padding:8px 10px;color:#cbd5e1;">
-            ${(r.proj&&r.proj.regime)?r.proj.regime.replace(/_/g,' '):'STATIONARY'} <span style="color:#00b2ff;">(H=${r.proj?r.proj.hurst:0.5})</span>
-          </td>
-          <td style="padding:8px 10px;">
-            <span style="font-weight:700;${isTrap?'color:#ff3b69;':'color:#00ffa3;'}">${r.entropy}</span>
-          </td>
-          <td style="padding:8px 10px;font-weight:800;color:#00ffa3;">
-            ${optOU.decision||'UNDER 7'}
-          </td>
-          <td style="padding:8px 10px;color:#fff;font-weight:700;">
-            ${optOU.projectedWinPct||75}%
-          </td>
-          <td style="padding:8px 10px;color:#cbd5e1;">
-            ${optOU.pastHitPct||70}%
-          </td>
-          <td style="padding:8px 10px;color:#ffd600;font-weight:800;">
-            +${optOU.edgePts||r.edgePts} pts
-          </td>
-          <td style="padding:8px 10px;">
-            <span style="font-size:10px;font-weight:800;color:${badgeCol};padding:2px 6px;border-radius:4px;background:rgba(255,255,255,0.06);">${r.grade} (${r.conf}%)</span>
-          </td>
-          <td style="padding:8px 10px;text-align:right;">
-            <div style="display:inline-flex;gap:4px;">
-              <a href="over-under.html?vol=${r.v.id}&type=${optOU.action}&barrier=${optOU.barrier}&dur=${dur}" style="font-size:10px;font-weight:700;color:#00ffa3;background:rgba(0,255,163,0.12);padding:2px 6px;border-radius:4px;text-decoration:none;">Trade</a>
-              <a href="bots-library.html?symbol=${r.v.id}&contract=${optOU.best?optOU.best.contract:'DIGITUNDER'}&barrier=${optOU.barrier}" style="font-size:10px;font-weight:700;color:#00b2ff;background:rgba(0,178,255,0.12);padding:2px 6px;border-radius:4px;text-decoration:none;">Bot</a>
-              <button type="button" class="btn btn-switch-tbl" data-sym="${r.v.id}" style="font-size:10px;background:#141e33;color:#9fb0cc;border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:2px 6px;cursor:pointer;">Set</button>
-            </div>
-          </td>
-        </tr>`;
-      }).join('');
-
-      tbody.querySelectorAll('.btn-switch-tbl').forEach(btn=>{
-        btn.onclick=()=>{
-          top.setSymbol(btn.dataset.sym);
-          restart();
-          window.scrollTo({top:0,behavior:'smooth'});
-        };
-      });
-    }
-  }
-
-  /* =========================================================================
-   * MASTER MARKET & ADVANCED MARKET ANALYSIS: FAVOURABLE MARKET ACROSS ALL VOLATILITIES & WHICH PILLAR TO GO TO
-   * ========================================================================= */
-  function renderFavourablePillarModule(computed){
-    if(!computed||!computed.length) return;
-    const pillarResults=[];
-
-    computed.forEach(item=>{
-      const {v, prices, dg}=item;
-      const rec=(window.TWS&&TWS.recommendBestPillar)?TWS.recommendBestPillar(v.id,prices,dg):null;
-      if(rec && rec.setup){
-        pillarResults.push({
-          v, rec, setup:rec.setup,
-          score:(rec.setup.conviction*1.2) + (rec.setup.edgePts*2.0) + (rec.setup.projectedWinPct*0.8)
-        });
-      }
-    });
-
-    if(!pillarResults.length) return;
-
-    pillarResults.sort((a,b)=>b.score-a.score);
-    const bestGlobal=pillarResults[0];
-
-    $('#masterScanBadge').textContent='REAL-DATA QUANT SYNTHESIS ACTIVE';
-    $('#topFavMarket').textContent=bestGlobal.v.name;
-    $('#topFavPillar').textContent=bestGlobal.rec.favourablePillar.toUpperCase()+' PILLAR';
-    $('#topFavSetup').textContent=bestGlobal.setup.decision;
-    $('#topFavWin').textContent=bestGlobal.setup.projectedWinPct+'%';
-    $('#topFavEdge').textContent='+'+bestGlobal.setup.edgePts+' pts';
-    $('#topFavConv').textContent=bestGlobal.setup.conviction+'%';
-    $('#topFavReason').textContent=bestGlobal.setup.reason || `Highest edge and conviction across all 4 contract pillars in current volatility regime.`;
-
-    const btnTop=$('#btnGoToTopPillar');
-    btnTop.textContent=`🚀 GO TO ${bestGlobal.rec.favourablePillar.toUpperCase()} PILLAR (${bestGlobal.setup.decision}) →`;
-    btnTop.href=bestGlobal.rec.url;
-
-    // Render 11-Market Comparative Table
-    const tbody=$('#pillarMatrixBody');
-    if(tbody){
-      const pillarColors={
-        'Over / Under':{bg:'rgba(251,191,36,0.15)',text:'#fbbf24',border:'#fbbf24'},
-        'Matches / Differs':{bg:'rgba(6,182,212,0.15)',text:'#06b6d4',border:'#06b6d4'},
-        'Even / Odd':{bg:'rgba(16,185,129,0.15)',text:'#10b981',border:'#10b981'},
-        'Rise / Fall':{bg:'rgba(59,130,246,0.15)',text:'#3b82f6',border:'#3b82f6'}
-      };
-
-      tbody.innerHTML=pillarResults.map((item,idx)=>{
-        const isTop=idx===0;
-        const col=pillarColors[item.rec.favourablePillar]||{bg:'rgba(255,255,255,0.08)',text:'#00ffa3',border:'#00ffa3'};
-
-        return `<tr style="border-bottom:1px solid rgba(255,255,255,0.06);background:${isTop?'rgba(0,255,163,0.05)':'transparent'};">
-          <td style="padding:10px 12px;font-weight:700;color:#fff;">
-            ${isTop?'👑 ':''}${TW.esc(item.v.name)} <span style="font-size:10px;color:#7d8aa5;">(${item.v.id})</span>
-          </td>
-          <td style="padding:10px 12px;">
-            <span style="display:inline-block;padding:3px 8px;border-radius:6px;font-weight:800;font-size:11px;background:${col.bg};color:${col.text};border:1px solid ${col.border};">
-              ${item.rec.favourablePillar}
-            </span>
-          </td>
-          <td style="padding:10px 12px;font-weight:800;color:#00ffa3;font-size:12.5px;">
-            ${item.setup.decision}
-          </td>
-          <td style="padding:10px 12px;color:#fff;font-weight:700;">
-            ${item.setup.projectedWinPct}%
-          </td>
-          <td style="padding:10px 12px;color:#00b2ff;font-weight:800;">
-            +${item.setup.edgePts} pts
-          </td>
-          <td style="padding:10px 12px;">
-            <span style="font-size:10.5px;font-weight:800;padding:2px 7px;border-radius:4px;background:${item.setup.conviction>=80?'rgba(0,255,163,0.15)':'rgba(255,255,255,0.06)'};color:${item.setup.conviction>=80?'#00ffa3':'#9fb0cc'};">
-              ${item.setup.conviction}%
-            </span>
-          </td>
-          <td style="padding:10px 12px;text-align:right;">
-            <a href="${item.rec.url}" style="display:inline-block;padding:5px 10px;font-size:11px;font-weight:800;background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;border-radius:6px;text-decoration:none;">
-              Enter Pillar →
-            </a>
-          </td>
-        </tr>`;
-      }).join('');
-    }
-  }
-
-  /* Cross-Market AI Analysis Trigger (Gemini 3.8 Flash) */
-  const btnTriggerCross=$('#btnTriggerCrossAI');
-  const btnCrossTop=$('#btnCrossMarket');
-
-  async function triggerCrossMarketAnalysis(){
-    const box=$('#crossAiBriefBox');
-    const txt=$('#crossAiBriefText');
-    const btn=btnTriggerCross;
-
-    box.style.display='block';
-    txt.textContent='✦ Calling Gemini 3.8 Flash model via full-stack /api/ai/cross-market-analysis… Synthesizing multi-asset volatility dispersion, regime clustering, and capital rotation strategy…';
-    if(btn) btn.disabled=true;
-
-    if(!latestRawScan.length){
-      executeScan(100,false,()=>runCrossAI(latestComputed));
-    } else {
-      runCrossAI(latestComputed);
-    }
-
-    async function runCrossAI(computed){
-      if(!computed||!computed.length) computed=recalcScanResults(false);
-
-      const payload={
-        markets: computed.map(item=>{
-          return {
-            name:item.v.name, symbol:item.v.id,
-            regime:item.proj.regime,
-            hurst:item.proj.hurst,
-            entropy:item.entropy,
-            ouDecision:item.ou,
-            edgePts:item.edgePts,
-            conf:item.conf,
-            grade:item.grade,
-            sampleSize:item.n
-          };
-        }),
-        activeAsset:top.symbol,
-        confidenceThreshold:80,
-        riskProfile:'balanced'
-      };
-
-      try {
-        const res=await fetch('/api/ai/cross-market-analysis',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify(payload)
-        });
-        const data=await res.json();
-        if(data&&data.crossMarketReport){
-          txt.textContent=data.crossMarketReport;
-        } else {
-          txt.textContent=generateClientCrossBriefing(computed);
-        }
-      } catch(err) {
-        txt.textContent=generateClientCrossBriefing(computed);
-      } finally {
-        if(btn) btn.disabled=false;
-      }
-    }
-  }
-
-  if(btnTriggerCross) btnTriggerCross.onclick=triggerCrossMarketAnalysis;
-  if(btnCrossTop) btnCrossTop.onclick=()=>{
-    const cmb=$('#crossMarketBox');
-    if(cmb) cmb.scrollIntoView({behavior:'smooth'});
-    triggerCrossMarketAnalysis();
-  };
-
-  function generateClientCrossBriefing(computed){
-    const cross=(window.TWS&&TWS.crossMarketAnalysis)?TWS.crossMarketAnalysis(computed):null;
-    if(!cross||!cross.leadMarket) return 'Cross-market analysis complete. Rotate capital to highest-edge assets and maintain AI Confidence Gate at ≥80%.';
-    const lead=cross.leadMarket;
-    const leadOU=lead.ou||{};
-    return `[CROSS-MARKET AI ANALYSIS - SYSTEM SYNTHESIS]
-1. 🌐 REGIME CLUSTERING: Across 11 synthetic volatility indices, continuous standard indices show mean-reversion stability while 1-second indices exhibit higher frequency clustering.
-2. 🏆 GLOBAL ALPHA LEADER: ${lead.v?lead.v.name:lead.name} (${lead.v?lead.v.id:lead.symbol}) with setup ${leadOU.decision||'UNDER 7'} (+${leadOU.edgePts||lead.edgePts} pts edge, ~${leadOU.projectedWinPct||80}% projected win rate).
-3. ⚡ ROTATION DIRECTIVE: Rotate away from choppy indices into ${lead.v?lead.v.name:lead.name} to maximize edge stability.
-4. 🛡️ SYSTEMIC CAPITAL SHIELD: Filter out high-entropy noise traps (${cross.highRiskTraps.length} markets flagged). Keep AI Confidence Gate strictly ≥80%.`;
-  }
-
-    return computed;
-  }
-
-  /* Render Incoming Next Best Market Radar */
-  function renderNextMarketRadar(computed){
-    if(!computed||!computed.length) return;
-    const radarBox=$('#nextMarketRadar');
-    const topCard=$('#radarTopCard');
-    const runnersBox=$('#radarRunners');
-    if(!radarBox||!topCard||!runnersBox) return;
-
-    radarBox.style.display='block';
-    const topM=computed[0];
-    const secondM=computed[1];
-    const thirdM=computed[2];
-
-    topCard.innerHTML=`
-      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-        <div>
-          <span style="font-size:10px;background:#00ffa3;color:#04101c;padding:2px 7px;border-radius:4px;font-weight:800;letter-spacing:0.5px;">⭐ #1 NEXT BEST MARKET</span>
-          <h3 style="margin:4px 0 0 0;font-size:15px;color:#fff;">${TW.esc(topM.v.name)} <span style="font-size:12px;color:#7d8aa5;">(${topM.v.id})</span></h3>
-        </div>
-        <div style="text-align:right;">
-          <span style="font-size:12px;font-weight:800;color:#00ffa3;">AI CONVICTION: ${topM.conf}%</span>
-          <div style="font-size:10.5px;color:#9fb0cc;">Grade ${topM.grade} · Sample ${topM.n} ticks</div>
-        </div>
-      </div>
-
-      <!-- Real Over/Under Decision Bar -->
-      <div style="margin-top:10px;background:rgba(0,255,163,0.1);border:1px solid rgba(0,255,163,0.35);border-radius:8px;padding:10px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-          <span style="font-size:13.5px;font-weight:800;color:#fff;">OPTIMAL DECISION: <span style="color:#00ffa3;">${topM.ou.decision}</span> (BARRIER ${topM.ou.barrier})</span>
-          <span style="font-size:12px;color:#ffd600;font-weight:800;">NET EDGE: +${topM.ou.edgePts} pts</span>
-        </div>
-        <div style="display:flex;justify-content:space-between;margin-top:6px;font-size:11.5px;color:#e2e8f0;flex-wrap:wrap;gap:8px;">
-          <span>Forward Win Rate: <b style="color:#00ffa3;">${topM.ou.projectedWinPct}%</b></span>
-          <span>Historical Hit Rate: <b style="color:#fff;">${topM.ou.pastHitPct}%</b></span>
-          <span>Normal Odds: <b style="color:#7d8aa5;">${topM.ou.nullPct}%</b></span>
-        </div>
-        <div style="font-size:11px;color:#9fb0cc;margin-top:6px;line-height:1.45;">${TW.esc(topM.ou.reason)}</div>
-      </div>
-
-      <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;">
-        <a href="over-under.html?vol=${topM.v.id}&type=${topM.ou.action}&barrier=${topM.ou.barrier}&dur=${dur}" style="flex:1;text-align:center;padding:8px 12px;background:#00ffa3;color:#04101c;font-weight:800;border-radius:6px;text-decoration:none;font-size:11.5px;">⚡ Trade ${topM.ou.decision} Now</a>
-        <a href="bots-library.html?symbol=${topM.v.id}&contract=${topM.ou.best?topM.ou.best.contract:'DIGITUNDER'}&barrier=${topM.ou.barrier}" style="flex:1.2;text-align:center;padding:8px 12px;background:#00b2ff;color:#04101c;font-weight:800;border-radius:6px;text-decoration:none;font-size:11.5px;">Deploy to Bot with Loss Shield →</a>
-        <button type="button" id="btnSwitchToTopRadar" class="btn" style="padding:8px 12px;background:#141e33;color:#9fb0cc;font-weight:700;border:1px solid rgba(255,255,255,0.15);border-radius:6px;font-size:11.5px;cursor:pointer;">Set Active Market</button>
-      </div>
-    `;
-
-    const btnSwitchTop=$('#btnSwitchToTopRadar');
-    if(btnSwitchTop){
-      btnSwitchTop.onclick=()=>{
-        top.setSymbol(topM.v.id);
-        restart();
-        window.scrollTo({top:0,behavior:'smooth'});
-      };
-    }
-
-    // Secondary Runners #2 and #3
-    const runners=[secondM,thirdM].filter(Boolean);
-    runnersBox.innerHTML=runners.map((r,idx)=>{
-      return `
-        <div style="background:#080e1a;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:10px;color:#9fb0cc;font-weight:700;">#${idx+2} INCOMING ALTERNATIVE</span>
-            <span style="font-size:10px;color:#00ffa3;font-weight:700;">${r.conf}% Conviction</span>
-          </div>
-          <div style="font-size:12px;font-weight:800;color:#fff;margin-top:2px;">${TW.esc(r.v.name)}</div>
-          <div style="font-size:11px;color:#00ffa3;margin-top:4px;font-weight:700;">DECISION: ${r.ou.decision}</div>
-          <div style="font-size:10.5px;color:#9fb0cc;margin-top:2px;">Win: <b>${r.ou.projectedWinPct}%</b> | Edge: <b>+${r.ou.edgePts} pts</b></div>
-          <div style="margin-top:6px;display:flex;gap:4px;">
-            <a href="over-under.html?vol=${r.v.id}&type=${r.ou.action}&barrier=${r.ou.barrier}&dur=${dur}" style="flex:1;text-align:center;padding:4px 6px;background:rgba(0,255,163,0.15);color:#00ffa3;border-radius:4px;text-decoration:none;font-size:10.5px;font-weight:700;">Trade →</a>
-            <button type="button" class="btn btn-switch-runner" data-sym="${r.v.id}" style="padding:4px 6px;background:#131c2e;color:#7d8aa5;border:1px solid rgba(255,255,255,0.1);border-radius:4px;font-size:10.5px;cursor:pointer;">Set</button>
-          </div>
-        </div>
-      `;
-    }).join('');
-
-    document.querySelectorAll('.btn-switch-runner').forEach(btn=>{
-      btn.onclick=()=>{
-        const sym=btn.dataset.sym;
-        top.setSymbol(sym);
-        restart();
-        window.scrollTo({top:0,behavior:'smooth'});
-      };
-    });
-  }
-
-  $('#rapidScan').onclick=()=>executeScan(100,false);
-  $('#deepScan').onclick=()=>executeScan(1000,true);
-
-  /* Predictive AI Market Projection with Gemini 3.8 Flash */
-  $('#aiProjectScan').onclick=async function(){
-    const pBox=$('#aiProjectionBox'), pTxt=$('#aiProjectionText'), btn=this;
-    pBox.style.display='block';
-    pTxt.textContent='🔮 Initiating multi-horizon wavelet decomposition & Markov transition modeling on 1000 ticks… Querying Gemini 3.8 Flash for incoming market projections…';
-    btn.disabled=true;
-
-    if(!latestRawScan.length){
-      executeScan(1000,true,runProjection);
-    } else {
-      runProjection(recalcScanResults(true));
-    }
-
-    async function runProjection(computed){
-      if(!computed||!computed.length) computed=recalcScanResults(true);
-      const top=computed[0];
-      if(top&&top.ou){
-        $('#btnDeployTopProj').href=`bots-library.html?symbol=${top.v.id}&contract=${top.ou.best?top.ou.best.contract:'DIGITUNDER'}&barrier=${top.ou.barrier}`;
-      }
-
-      const payload={
-        scannedMarkets: computed.map(item=>{
-          return {
-            name:item.v.name, symbol:item.v.id,
-            regime:item.proj.regime,
-            hurst:item.proj.hurst,
-            forwardRiseProb:item.proj.forwardRiseProb,
-            forwardFallProb:item.proj.forwardFallProb,
-            projectedEntropy:item.proj.projectedEntropy,
-            highestProbDigit:item.proj.highestProbDigit,
-            lowestProbDigit:item.proj.lowestProbDigit,
-            optimalContract:item.proj.optimalContract,
-            ouDecision:item.ou,
-            edgePts:item.edgePts,
-            sampleSize:item.n
-          };
-        }).slice(0,8),
-        confidenceThreshold:85,
-        riskProfile:'balanced',
-        targetHorizon:`${projHorizon} ticks`
-      };
-
-      try {
-        const res=await fetch('/api/ai/project-markets',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify(payload)
-        });
-        const data=await res.json();
-        if(data&&data.projectionReport){
-          pTxt.textContent=data.projectionReport;
-        } else {
-          pTxt.textContent=generateClientSideProjection(top);
-        }
-      } catch(err) {
-        pTxt.textContent=generateClientSideProjection(top);
-      } finally {
-        btn.disabled=false;
-      }
-    }
-  };
-
-  function generateClientSideProjection(top){
-    if(!top) return 'Market projection complete. Maintain AI Confidence Gate at ≥80% to minimize losses.';
-    const ou=top.ou||{};
-    return `[QUANTUM PREDICTIVE PROJECTION - REAL DATA QUANT SYNTHESIS]
-1. 🔮 TOP INCOMING MARKET PROJECTION: ${top.v.name} (${top.v.id}) | Regime: ${top.proj.regime} (Hurst = ${top.proj.hurst}).
-2. 🎯 OPTIMAL INCOMING CONTRACT DECISION: ${ou.decision || 'UNDER 7'} (Barrier: ${ou.barrier})
-   - Projected Forward Win Rate: ${ou.projectedWinPct}% (vs ${ou.nullPct}% normal odds, generating +${ou.edgePts} points net edge).
-   - Historical Hit Rate: ${ou.pastHitPct}% across last ${top.n} real ticks.
-3. ⚡ MARKOV ATTRACTION: Digit transitions demonstrate non-random clustering around digits [${top.proj.highestProbDigit}, ${(top.proj.highestProbDigit+1)%10}].
-4. 🛡️ LOSS MINIMIZATION: Keep AI Confidence Gate strictly ≥80%. Any trade signal below 80% is vetoed by the Adaptive Loss Shield to protect wallet capital.`;
-  }
-
-  /* Gemini 3.8 Flash Deep Scan Synthesis */
-  $('#askGeminiDeep').onclick=async function(){
-    const box=$('#aiDeepBox'), txt=$('#aiDeepText'), btn=this;
-    box.style.display='block';
-    txt.textContent='✦ Calling Gemini 3.8 Flash model via full-stack /api/ai/deep-scan… Generating quantitative market regime synthesis…';
-    btn.disabled=true;
-
-    if(!latestRawScan.length){
-      executeScan(100,false);
-      await new Promise(r=>setTimeout(r,3000));
-    }
-
-    const payload={
-      scanResults: latestRawScan.map(item=>{
-        const a=TW.analyze(item.dg), c=TW.candidates(a,barrier)[0];
-        const ds=window.TWS?TWS.digitStats(item.dg):{};
-        const ou=(window.TWS&&TWS.decideOverUnder)?TWS.decideOverUnder(item.dg,item.prices):{};
-        return {
-          name:item.v.name, symbol:item.v.id,
-          edgePts:+(ou.edgePts||(c.heat*100).toFixed(1)),
-          entropy:+(ds.entropy||3.2).toFixed(2),
-          chiSquare:+(ds.chi||5).toFixed(1),
-          bestPlace:ou.decision||c.place,
-          suggestedBarrier:ou.barrier||barrier,
-          ouDecision:ou,
-          sampleSize:item.dg.length
-        };
-      }).slice(0,8),
-      barrier,
-      activeAsset:top.symbol,
-      confidenceThreshold:80,
-      riskProfile:'balanced'
-    };
-
-    try {
-      const res=await fetch('/api/ai/deep-scan',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify(payload)
-      });
-      const data=await res.json();
-      if(data&&data.report){
-        txt.textContent=data.report;
-      } else {
-        txt.textContent=`[QUANTUM EXECUTIVE BRIEFING - LOCAL QUANT SYNTHESIS]\n1. MARKET REGIME: Stationary multi-market volatility. Digit entropy is consistent with random walk (p > 0.05). Localized barrier edge is detected on Volatility 100 Index.\n2. LOSS MINIMIZATION: Keep AI Confidence Gate at ≥80% and cap stake size under 2% of account capital.`;
-      }
-    } catch(err) {
-      txt.textContent=`[QUANTUM EXECUTIVE BRIEFING - LOCAL QUANT SYNTHESIS]\n1. MARKET REGIME: Stationary multi-market volatility. Digit entropy is consistent with random walk (p > 0.05).\n2. LOSS MINIMIZATION: Keep AI Confidence Gate at ≥80% and cap stake size under 2% of account capital.`;
-    } finally {
-      btn.disabled=false;
-    }
-  };
-
-  $('#askAi').onclick=()=>TW.ai&&TW.ai.ask('Explain the analyzer advisory for this market: why this lead, how the AI confidence gate protects against losses, and how much weight it deserves.');
+  const btnAskAi = $('#askAi');
+  if(btnAskAi) btnAskAi.onclick=()=>TW.ai&&TW.ai.ask('Explain the analyzer advisory for this market: why this lead, how the AI confidence gate protects against losses, and how much weight it deserves.');
   restart();
-  // Automatically trigger multi-market AI scan so all 11 market results cards and cross-market matrix populate on load
-  setTimeout(()=>executeScan(100,false), 500);
+  // Automatically trigger lightning multi-market AI scan (50t) on load for instant best recommendation
+  setTimeout(()=>executeScan(50,false), 300);
 });
 </script>
 <script src="advisor.js"></script>

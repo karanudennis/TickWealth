@@ -171,3 +171,24 @@ body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 
 .circle.dim{opacity:.7}
 .indbar{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}.indbar .btn{width:auto;padding:6px 12px;font-size:12px}
+
+/* Dynamic Live Validity Signals */
+@keyframes pulseGreen {
+  0% { box-shadow: 0 0 4px rgba(0,255,163,0.3); border-color: rgba(0,255,163,0.5); }
+  50% { box-shadow: 0 0 18px rgba(0,255,163,0.95); border-color: #00ffa3; }
+  100% { box-shadow: 0 0 4px rgba(0,255,163,0.3); border-color: rgba(0,255,163,0.5); }
+}
+@keyframes pulseAmber {
+  0% { box-shadow: 0 0 4px rgba(255,214,0,0.3); border-color: rgba(255,214,0,0.5); }
+  50% { box-shadow: 0 0 18px rgba(255,214,0,0.95); border-color: #ffd600; }
+  100% { box-shadow: 0 0 4px rgba(255,214,0,0.3); border-color: rgba(255,214,0,0.5); }
+}
+@keyframes pulseRed {
+  0% { box-shadow: 0 0 4px rgba(255,59,105,0.3); border-color: rgba(255,59,105,0.5); }
+  50% { box-shadow: 0 0 18px rgba(255,59,105,0.95); border-color: #ff3b69; }
+  100% { box-shadow: 0 0 4px rgba(255,59,105,0.3); border-color: rgba(255,59,105,0.5); }
+}
+.blink-green { animation: pulseGreen 1.2s infinite ease-in-out !important; }
+.blink-amber { animation: pulseAmber 0.8s infinite ease-in-out !important; }
+.blink-red { animation: pulseRed 0.6s infinite ease-in-out !important; }
+

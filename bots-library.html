@@ -52,11 +52,39 @@ function load(){try{const a=JSON.parse(localStorage.getItem(BOTKEY));if(Array.is
 let bots=load();const save=()=>localStorage.setItem(BOTKEY,JSON.stringify(bots));
 const qs=TW.qs();
 if(qs.symbol&&qs.contract){
-  const existing=bots.find(x=>x.symbol===qs.symbol&&x.contract===qs.contract&&x.barrier===(qs.barrier!=null?+qs.barrier:4));
-  if(!existing){
-    bots.unshift(clean({name:`AI Projected ${qs.symbol} (${qs.contract}${qs.barrier!=null?' '+qs.barrier:''})`,symbol:qs.symbol,contract:qs.contract,barrier:qs.barrier!=null?+qs.barrier:4,aiGate:80,lossShield:true}));
-    save();
+  const bName = qs.name || `Strategy ${qs.symbol} (${qs.contract}${qs.barrier!=null?' '+qs.barrier:''})`;
+  const newBot = clean({
+    name: bName,
+    symbol: qs.symbol,
+    contract: qs.contract,
+    barrier: qs.barrier != null ? +qs.barrier : 4,
+    duration: qs.dur != null ? +qs.dur : 1,
+    stake: qs.stake != null ? +qs.stake : 1.0,
+    sl: qs.sl != null ? +qs.sl : 10,
+    tp: qs.tp != null ? +qs.tp : 20,
+    rule: {
+      kind: qs.rule_kind || 'streak',
+      cond: qs.rule_cond || (qs.contract.includes('EVEN') ? 'odd' : qs.contract.includes('ODD') ? 'even' : qs.contract.includes('UNDER') ? 'over' : 'under'),
+      cb: qs.barrier != null ? +qs.barrier : 4,
+      n: qs.rule_n != null ? +qs.rule_n : 2
+    },
+    mart: {
+      on: qs.mart === '1' || qs.mart === 'true',
+      mult: qs.mart_mult != null ? +qs.mart_mult : 2,
+      steps: qs.mart_steps != null ? +qs.mart_steps : 3
+    },
+    aiGate: qs.gate != null ? +qs.gate : 80,
+    lossShield: true
+  });
+  const existingIdx = bots.findIndex(x=>x.symbol===newBot.symbol && x.contract===newBot.contract && x.barrier===newBot.barrier);
+  if(existingIdx >= 0){
+    const existing = bots.splice(existingIdx, 1)[0];
+    bots.unshift(existing);
+  } else {
+    bots.unshift(newBot);
   }
+  save();
+  setTimeout(()=>TW.toast(`Loaded Strategy Bot: ${newBot.name}! Click Start when ready.`,'ok',4000), 400);
 }
 const opts=(l,s)=>l.map(x=>{const v=Array.isArray(x)?x[0]:x,t=Array.isArray(x)?x[1]:x;return`<option value="${TW.esc(v)}"${v==s?' selected':''}>${TW.esc(t)}</option>`}).join('');
 const f=(l,k,v,x='')=>`<label>${l}<input data-k="${k}" type="number" value="${v}" ${x}></label>`;
@@ -139,9 +167,18 @@ $('#ex').onclick=()=>{EX.forEach(x=>bots.push(clean(x)));save();draw()};
 /* ---- Library: ready-made bots for the chosen market ---- */
 $('#lm').innerHTML=opts(MK,'R_100');
 function presets(sym){const dg=TW.VOLS.some(v=>v.id===sym&&v.digits),nm=(TW.VOLS.find(v=>v.id===sym)||{}).name||sym,L=[];
- if(dg)L.push({name:nm+': Under 7 patience',symbol:sym,contract:'DIGITUNDER',barrier:7,duration:1,rule:{kind:'streak',cond:'over',cb:7,n:2}},{name:nm+': Over 2 patience',symbol:sym,contract:'DIGITOVER',barrier:2,duration:1,rule:{kind:'streak',cond:'under',cb:2,n:2}},
-  {name:nm+': Even after 3 odds',symbol:sym,contract:'DIGITEVEN',duration:1,rule:{kind:'streak',cond:'odd',n:3}},{name:nm+': Odd after 3 evens',symbol:sym,contract:'DIGITODD',duration:1,rule:{kind:'streak',cond:'even',n:3}});
- L.push({name:nm+': Rise after 3 up ticks',symbol:sym,contract:'CALL',duration:5,rule:{kind:'streak',cond:'rise',n:3}},{name:nm+': Fall after 3 down ticks',symbol:sym,contract:'PUT',duration:5,rule:{kind:'streak',cond:'fall',n:3}});return L}
+ if(dg)L.push(
+  {name:nm+': Under 7 patience',symbol:sym,contract:'DIGITUNDER',barrier:7,duration:1,rule:{kind:'streak',cond:'over',cb:7,n:2},aiGate:80,lossShield:true},
+  {name:nm+': Over 2 patience',symbol:sym,contract:'DIGITOVER',barrier:2,duration:1,rule:{kind:'streak',cond:'under',cb:2,n:2},aiGate:80,lossShield:true},
+  {name:nm+': Even after 3 odds',symbol:sym,contract:'DIGITEVEN',duration:1,rule:{kind:'streak',cond:'odd',n:3},aiGate:82,lossShield:true},
+  {name:nm+': Odd after 3 evens',symbol:sym,contract:'DIGITODD',duration:1,rule:{kind:'streak',cond:'even',n:3},aiGate:82,lossShield:true},
+  {name:nm+': Differs 90% Safe (Cold 0)',symbol:sym,contract:'DIGITDIFF',barrier:0,duration:1,rule:{kind:'every',n:2},aiGate:80,lossShield:true},
+  {name:nm+': Matches 800% Sniper',symbol:sym,contract:'DIGITMATCH',barrier:7,duration:1,rule:{kind:'streak',cond:'over',cb:6,n:3},aiGate:85,lossShield:true}
+ );
+ L.push(
+  {name:nm+': Rise after 3 up ticks',symbol:sym,contract:'CALL',duration:5,rule:{kind:'streak',cond:'rise',n:3},aiGate:80,lossShield:true},
+  {name:nm+': Fall after 3 down ticks',symbol:sym,contract:'PUT',duration:5,rule:{kind:'streak',cond:'fall',n:3},aiGate:80,lossShield:true}
+ );return L}
 function drawLib(){const box=$('#pl');box.textContent='';const L=presets($('#lm').value);
  L.forEach(p=>{const b=document.createElement('button');b.className='btn ghost';b.type='button';b.textContent='+ '+p.name.split(': ')[1];b.onclick=()=>{bots.push(clean(p));save();draw();TW.toast('Added: '+p.name,'ok',2500)};box.appendChild(b)});
  const all=document.createElement('button');all.className='btn';all.type='button';all.textContent='Add all '+L.length;all.onclick=()=>{L.forEach(p=>bots.push(clean(p)));save();draw();TW.toast('Added '+L.length+' bots for this market. They start stopped.','ok',3500)};box.appendChild(all)}

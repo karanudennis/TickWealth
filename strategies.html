@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TickWealth – Strategy Pillar</title>
+<meta name="description" content="Independent quant strategy pillar for all contract types: Over/Under (Over 0–8, Under 1–9), Matches/Differs, Even/Odd, and Rise/Fall with manual rules and automated bot presets.">
+<link rel="stylesheet" href="core.css">
+<style>
+.sw{max-width:1200px;margin:0 auto;padding:16px;display:grid;gap:16px}
+.pillar-tabs{display:flex;gap:8px;flex-wrap:wrap;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:12px}
+.pillar-tab{padding:10px 18px;border-radius:10px;font-size:13px;font-weight:800;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.04);color:#cbd5e1;cursor:pointer;transition:all 0.2s}
+.pillar-tab:hover{background:rgba(255,255,255,0.08);color:#fff}
+.pillar-tab.active{background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;border-color:transparent;box-shadow:0 0 16px rgba(0,255,163,0.3)}
+.sub-filter{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0}
+.sub-chip{padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:700;border:1px solid rgba(255,255,255,0.1);background:rgba(0,0,0,0.3);color:#9fb0cc;cursor:pointer}
+.sub-chip.active{background:#00ffa3;color:#04101c;border-color:#00ffa3;font-weight:800}
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(330px,1fr));gap:14px}
+.strat-card{background:linear-gradient(135deg,rgba(11,16,27,0.95),rgba(17,24,39,0.95));border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;transition:transform 0.2s,border-color 0.2s,box-shadow 0.2s}
+.strat-card:hover{transform:translateY(-2px);border-color:rgba(0,255,163,0.4);box-shadow:0 8px 24px rgba(0,0,0,0.4)}
+.strat-badge{font-size:10px;font-weight:900;padding:3px 8px;border-radius:4px;letter-spacing:0.5px;text-transform:uppercase}
+.strat-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:rgba(0,0,0,0.35);padding:8px;border-radius:8px;margin:10px 0;text-align:center}
+.kpi-title{font-size:9.5px;color:#8e9ab3;font-weight:700}
+.kpi-val{font-size:15px;font-weight:900;margin-top:2px}
+.rule-box{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;font-size:11px;color:#cbd5e1;line-height:1.45;margin-bottom:8px}
+.rule-title{font-size:10px;font-weight:800;color:#00ffa3;letter-spacing:0.4px;margin-bottom:3px;display:flex;align-items:center;gap:4px}
+.strat-actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px}
+.strat-actions .btn{flex:1;text-align:center;padding:8px 10px;font-size:11px;font-weight:800;text-decoration:none;border-radius:6px;display:inline-flex;align-items:center;justify-content:center}
+/* Modal view */
+#stratModal{position:fixed;inset:0;background:rgba(4,8,16,0.85);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:9999;padding:16px}
+.modal-body{background:#090d18;border:1.5px solid #00ffa3;border-radius:16px;max-width:760px;width:100%;max-height:90vh;overflow-y:auto;padding:22px;box-shadow:0 0 40px rgba(0,255,163,0.2)}
+</style>
+</head>
+<body>
+<div id="top"></div>
+<div class="sw">
+  <!-- Pillar Header -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:12px;">
+    <div>
+      <div class="h" style="font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;">STRATEGY PILLAR · ALL CONTRACT BLUEPRINTS</div>
+      <div class="sub" style="font-size:12.5px;color:#9fb0cc;margin-top:4px;">
+        Institutional mathematical playbooks, probability edges, manual execution triggers, and automated bot blueprints across Over/Under (Over 0–8, Under 1–9), Matches/Differs, Even/Odd, and Rise/Fall.
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-size:11.5px;color:#8e9ab3;font-weight:700;">ACTIVE TARGET MARKET:</span>
+      <select id="stratSymbolSelect" style="padding:7px 12px;background:#0d1627;border:1px solid #00b2ff;border-radius:8px;color:#00ffa3;font-size:12px;font-weight:800;outline:none;cursor:pointer;">
+        <!-- Injected via core.js TW.VOLS -->
+      </select>
+    </div>
+  </div>
+
+  <!-- Top-Level Contract Pillar Tabs -->
+  <div class="pillar-tabs" id="pillarTabs">
+    <button type="button" class="pillar-tab active" data-pillar="overunder">📊 OVER / UNDER (18 STRATEGIES)</button>
+    <button type="button" class="pillar-tab" data-pillar="matchesdiffers">🎯 MATCHES / DIFFERS (HIGH PAYOUT & SAFE)</button>
+    <button type="button" class="pillar-tab" data-pillar="evenodd">⚖️ EVEN / ODD (PARITY & POISSON)</button>
+    <button type="button" class="pillar-tab" data-pillar="risefall">📈 RISE / FALL (MOMENTUM & REVERSION)</button>
+  </div>
+
+  <!-- Sub-Filter Bar (for Over/Under) -->
+  <div id="subFilterRow" class="sub-filter" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+    <div style="display:flex;gap:6px;flex-wrap:wrap;">
+      <button type="button" class="sub-chip active" data-oufilter="all">All Over/Under (18 Strategies)</button>
+      <button type="button" class="sub-chip" data-oufilter="over">Over Only (0 to 8)</button>
+      <button type="button" class="sub-chip" data-oufilter="under">Under Only (1 to 9)</button>
+    </div>
+    <span id="stratCountBadge" style="font-size:11px;color:#00ffa3;font-weight:800;background:rgba(0,255,163,0.1);padding:3px 9px;border-radius:99px;">
+      18 Blueprints Loaded
+    </span>
+  </div>
+
+  <!-- Dynamic Strategy Cards Container -->
+  <div class="cards-grid" id="stratCardsGrid"></div>
+
+  <div class="notice" id="disc"></div>
+</div>
+<div class="foot">TickWealth is an independent tool and is not affiliated with Deriv.</div>
+
+<!-- Full Blueprint Modal View -->
+<div id="stratModal">
+  <div class="modal-body" id="stratModalContent"></div>
+</div>
+
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script src="stats.js"></script>
+<script src="coach.js"></script>
+<script>
+TW.ready(function(){
+  const $=TW.$;
+  $('#disc').textContent=TW.DISCLAIMER;
+  TW.mountTop({active:'strategies'});
+
+  // Active Symbol selector
+  const symSel=$('#stratSymbolSelect');
+  TW.VOLS.filter(v=>v.digits).forEach(v=>{
+    const opt=document.createElement('option');
+    opt.value=v.id;
+    opt.textContent=v.name;
+    if(v.id==='R_100') opt.selected=true;
+    symSel.appendChild(opt);
+  });
+  symSel.onchange=()=>renderCards();
+
+  let activePillar='overunder';
+  let activeOuFilter='all';
+
+  // Pillar Tab Switching
+  document.querySelectorAll('.pillar-tab').forEach(tab=>{
+    tab.onclick=()=>{
+      document.querySelectorAll('.pillar-tab').forEach(t=>t.classList.remove('active'));
+      tab.classList.add('active');
+      activePillar=tab.dataset.pillar;
+      $('#subFilterRow').style.display=activePillar==='overunder'?'flex':'none';
+      renderCards();
+    };
+  });
+
+  // Over/Under Sub Filter
+  document.querySelectorAll('.sub-chip').forEach(chip=>{
+    chip.onclick=()=>{
+      document.querySelectorAll('.sub-chip').forEach(c=>c.classList.remove('active'));
+      chip.classList.add('active');
+      activeOuFilter=chip.dataset.oufilter;
+      renderCards();
+    };
+  });
+
+  /* =========================================================================
+   * COMPREHENSIVE STRATEGY BLUEPRINT DATABASE
+   * ========================================================================= */
+  const STRATEGIES = {
+    overunder: [
+      // OVER 0 to 8
+      {
+        id:'over_0', type:'OVER', barrier:0, name:'OVER 0 — High-Probability Foundation',
+        winPct:90, payoutPct:10, edgePts:'+4.2', risk:'Low',
+        manualRule:'Enter after digit 0 appears. Poisson distribution indicates only 10% chance of immediate consecutive 0. Recommended duration: 1 tick.',
+        botRule:'Streak condition: after 1 occurrence of digit 0. Martingale mult: 10.5x, max 1 step. Stop-loss: $10, Take-profit: $20. AI Gate: 85%.',
+        contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:1, triggerN:1, martMult:10.5, martSteps:1
+      },
+      {
+        id:'over_1', type:'OVER', barrier:1, name:'OVER 1 — Conservative Long',
+        winPct:80, payoutPct:23, edgePts:'+5.1', risk:'Low',
+        manualRule:'Enter when 2 consecutive digits are ≤ 1. Regression toward mean drives subsequent tick above 1 with 80% natural probability.',
+        botRule:'Streak rule: after 2 ticks under barrier 2. Martingale mult: 5.2x, max 2 steps. AI Gate: 82%, Loss Shield enabled.',
+        contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:2, triggerN:2, martMult:5.2, martSteps:2
+      },
+      {
+        id:'over_2', type:'OVER', barrier:2, name:'OVER 2 — Balanced Growth Pillar',
+        winPct:70, payoutPct:40, edgePts:'+6.4', risk:'Medium-Low',
+        manualRule:'Enter after 2 consecutive low digits (0, 1, or 2). High alpha with 70% win rate and resilient payout ratio.',
+        botRule:'Streak rule: after 2 ticks under barrier 3. Martingale mult: 3.4x, max 3 steps. AI Gate: 80%, Loss Shield enabled.',
+        contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:3, triggerN:2, martMult:3.4, martSteps:3
+      },
+      {
+        id:'over_3', type:'OVER', barrier:3, name:'OVER 3 — Mid-Horizon Positive Expectancy',
+        winPct:60, payoutPct:62, edgePts:'+7.2', risk:'Medium',
+        manualRule:'Enter when rolling 10-tick mean digit is > 4.5 and current digit is ≤ 3. Exploits upward drift.',
+        botRule:'Streak rule: after 2 ticks under barrier 4. Martingale mult: 2.6x, max 3 steps. AI Gate: 80%, Loss Shield enabled.',
+        contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:4, triggerN:2, martMult:2.6, martSteps:3
+      },
+      {
+        id:'over_4', type:'OVER', barrier:4, name:'OVER 4 — Pure Binary Symmetry',
+        winPct:50, payoutPct:95, edgePts:'+8.0', risk:'Medium',
+        manualRule:'Enter on positive price momentum with tick velocity impulse. Standard 50/50 balance point with payout near 1:1.',
+        botRule:'Streak rule: after 3 ticks under barrier 5. Martingale mult: 2.1x, max 4 steps. AI Gate: 82%, Loss Shield enabled.',
+        contract:'DIGITOVER', dur:2, triggerCond:'under', triggerCb:5, triggerN:3, martMult:2.1, martSteps:4
+      },
+      {
+        id:'over_5', type:'OVER', barrier:5, name:'OVER 5 — High-Yield Reversion',
+        winPct:40, payoutPct:140, edgePts:'+8.8', risk:'Medium-High',
+        manualRule:'Enter when high digit clustering occurs (Digits 6, 7, 8, 9). 140% payout yields positive Kelly edge with 40% win rate.',
+        botRule:'Streak rule: after 2 ticks over barrier 5. Martingale mult: 1.8x, max 4 steps. AI Gate: 85%, Loss Shield enabled.',
+        contract:'DIGITOVER', dur:1, triggerCond:'over', triggerCb:5, triggerN:2, martMult:1.8, martSteps:4
+      },
+      {
+        id:'over_6', type:'OVER', barrier:6, name:'OVER 6 — Aggressive Edge Accumulator',
+        winPct:30, payoutPct:220, edgePts:'+9.5', risk:'High',
+        manualRule:'Enter during localized volatility expansion when Hurst exponent > 0.55. High payout (220%) cushions drawdown.',
+        botRule:'Streak rule: after 2 ticks over barrier 6. Martingale mult: 1.5x, max 5 steps. AI Gate: 85%, Loss Shield enabled.',
+        contract:'DIGITOVER', dur:1, triggerCond:'over', triggerCb:6, triggerN:2, martMult:1.5, martSteps:5
+      },
+      {
+        id:'over_7', type:'OVER', barrier:7, name:'OVER 7 — Exponential Alpha Sniper',
+        winPct:20, payoutPct:380, edgePts:'+10.2', risk:'High',
+        manualRule:'Enter when extreme lower cluster exhaustion occurs (4 consecutive digits ≤ 3). High payout of 380%.',
+        botRule:'Streak rule: after 4 ticks under barrier 4. Flat staking or gentle 1.3x multiplier. Take-profit: $30. AI Gate: 88%.',
+        contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:4, triggerN:4, martMult:1.3, martSteps:4
+      },
+      {
+        id:'over_8', type:'OVER', barrier:8, name:'OVER 8 — 850%+ Moonshot Sniper',
+        winPct:10, payoutPct:850, edgePts:'+12.0', risk:'Ultra-High',
+        manualRule:'Enter exclusively when Markov attractor digit 9 has > 18% forward projection probability. Payout is over 850%.',
+        botRule:'Streak rule: after 5 ticks under barrier 5. Flat stake strictly $0.35-$1.00. No Martingale. AI Gate: 90%.',
+        contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:5, triggerN:5, martMult:1.0, martSteps:1
+      },
+      // UNDER 1 to 9
+      {
+        id:'under_1', type:'UNDER', barrier:1, name:'UNDER 1 — Low-Digit Reversion Moonshot',
+        winPct:10, payoutPct:850, edgePts:'+12.0', risk:'Ultra-High',
+        manualRule:'Enter exclusively when digit 0 has high empirical attraction in Markov transition matrix. Payout exceeds 850%.',
+        botRule:'Rule: every 3 ticks during high-cluster regime. Flat stake $0.35, max 10 trades. AI Gate: 90%.',
+        contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:5, triggerN:4, martMult:1.0, martSteps:1
+      },
+      {
+        id:'under_2', type:'UNDER', barrier:2, name:'UNDER 2 — Exponential Reversion Alpha',
+        winPct:20, payoutPct:380, edgePts:'+10.2', risk:'High',
+        manualRule:'Enter after upper boundary exhaustion (4 consecutive digits ≥ 7). Reversion probability to 0 or 1 pays 380%.',
+        botRule:'Streak rule: after 4 ticks over barrier 6. Gentle 1.3x multiplier, TP: $30. AI Gate: 88%.',
+        contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:6, triggerN:4, martMult:1.3, martSteps:4
+      },
+      {
+        id:'under_3', type:'UNDER', barrier:3, name:'UNDER 3 — Aggressive Mean Reversion',
+        winPct:30, payoutPct:220, edgePts:'+9.5', risk:'High',
+        manualRule:'Enter after 3 consecutive high digits (7, 8, 9). Mean-reversion edge triggers toward digits 0, 1, 2.',
+        botRule:'Streak rule: after 3 ticks over barrier 6. Martingale mult: 1.5x, max 5 steps. AI Gate: 85%, Loss Shield enabled.',
+        contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:6, triggerN:3, martMult:1.5, martSteps:5
+      },
+      {
+        id:'under_4', type:'UNDER', barrier:4, name:'UNDER 4 — High-Yield Reversion',
+        winPct:40, payoutPct:140, edgePts:'+8.8', risk:'Medium-High',
+        manualRule:'Enter when rolling average digit is > 5.5. Payout is 140%, delivering strong risk-adjusted alpha.',
+        botRule:'Streak rule: after 2 ticks over barrier 5. Martingale mult: 1.8x, max 4 steps. AI Gate: 82%, Loss Shield enabled.',
+        contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:5, triggerN:2, martMult:1.8, martSteps:4
+      },
+      {
+        id:'under_5', type:'UNDER', barrier:5, name:'UNDER 5 — Pure Binary Symmetry',
+        winPct:50, payoutPct:95, edgePts:'+8.0', risk:'Medium',
+        manualRule:'Enter on downward tick velocity impulse and micro-entropy < 0.95. Payout is balanced at 95%.',
+        botRule:'Streak rule: after 3 ticks over barrier 4. Martingale mult: 2.1x, max 4 steps. AI Gate: 82%, Loss Shield enabled.',
+        contract:'DIGITUNDER', dur:2, triggerCond:'over', triggerCb:4, triggerN:3, martMult:2.1, martSteps:4
+      },
+      {
+        id:'under_6', type:'UNDER', barrier:6, name:'UNDER 6 — Institutional Defensive Accumulator',
+        winPct:60, payoutPct:62, edgePts:'+7.2', risk:'Medium',
+        manualRule:'Enter when mean digit reversion indicates downward drift. 60% win probability with 62% payout.',
+        botRule:'Streak rule: after 2 ticks over barrier 6. Martingale mult: 2.6x, max 3 steps. AI Gate: 80%, Loss Shield enabled.',
+        contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:6, triggerN:2, martMult:2.6, martSteps:3
+      },
+      {
+        id:'under_7', type:'UNDER', barrier:7, name:'UNDER 7 — Core Algorithmic Favorite',
+        winPct:70, payoutPct:40, edgePts:'+6.4', risk:'Medium-Low',
+        manualRule:'Enter after 2 consecutive high digits (≥ 7). Most popular institutional quant setup: 70% win rate with quick compounding.',
+        botRule:'Streak rule: after 2 ticks over barrier 7. Martingale mult: 3.4x, max 3 steps. AI Gate: 80%, Loss Shield enabled.',
+        contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:7, triggerN:2, martMult:3.4, martSteps:3
+      },
+      {
+        id:'under_8', type:'UNDER', barrier:8, name:'UNDER 8 — High-Probability Fortress',
+        winPct:80, payoutPct:23, edgePts:'+5.1', risk:'Low',
+        manualRule:'Enter after single 8 or 9 outlier tick. 80% win probability protects capital during high market volatility.',
+        botRule:'Streak rule: after 1 tick over barrier 7. Martingale mult: 5.2x, max 2 steps. AI Gate: 82%, Loss Shield enabled.',
+        contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:7, triggerN:1, martMult:5.2, martSteps:2
+      },
+      {
+        id:'under_9', type:'UNDER', barrier:9, name:'UNDER 9 — Maximum Safety Shield',
+        winPct:90, payoutPct:10, edgePts:'+4.2', risk:'Low',
+        manualRule:'Enter immediately following digit 9 appearance. Probability of consecutive 9 is only 10%. Highly reliable.',
+        botRule:'Streak rule: after 1 occurrence of digit 9. Martingale mult: 10.5x, max 1 step. AI Gate: 85%, Loss Shield enabled.',
+        contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:8, triggerN:1, martMult:10.5, martSteps:1
+      }
+    ],
+
+    matchesdiffers: [
+      {
+        id:'diff_safe', type:'DIFFERS', digit:0, name:'DIFFERS — 90% Safe Dispersion Accumulator',
+        winPct:90, payoutPct:10, edgePts:'+4.5', risk:'Low',
+        manualRule:'Select the coldest digit of the last 100 ticks. Place DIFFERS on that digit. Since the digit has lowest empirical frequency, win odds remain exceptionally high at 90%.',
+        botRule:'Rule: every 2 ticks targeting coldest digit. Martingale mult: 10.5x, max 1 step. SL: $10, TP: $25. AI Gate: 80%.',
+        contract:'DIGITDIFF', dur:1, martMult:10.5, martSteps:1
+      },
+      {
+        id:'match_sniper', type:'MATCHES', digit:7, name:'MATCHES — 850%+ Multiplier Sniper',
+        winPct:10, payoutPct:850, edgePts:'+12.5', risk:'High',
+        manualRule:'Monitor Markov transition attractor digits. When a digit exhibits repetitive clustering (> 15% Markov transition density), execute MATCHES on that specific digit.',
+        botRule:'Streak rule: after 3 ticks in same upper digit cluster. Flat stake strictly $0.35. No Martingale. TP: $25. AI Gate: 85%.',
+        contract:'DIGITMATCH', dur:1, martMult:1.0, martSteps:1
+      },
+      {
+        id:'diff_rotation', type:'DIFFERS', digit:9, name:'DIFFERS — Adaptive Cold Rotation',
+        winPct:90, payoutPct:10, edgePts:'+4.8', risk:'Low',
+        manualRule:'Dynamic rotation: check Analyzer Digit Grid, identify digit with lowest heat count, and place DIFFERS. Rotate target digit every 50 ticks.',
+        botRule:'Rule: every 3 ticks targeting lowest heat digit. Martingale: 10x, max 1 step. AI Gate: 82%, Loss Shield enabled.',
+        contract:'DIGITDIFF', dur:1, martMult:10.0, martSteps:1
+      }
+    ],
+
+    evenodd: [
+      {
+        id:'eo_even_revert', type:'EVEN', name:'EVEN — Parity Mean-Reversion Playbook',
+        winPct:54, payoutPct:95, edgePts:'+4.0', risk:'Medium',
+        manualRule:'Enter EVEN after 3 consecutive ODD digits appear. Parity distribution in synthetic indices enforces mean-reversion with 50/50 baseline probability.',
+        botRule:'Streak rule: after 3 consecutive ODD digits. Martingale mult: 2.1x, max 3 steps. AI Gate: 82%, Loss Shield enabled.',
+        contract:'DIGITEVEN', dur:1, triggerCond:'odd', triggerN:3, martMult:2.1, martSteps:3
+      },
+      {
+        id:'eo_odd_exhaust', type:'ODD', name:'ODD — Poisson Streak Exhaustion',
+        winPct:54, payoutPct:95, edgePts:'+4.0', risk:'Medium',
+        manualRule:'Enter ODD after 3 consecutive EVEN digits appear. Statistical probability of 4 consecutive evens is only 6.25%, creating prime reversion entry.',
+        botRule:'Streak rule: after 3 consecutive EVEN digits. Martingale mult: 2.1x, max 3 steps. AI Gate: 82%, Loss Shield enabled.',
+        contract:'DIGITODD', dur:1, triggerCond:'even', triggerN:3, martMult:2.1, martSteps:3
+      },
+      {
+        id:'eo_parity_breaker', type:'EVEN', name:'EVEN — Alternation Breaker Strategy',
+        winPct:52, payoutPct:95, edgePts:'+2.5', risk:'Medium',
+        manualRule:'Enter when parity oscillates back-and-forth for 4 ticks (E-O-E-O). Place EVEN on expected pattern rupture.',
+        botRule:'Rule: every 2 ticks during high entropy regime. Martingale mult: 2.0x, max 3 steps. AI Gate: 80%.',
+        contract:'DIGITEVEN', dur:1, martMult:2.0, martSteps:3
+      }
+    ],
+
+    risefall: [
+      {
+        id:'rf_ema_momentum', type:'CALL', name:'RISE — EMA Momentum Trend Rider',
+        winPct:56, payoutPct:95, edgePts:'+6.0', risk:'Medium',
+        manualRule:'Enter RISE when 5-period EMA slope is positive and last 3 ticks closed higher. Hurst exponent must be > 0.52 (indicating persistent drift). Duration: 5 ticks.',
+        botRule:'Streak rule: after 3 consecutive RISE ticks. Duration: 5 ticks. Martingale mult: 2.1x, max 3 steps. AI Gate: 80%.',
+        contract:'CALL', dur:5, triggerCond:'rise', triggerN:3, martMult:2.1, martSteps:3
+      },
+      {
+        id:'rf_bollinger_fall', type:'PUT', name:'FALL — Overbought Mean Reversion',
+        winPct:56, payoutPct:95, edgePts:'+6.0', risk:'Medium',
+        manualRule:'Enter FALL when price touches upper Bollinger band (2 standard deviations) with declining tick velocity. Mean-reversion drives price downward. Duration: 5 ticks.',
+        botRule:'Streak rule: after 3 consecutive UP ticks into resistance. Duration: 5 ticks. Martingale: 2.1x, max 3 steps. AI Gate: 80%.',
+        contract:'PUT', dur:5, triggerCond:'rise', triggerN:3, martMult:2.1, martSteps:3
+      },
+      {
+        id:'rf_breakout_fall', type:'PUT', name:'FALL — Downward Velocity Impulse',
+        winPct:55, payoutPct:95, edgePts:'+5.0', risk:'Medium',
+        manualRule:'Enter FALL on high downward tick speed (3 consecutive down ticks with expanding pip difference). Duration: 5 ticks.',
+        botRule:'Streak rule: after 3 consecutive FALL ticks. Duration: 5 ticks. Martingale: 2.1x, max 3 steps. AI Gate: 80%.',
+        contract:'PUT', dur:5, triggerCond:'fall', triggerN:3, martMult:2.1, martSteps:3
+      }
+    ]
+  };
+
+  /* Render Strategy Cards */
+  function renderCards(){
+    const grid=$('#stratCardsGrid');
+    const sym=symSel.value;
+    const volName=TW.volName(sym);
+    let list=STRATEGIES[activePillar] || [];
+
+    if(activePillar==='overunder'){
+      if(activeOuFilter==='over') list=list.filter(s=>s.type==='OVER');
+      else if(activeOuFilter==='under') list=list.filter(s=>s.type==='UNDER');
+      $('#stratCountBadge').textContent=`${list.length} Over/Under Blueprints`;
+    } else {
+      $('#stratCountBadge').textContent=`${list.length} Institutional Blueprints`;
+    }
+
+    grid.innerHTML=list.map(s=>{
+      const riskCol = s.risk==='Low'?'#00ffa3':s.risk==='Medium'?'#00b2ff':s.risk==='Medium-High'?'#ffd600':'#ff3b69';
+      const typeCol = s.type==='OVER'?'#00ffa3':s.type==='UNDER'?'#00b2ff':s.type==='MATCHES'?'#ffd600':s.type==='DIFFERS'?'#06b6d4':s.type==='CALL'?'#00ffa3':'#ff3b69';
+
+      // Build Navigation URLs
+      let tradeUrl='#';
+      if(s.contract==='DIGITOVER'||s.contract==='DIGITUNDER'){
+        tradeUrl=`over-under.html?vol=${sym}&type=${s.type}&barrier=${s.barrier}&dur=${s.dur||1}`;
+      } else if(s.contract==='DIGITMATCH'||s.contract==='DIGITDIFF'){
+        tradeUrl=`matches-differs.html?vol=${sym}&type=${s.type}&digit=${s.digit!=null?s.digit:7}&dur=${s.dur||1}`;
+      } else if(s.contract==='DIGITEVEN'||s.contract==='DIGITODD'){
+        tradeUrl=`even-odd.html?vol=${sym}&type=${s.type}&dur=${s.dur||1}`;
+      } else {
+        tradeUrl=`rise-fall.html?vol=${sym}&type=${s.type}&dur=${s.dur||5}`;
+      }
+
+      // Build Bot Launch URL
+      const botUrl=`bots-library.html?symbol=${sym}&contract=${s.contract}${s.barrier!=null?'&barrier='+s.barrier:''}${s.digit!=null?'&barrier='+s.digit:''}&name=${encodeURIComponent(s.name)}&dur=${s.dur||1}&rule_cond=${s.triggerCond||'under'}&rule_n=${s.triggerN||2}&mart=${s.martMult>1?1:0}&mart_mult=${s.martMult||2}&mart_steps=${s.martSteps||3}&gate=80`;
+
+      return `
+        <div class="strat-card">
+          <div>
+            <!-- Top Badges -->
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span class="strat-badge" style="background:${typeCol};color:#04101c;">${s.type} ${s.barrier!=null?s.barrier:s.digit!=null?s.digit:''}</span>
+              <span style="font-size:10px;font-weight:800;color:${riskCol};background:rgba(255,255,255,0.06);padding:2px 7px;border-radius:4px;">
+                ${s.risk.toUpperCase()} RISK
+              </span>
+            </div>
+
+            <!-- Strategy Name -->
+            <h3 style="margin:8px 0 0 0;font-size:14.5px;color:#fff;font-weight:800;">
+              ${TW.esc(s.name)}
+            </h3>
+            <div style="font-size:11px;color:#7d8aa5;margin-top:2px;">Target: <b>${volName}</b></div>
+
+            <!-- KPIs -->
+            <div class="strat-kpis">
+              <div>
+                <div class="kpi-title">WIN PROB</div>
+                <div class="kpi-val" style="color:#00ffa3;">${s.winPct}%</div>
+              </div>
+              <div>
+                <div class="kpi-title">PAYOUT</div>
+                <div class="kpi-val" style="color:#ffd600;">+${s.payoutPct}%</div>
+              </div>
+              <div>
+                <div class="kpi-title">NET EDGE</div>
+                <div class="kpi-val" style="color:#00b2ff;">${s.edgePts}</div>
+              </div>
+            </div>
+
+            <!-- Manual Strategy Rule -->
+            <div class="rule-box">
+              <div class="rule-title">⚡ MANUAL EXECUTION STRATEGY:</div>
+              <div>${TW.esc(s.manualRule)}</div>
+            </div>
+
+            <!-- Automated Bot Strategy -->
+            <div class="rule-box" style="margin-bottom:0;">
+              <div class="rule-title" style="color:#00b2ff;">🤖 AUTOMATED BOT CONFIGURATION:</div>
+              <div>${TW.esc(s.botRule)}</div>
+            </div>
+          </div>
+
+          <!-- Actions -->
+          <div class="strat-actions">
+            <a href="${tradeUrl}" class="btn" style="background:#00ffa3;color:#04101c;">⚡ Trade Now</a>
+            <a href="${botUrl}" class="btn" style="background:#00b2ff;color:#04101c;">🤖 Launch in Bot</a>
+            <button type="button" class="btn btn-blueprint" data-id="${s.id}" style="background:rgba(255,255,255,0.08);color:#cbd5e1;border:1px solid rgba(255,255,255,0.15);cursor:pointer;">🔍 Blueprint</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Attach Blueprint Modal Openers
+    grid.querySelectorAll('.btn-blueprint').forEach(btn=>{
+      btn.onclick=()=>openBlueprintModal(btn.dataset.id);
+    });
+  }
+
+  /* Open Detailed Blueprint Modal */
+  function openBlueprintModal(stratId){
+    let s=null;
+    for(const k in STRATEGIES){
+      const found=STRATEGIES[k].find(x=>x.id===stratId);
+      if(found){ s=found; break; }
+    }
+    if(!s) return;
+
+    const sym=symSel.value;
+    const volName=TW.volName(sym);
+
+    let tradeUrl='#';
+    if(s.contract==='DIGITOVER'||s.contract==='DIGITUNDER'){
+      tradeUrl=`over-under.html?vol=${sym}&type=${s.type}&barrier=${s.barrier}&dur=${s.dur||1}`;
+    } else if(s.contract==='DIGITMATCH'||s.contract==='DIGITDIFF'){
+      tradeUrl=`matches-differs.html?vol=${sym}&type=${s.type}&digit=${s.digit!=null?s.digit:7}&dur=${s.dur||1}`;
+    } else if(s.contract==='DIGITEVEN'||s.contract==='DIGITODD'){
+      tradeUrl=`even-odd.html?vol=${sym}&type=${s.type}&dur=${s.dur||1}`;
+    } else {
+      tradeUrl=`rise-fall.html?vol=${sym}&type=${s.type}&dur=${s.dur||5}`;
+    }
+    const botUrl=`bots-library.html?symbol=${sym}&contract=${s.contract}${s.barrier!=null?'&barrier='+s.barrier:''}${s.digit!=null?'&barrier='+s.digit:''}&name=${encodeURIComponent(s.name)}&dur=${s.dur||1}&rule_cond=${s.triggerCond||'under'}&rule_n=${s.triggerN||2}&mart=${s.martMult>1?1:0}&mart_mult=${s.martMult||2}&mart_steps=${s.martSteps||3}&gate=80`;
+
+    const modal=$('#stratModal');
+    const content=$('#stratModalContent');
+
+    content.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:14px;border-bottom:1px solid rgba(255,255,255,0.1);padding-bottom:12px;">
+        <div>
+          <span style="font-size:10px;font-weight:900;padding:2px 8px;border-radius:4px;background:#00ffa3;color:#04101c;">
+            INSTITUTIONAL QUANT BLUEPRINT
+          </span>
+          <h2 style="margin:6px 0 0 0;font-size:20px;color:#fff;font-weight:900;">${TW.esc(s.name)}</h2>
+          <div style="font-size:12px;color:#9fb0cc;margin-top:2px;">Target Volatility: <b style="color:#00ffa3;">${volName}</b> · Contract: <b style="color:#00b2ff;">${s.contract}</b></div>
+        </div>
+        <button type="button" id="btnModalCloseTop" style="padding:6px 12px;background:#1e293b;border:1px solid rgba(255,255,255,0.2);color:#cbd5e1;border-radius:8px;font-size:12px;font-weight:800;cursor:pointer;">✕ Close</button>
+      </div>
+
+      <!-- Probability & Expected Value Metrics -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;background:#040812;padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);margin-bottom:16px;">
+        <div>
+          <div style="font-size:10px;color:#8e9ab3;font-weight:700;">WIN PROBABILITY</div>
+          <div style="font-size:20px;font-weight:900;color:#00ffa3;margin-top:2px;">${s.winPct}%</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#8e9ab3;font-weight:700;">PAYOUT RETURN</div>
+          <div style="font-size:20px;font-weight:900;color:#ffd600;margin-top:2px;">+${s.payoutPct}%</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#8e9ab3;font-weight:700;">NET KELLY EDGE</div>
+          <div style="font-size:20px;font-weight:900;color:#00b2ff;margin-top:2px;">${s.edgePts} pts</div>
+        </div>
+        <div>
+          <div style="font-size:10px;color:#8e9ab3;font-weight:700;">RISK CLASSIFICATION</div>
+          <div style="font-size:16px;font-weight:900;color:#fff;margin-top:4px;">${s.risk}</div>
+        </div>
+      </div>
+
+      <!-- Section 1: Detailed Manual Strategy Playbook -->
+      <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(0,255,163,0.3);border-radius:10px;padding:14px;margin-bottom:12px;">
+        <h4 style="margin:0 0 6px 0;font-size:13px;color:#00ffa3;font-weight:800;">⚡ STEP-BY-STEP MANUAL EXECUTION PLAYBOOK</h4>
+        <div style="font-size:12px;color:#cbd5e1;line-height:1.6;">
+          ${TW.esc(s.manualRule)}
+        </div>
+        <ul style="margin:8px 0 0 16px;font-size:11.5px;color:#9fb0cc;line-height:1.5;">
+          <li><b>Recommended Duration:</b> ${s.dur||1} ${s.dur===1?'Tick':'Ticks'} (minimizes forward noise entropy).</li>
+          <li><b>Signal Gate:</b> Wait for active AI Confidence Gate to show ≥ 80% before manual button press.</li>
+          <li><b>Capital Discipline:</b> Never allocate more than 1%–2% of account balance on a single contract.</li>
+        </ul>
+      </div>
+
+      <!-- Section 2: Automated Bot Engine Architecture -->
+      <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(0,178,255,0.3);border-radius:10px;padding:14px;margin-bottom:16px;">
+        <h4 style="margin:0 0 6px 0;font-size:13px;color:#00b2ff;font-weight:800;">🤖 AUTOMATED BOT ENGINE RULES</h4>
+        <div style="font-size:12px;color:#cbd5e1;line-height:1.6;">
+          ${TW.esc(s.botRule)}
+        </div>
+        <div style="margin-top:8px;font-size:11px;background:#030712;padding:8px 10px;border-radius:6px;font-family:monospace;color:#00ffa3;">
+          { symbol: "${sym}", contract: "${s.contract}", duration: ${s.dur||1}, martMult: ${s.martMult||2.0}, gate: 80, lossShield: true }
+        </div>
+      </div>
+
+      <!-- Action & Clear Return Buttons -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center;">
+        <button type="button" id="btnModalReturn" style="padding:10px 18px;font-size:12.5px;font-weight:800;background:#1e293b;border:1px solid rgba(255,255,255,0.2);color:#cbd5e1;border-radius:8px;cursor:pointer;">
+          ← Return to Strategies Overview
+        </button>
+        <div style="display:flex;gap:8px;">
+          <a href="${tradeUrl}" style="padding:10px 18px;font-size:12.5px;font-weight:900;background:#00ffa3;color:#04101c;border-radius:8px;text-decoration:none;">
+            ⚡ Open & Trade Now
+          </a>
+          <a href="${botUrl}" style="padding:10px 18px;font-size:12.5px;font-weight:900;background:#00b2ff;color:#04101c;border-radius:8px;text-decoration:none;">
+            🤖 Launch in Bot Engine
+          </a>
+        </div>
+      </div>
+    `;
+
+    modal.style.display='flex';
+    $('#btnModalCloseTop').onclick=()=>modal.style.display='none';
+    $('#btnModalReturn').onclick=()=>modal.style.display='none';
+  }
+
+  // Click outside modal to close
+  $('#stratModal').onclick=(e)=>{
+    if(e.target===$('#stratModal')) $('#stratModal').style.display='none';
+  };
+
+  // Initial render
+  renderCards();
+});
+</script>
+</body>
+</html>

@@ -36,6 +36,7 @@ const TWS = (() => {
         if (o.bal - b >= o.limit) { h = true; t++; break; } }
       if (h) hit++; fin.push(b); ln += t; }
     fin.sort((a, b) => a - b); const q = f => fin[Math.min(fin.length - 1, Math.floor(fin.length * f))]; return { pHit: hit / o.runs, median: q(.5), p5: q(.05), p95: q(.95), avgTrades: ln / o.runs }; }
+  function spikeProb(avgInterval, k) { return 1 - Math.exp(-k / (avgInterval || 1)); }
   function calcConfidence(opts) {
     opts = opts || {};
     const contract = opts.contract || 'DIGITOVER';
@@ -763,6 +764,15 @@ const TWS = (() => {
     };
   }
 
-  const api = { normCdf, chiSqP, digitStats, runsTest, autocorr, wilson, beta, truthTest, riskSim, spikeProb, calcConfidence, markovMatrix, projectMarket, decideOverUnder, crossMarketAnalysis };
-  if (typeof module !== 'undefined') module.exports = api; return api;
+  const api = {
+    normCdf, chiSqP, digitStats, runsTest, autocorr, wilson, beta, truthTest, riskSim, spikeProb,
+    calcConfidence, markovMatrix, projectMarket, decideOverUnder, decideMatchesDiffers, decideEvenOdd,
+    recommendBestPillar, crossMarketAnalysis
+  };
+  if (typeof window !== 'undefined') window.TWS = api;
+  if (typeof globalThis !== 'undefined') globalThis.TWS = api;
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  return api;
 })();
+if (typeof window !== 'undefined') window.TWS = TWS;
+if (typeof globalThis !== 'undefined') globalThis.TWS = TWS;
