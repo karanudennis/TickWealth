@@ -106,7 +106,7 @@ TW.digitPage = function (cfg) {
         <div class="panel" id="logPanel"></div>
       </aside>
     </div>
-    <div class="foot">TickWealth is an independent tool and is not affiliated with Deriv. ${TW.esc(TW.DISCLAIMER)}</div>`;
+    <div class="foot">TickWealth is an independent tool and is not affiliated with Deriv.</div>`;
 
     let feed = null, busy = false;
     const top = TW.mountTop({ active: cfg.active, symbols: 'digits', defaultSymbol: q.vol || 'R_100', onSymbol: () => restart() });
@@ -570,19 +570,37 @@ TW.digitPage = function (cfg) {
             </div>
           </div>
 
-          <!-- Suggested Duration Chips -->
-          <div style="margin-top:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-            <span style="font-size:11px;color:#8e9ab3;font-weight:700;">SUGGESTED DURATION:</span>
-            <button type="button" class="top-sug-dur active" data-d="5" data-u="t" style="padding:4px 9px;border-radius:6px;font-size:11px;font-weight:800;border:1px solid #00ffa3;background:#00ffa3;color:#04101c;cursor:pointer;">5 Ticks (Optimal)</button>
-            <button type="button" class="top-sug-dur" data-d="1" data-u="t" style="padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#cbd5e1;cursor:pointer;">1 Tick</button>
-            <button type="button" class="top-sug-dur" data-d="10" data-u="t" style="padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#cbd5e1;cursor:pointer;">10 Ticks</button>
-            <button type="button" class="top-sug-dur" data-d="15" data-u="s" style="padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#cbd5e1;cursor:pointer;">15 Seconds</button>
+          <!-- DEDICATED CARD: PERFECT ENTRY SIGNAL & EXACT TIMING DIRECTIVE -->
+          <div style="margin-top:12px;background:rgba(0,0,0,0.35);border:1px solid rgba(0,255,163,0.35);border-radius:10px;padding:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+              <span style="font-size:11.5px;font-weight:900;color:#00ffa3;letter-spacing:0.3px;">🎯 PERFECT ENTRY &amp; TIMING DIRECTIVE</span>
+              <span style="font-size:10.5px;color:#00b2ff;font-weight:700;">PROVEN MARKOV PERSISTENCE</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:11px;">
+              <div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);">
+                <span style="color:#8e9ab3;font-weight:700;display:block;">ENTRY TRIGGER:</span>
+                <b style="color:#fff;">Enter immediately on live signal (${dec.decision})</b>
+              </div>
+              <div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);">
+                <span style="color:#8e9ab3;font-weight:700;display:block;">TIMING DIRECTIVE:</span>
+                <b style="color:#00ffa3;">USE 5 TICKS (~5s) or 15 SECONDS</b>
+              </div>
+            </div>
+
+            <!-- Suggested Duration Chips -->
+            <div style="margin-top:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+              <span style="font-size:10.5px;color:#8e9ab3;font-weight:700;">SELECT DURATION:</span>
+              <button type="button" class="top-sug-dur active" data-d="5" data-u="t" style="padding:4px 9px;border-radius:6px;font-size:11px;font-weight:800;border:1px solid #00ffa3;background:#00ffa3;color:#04101c;cursor:pointer;">5 Ticks (Optimal)</button>
+              <button type="button" class="top-sug-dur" data-d="1" data-u="t" style="padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#cbd5e1;cursor:pointer;">1 Tick (Fast)</button>
+              <button type="button" class="top-sug-dur" data-d="10" data-u="t" style="padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#cbd5e1;cursor:pointer;">10 Ticks</button>
+              <button type="button" class="top-sug-dur" data-d="15" data-u="s" style="padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#cbd5e1;cursor:pointer;">15 Seconds</button>
+            </div>
           </div>
 
           <!-- Real Working Action Buttons with on-card Rescan -->
           <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
             <button type="button" id="btnPlaceTopBet" class="btn" style="flex:1.4;min-width:180px;padding:11px 14px;font-size:12px;font-weight:900;background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;border:0;border-radius:8px;cursor:pointer;box-shadow:0 0 16px rgba(0,255,163,0.3);">
-              ⚡ 1-CLICK BET (${dec.decision})
+              ⚡ 1-CLICK BET (${dec.decision} · USE 5 TICKS)
             </button>
             <button type="button" id="btnApplyTopControls" class="btn" style="flex:1.1;min-width:150px;padding:11px 12px;font-size:11.5px;font-weight:800;background:#141e33;border:1px solid rgba(0,255,163,0.4);color:#00ffa3;border-radius:8px;cursor:pointer;">
               🎯 APPLY TO PANEL
@@ -631,6 +649,14 @@ TW.digitPage = function (cfg) {
         }
       }, 1000);
 
+      function updateBetButtonLabel() {
+        const btn = document.getElementById('btnPlaceTopBet');
+        if (btn) {
+          const uLabel = selectedUnit === 't' ? 'TICKS' : selectedUnit === 's' ? 'SEC' : 'MIN';
+          btn.textContent = `⚡ 1-CLICK BET (${dec.decision} · USE ${selectedDur} ${uLabel})`;
+        }
+      }
+
       document.querySelectorAll('.top-sug-dur').forEach(b => {
         b.onclick = () => {
           document.querySelectorAll('.top-sug-dur').forEach(x => {
@@ -645,6 +671,7 @@ TW.digitPage = function (cfg) {
           b.style.borderColor = '#00ffa3';
           selectedDur = +b.dataset.d;
           selectedUnit = b.dataset.u;
+          updateBetButtonLabel();
         };
       });
 

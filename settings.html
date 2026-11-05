@@ -21,6 +21,7 @@
     <div class="h">RISK LIMITS (apply to manual, auto and bot trades)</div>
     <label class="lbl" for="maxStake">MAX STAKE PER TRADE</label><input class="inp" id="maxStake" type="number" min="0.35" step="0.5">
     <label class="lbl" for="stopLoss">SESSION STOP-LOSS (0 = off) — trading pauses when session loss reaches this</label><input class="inp" id="stopLoss" type="number" min="0" step="1">
+    <label class="lbl" for="targetProfit">DAILY TAKE-PROFIT LOCK (0 = off) — halts bots & locks session when profit target reached</label><input class="inp" id="targetProfit" type="number" min="0" step="1" placeholder="e.g. 25">
     <label class="switch"><span>Confirm every manual live trade</span><input type="checkbox" id="confirm"></label>
   </div>
 
@@ -58,7 +59,7 @@
 <script src="coach.js"></script>
 <script>
 TW.ready(function(){
-  const $=TW.$, F=['maxStake','stopLoss','martMult','martSteps','paperStart','endpoint','appId','aiEndpoint'];
+  const $=TW.$, F=['maxStake','stopLoss','targetProfit','martMult','martSteps','paperStart','endpoint','appId','aiEndpoint'];
   $('#disc').textContent=TW.DISCLAIMER;
   TW.mountTop({active:'settings'});
   function load(){ F.forEach(k=>$('#'+k).value=TW.settings[k]==null?'':TW.settings[k]); $('#confirm').checked=!!TW.settings.confirm; mode(); }
@@ -69,7 +70,7 @@ TW.ready(function(){
   $('#save').onclick=()=>{
     const n=k=>parseFloat($('#'+k).value), s=TW.settings;
     if(!(n('maxStake')>=0.35)){TW.toast('Max stake must be at least 0.35','err');return;}
-    s.maxStake=n('maxStake'); s.stopLoss=Math.max(0,n('stopLoss')||0); s.martMult=Math.min(5,Math.max(1,n('martMult')||2)); s.martSteps=Math.min(8,Math.max(1,Math.round(n('martSteps')||3))); s.paperStart=Math.max(100,n('paperStart')||10000);
+    s.maxStake=n('maxStake'); s.stopLoss=Math.max(0,n('stopLoss')||0); s.targetProfit=Math.max(0,n('targetProfit')||0); s.martMult=Math.min(5,Math.max(1,n('martMult')||2)); s.martSteps=Math.min(8,Math.max(1,Math.round(n('martSteps')||3))); s.paperStart=Math.max(100,n('paperStart')||10000);
     s.confirm=$('#confirm').checked; s.endpoint=$('#endpoint').value.trim()||TW.DEFAULTS.endpoint; s.appId=$('#appId').value.trim()||TW.DEFAULTS.appId;
     s.aiEndpoint=$('#aiEndpoint').value.trim(); if(s.aiEndpoint&&!/^https?:\/\//.test(s.aiEndpoint)){TW.toast('AI server URL must start with https://','err');return;}
     if(!/^wss:\/\//.test(s.endpoint)){TW.toast('Endpoint must start with wss://','err');return;}

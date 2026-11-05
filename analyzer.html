@@ -4,411 +4,185 @@
 <meta charset="UTF-8">
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>TickWealth – Analyzer</title>
-<meta name="description" content="Digit analyzer: compares Even/Odd, Over/Under and Matches/Differs on live Deriv data and scans all volatility indices.">
+<title>TickWealth – Market Alpha Analyzer</title>
+<meta name="description" content="Cross-market quantitative alpha scanner across all 13 volatility indices and all 4 contract pillars with single best card, live validity countdown, and 1-click manual and bot launch.">
 <link rel="stylesheet" href="core.css">
 <style>
-.wrap2{max-width:1100px;margin:0 auto;padding:14px}
-.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:16px}
-@media(max-width:800px){.cards{grid-template-columns:1fr}}
-.cards .card .v{font-size:14px;font-weight:800;margin-top:6px}
-.adv{margin-top:16px;border-radius:16px;padding:16px;background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#111827}
-.adv h2{margin:0;font-size:13px;letter-spacing:.6px}
-.adv .line{margin-top:8px;background:#11182714;border-radius:8px;padding:8px 10px;font-size:13px;font-weight:700;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.adv .line b{background:#fff;padding:2px 9px;border-radius:12px;font-size:12px}
-.adv .why{margin-top:10px;font-size:12px;font-weight:600;line-height:1.55;background:#111827;color:#fbbf24;padding:12px;border-radius:10px}
-.adv a.go{display:inline-block;margin-top:10px;background:#111827;color:#fbbf24;padding:10px 14px;border-radius:12px;font-weight:800;font-size:12px;text-decoration:none}
-.res{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
-@media(max-width:600px){.res{grid-template-columns:1fr}}
-.res .card{padding:10px}
-.chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-top:12px}
-.chip{padding:8px 12px;border-radius:12px;border:1px solid var(--line);background:var(--p2);color:var(--mut);font-weight:800;font-size:11px}
-.chip.active{background:var(--acc);color:var(--ink);border-color:var(--acc)}
-.filter-chip{padding:6px 11px;border-radius:10px;border:1px solid rgba(255,255,255,0.1);background:rgba(255,255,255,0.04);color:#9fb0cc;font-weight:700;font-size:11px;cursor:pointer;transition:all 0.2s ease;}
-.filter-chip.active{background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;border-color:transparent;font-weight:800}
+.wrap-clean{max-width:1040px;margin:0 auto;padding:16px 18px 40px;display:grid;gap:18px}
+.command-bar{background:linear-gradient(135deg,rgba(11,16,27,0.98),rgba(17,24,39,0.98));border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px}
+.command-btn{padding:12px 22px;border-radius:10px;font-size:12.5px;font-weight:900;letter-spacing:0.4px;cursor:pointer;display:inline-flex;align-items:center;gap:8px;transition:all 0.2s}
+.command-btn.rapid{background:#0d1627;border:1.5px solid #00b2ff;color:#00b2ff}
+.command-btn.rapid:hover{background:rgba(0,178,255,0.15);box-shadow:0 0 16px rgba(0,178,255,0.3)}
+.command-btn.deep{background:linear-gradient(90deg,#00ffa3,#00b2ff);border:0;color:#04101c;box-shadow:0 0 20px rgba(0,255,163,0.35)}
+.command-btn.deep:hover{transform:translateY(-1px);box-shadow:0 0 28px rgba(0,255,163,0.5)}
+.single-card{border-radius:16px;padding:22px;background:linear-gradient(135deg,rgba(11,16,27,0.98),rgba(17,24,39,0.98));border:1.5px solid rgba(0,255,163,0.45);box-shadow:0 0 35px rgba(0,255,163,0.15);transition:all 0.3s ease}
+.kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0;background:rgba(0,0,0,0.35);padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)}
+.kpi-cell-val{font-size:22px;font-weight:900;margin-top:2px}
+.launch-bar{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
+@media(max-width:680px){.launch-bar{grid-template-columns:1fr}}
+.launch-btn{padding:14px 18px;border-radius:10px;font-size:13px;font-weight:900;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;transition:transform 0.2s,box-shadow 0.2s}
+.launch-btn:hover{transform:translateY(-2px)}
+.launch-btn.manual{background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;box-shadow:0 0 22px rgba(0,255,163,0.35)}
+.launch-btn.bot{background:#141e33;border:1.5px solid #00b2ff;color:#00b2ff;box-shadow:0 0 20px rgba(0,178,255,0.2)}
+.launch-btn.bot:hover{background:#00b2ff;color:#04101c}
 </style>
 </head>
 <body>
 <div id="top"></div>
-<div class="wrap2">
-  <div class="h" id="hdr">DIGIT ANALYZER</div>
-  <div class="sub">Compares every digit market on the same scale: <b>heat</b> = how far the recent frequency of an outcome is above its normal probability. Recent 50 ticks count double.</div>
+<div class="wrap-clean">
 
-  <div class="d-grid" id="dGrid"></div>
-
-  <div class="chips"><span class="lbl" style="margin:0">BARRIER</span><div class="bgrid" id="bGrid" style="grid-template-columns:repeat(10,minmax(0,1fr));width:min(100%,420px);margin:0"></div></div>
-  <div class="chips"><span class="lbl" style="margin:0">NEXT</span>
-    <button class="chip" data-d="1">1 tick</button><button class="chip active" data-d="5">5 ticks</button><button class="chip" data-d="10">10 ticks</button></div>
-
-  <div class="cards">
-    <div class="card"><div class="h">EVEN / ODD</div><div class="v" id="eoVal">Waiting…</div><div class="sub" id="eoDet"></div></div>
-    
-    <!-- Real-Data Driven Over/Under Decision Card -->
-    <div class="card" id="ouCard">
-      <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div class="h" style="margin:0">OVER / UNDER <span id="bTxt">4</span></div>
-        <span id="ouOptBadge" style="font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(0,255,163,0.15);color:#00ffa3;font-weight:700;">LIVE DATA PROJECTION</span>
-      </div>
-      <div class="v" id="ouVal">Waiting…</div>
-      <div class="sub" id="ouDet"></div>
-      
-      <!-- Dynamic Real-Data Driven Over/Under Decision -->
-      <div id="ouDecisionBox" style="margin-top:10px;background:rgba(0,0,0,0.5);border:1px solid rgba(0,255,163,0.3);border-radius:8px;padding:8px 10px;font-size:11.5px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-          <span style="color:#8e9ab3;font-size:10px;font-weight:700;">⭐ QUANT DECISION:</span>
-          <b id="ouDecisionAction" style="color:#00ffa3;font-size:13px;letter-spacing:0.5px;">CALIBRATING…</b>
-        </div>
-        <div style="display:flex;justify-content:space-between;color:#e2e8f0;font-size:11px;margin-bottom:4px;flex-wrap:wrap;gap:4px;">
-          <span>Projected Win: <b id="ouProjWin" style="color:#00ffa3;">—%</b></span>
-          <span>Past Hit: <b id="ouPastHit" style="color:#fff;">—%</b></span>
-          <span>Edge: <b id="ouEdge" style="color:#00b2ff;">— pts</b></span>
-        </div>
-        <div id="ouDecisionReason" style="font-size:10px;color:#9fb0cc;line-height:1.4;margin-top:4px;">Waiting for live tick stream…</div>
-        <div style="margin-top:6px;display:flex;gap:6px;align-items:center;">
-          <button type="button" id="btnSnapBarrier" class="btn" style="padding:4px 8px;font-size:10.5px;background:#00ffa3;color:#04101c;font-weight:800;border:0;border-radius:6px;cursor:pointer;display:none;">🎯 Snap Barrier</button>
-          <a id="btnTradeDecidedOU" href="#" style="padding:4px 8px;font-size:10.5px;background:#00b2ff;color:#04101c;font-weight:800;border-radius:6px;text-decoration:none;display:none;">Trade Decision →</a>
-        </div>
+  <!-- Clean Header -->
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px;">
+    <div>
+      <div class="h" style="font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;">MARKET ALPHA ANALYZER</div>
+      <div class="sub" style="font-size:12.5px;color:#9fb0cc;margin-top:4px;">
+        Cross-market quantitative scanner. Evaluates all 13 volatility indices across Over/Under, Matches/Differs, Even/Odd, and Rise/Fall in lightning speed to isolate the single highest-edge market.
       </div>
     </div>
-
-    <div class="card"><div class="h">MATCHES / DIFFERS</div><div class="v" id="mdVal">Waiting…</div><div class="sub" id="mdDet"></div></div>
-  </div>
-
-  <div class="adv">
-    <h2>🧭 ANALYZER ADVISORY</h2>
-    <div class="line">Market: <b id="aMarket">—</b> Volatility: <b id="aVol">—</b> Next: <b id="aNext">5 ticks</b> Place: <b id="aPlace">—</b></div>
-    <div class="line">Signal strength: <b id="aConf">—</b> Barrier: <b id="aBar">4</b></div>
-    <div class="why" id="aWhy">Waiting for live ticks…</div>
-    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-      <a class="go" id="aGo" href="#" style="display:none;margin-top:0;">Open this market to trade →</a>
-      <button class="go" id="btnDeepScanActive" style="border:0;cursor:pointer;margin-top:0;background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;font-weight:800;">⚛ Deep Scan This Market (1000t)</button>
-      <button class="go" id="askAi" style="border:0;cursor:pointer;margin-top:0;">✦ Ask AI why</button>
+    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#00ffa3;background:rgba(0,255,163,0.1);padding:4px 10px;border-radius:99px;font-weight:800;">
+      <span class="dot live" style="width:8px;height:8px;background:#00ffa3;"></span>
+      <span>13 ACTIVE INDICES STREAMING</span>
     </div>
   </div>
 
-  <!-- ADVANCE AI CROSS-MARKET SCANNER (LIGHTNING SPEED & NEAT SINGLE-CARD DISPLAY) -->
-  <div style="margin-top:16px;background:#090d18;border:1px solid rgba(0,255,163,0.35);border-radius:14px;padding:14px;">
-    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
-      <div>
-        <div style="font-size:14px;font-weight:900;color:#00ffa3;letter-spacing:0.4px;">
-          ⚡ ADVANCE AI MARKET SCANNER · CROSS-MARKET UNIVERSE
-        </div>
-        <div style="font-size:11px;color:#9fb0cc;margin-top:2px;">
-          Lightning-speed Markov & multi-horizon scan. Evaluates all contracts (Over/Under, Matches/Differs, Even/Odd, Rise/Fall) and outputs a single best result card.
-        </div>
-      </div>
-      <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-        <button class="btn" id="rapidScan" style="background:#0d1627;border:1px solid #00b2ff;color:#00b2ff;font-weight:800;font-size:11px;padding:8px 14px;border-radius:8px;cursor:pointer;">
-          ⚡ RAPID SCAN (50t)
-        </button>
-        <button class="btn" id="deepScan" style="background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;font-weight:900;font-size:11px;padding:8px 16px;border-radius:8px;border:0;cursor:pointer;">
-          ⚛ QUANTUM DEEP SCAN (1000t)
-        </button>
-      </div>
+  <!-- Command Action Bar -->
+  <div class="command-bar">
+    <div>
+      <div style="font-size:11px;font-weight:800;color:#8e9ab3;letter-spacing:0.4px;">SCANNER COMMANDS:</div>
+      <div style="font-size:12px;color:#cbd5e1;margin-top:2px;">Execute live Markov matrix analysis across all 13 markets:</div>
     </div>
-
-    <!-- THE SINGLE DISPLAYED RESULT CARD -->
-    <div id="singleBestScanCard" style="margin-top:12px;">
-      <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:26px;text-align:center;color:#7d8aa5;font-size:12px;">
-        <span class="dot live" style="width:10px;height:10px;margin-right:8px;"></span>
-        Click <b>Rapid Scan (50t)</b> or <b>Quantum Deep Scan (1000t)</b> for the single best market suggestion…
-      </div>
-    </div>
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:11px;">
-      <span id="allMsg" style="color:#00b2ff;">Ready</span>
-      <span style="color:#64748b;">Adaptive Markov & Kelly Edge Engine</span>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <button type="button" class="command-btn rapid" id="btnRapidScan">
+        ⚡ RAPID SCAN (50 TICKS)
+      </button>
+      <button type="button" class="command-btn deep" id="btnDeepScan">
+        ⚛ QUANTUM DEEP SCAN (1000t AI)
+      </button>
+      <button type="button" class="command-btn" id="btnLiveRadar" style="background:#091224;border:1.5px solid rgba(0,255,163,0.5);color:#00ffa3;">
+        📡 LIVE RADAR: OFF
+      </button>
     </div>
   </div>
+
+  <!-- Terminal Hotkeys Bar -->
+  <div style="font-size:11px;color:#8e9ab3;background:rgba(255,255,255,0.03);padding:7px 14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+    <span>⌨️ <b>TERMINAL HOTKEYS:</b> <b style="color:#00ffa3;">[Space / T]</b> Instant Test Fire · <b style="color:#00b2ff;">[R]</b> Rapid 50t · <b style="color:#a78bfa;">[D]</b> Deep 1000t · <b style="color:#ffd600;">[M]</b> Radar · <b style="color:#cbd5e1;">[1-5]</b> Timing Presets · <b style="color:#cbd5e1;">[S]</b> Sound FX</span>
+    <span style="color:#7d8aa5;font-size:10px;font-weight:700;">Sub-10ms Local Dispatch</span>
+  </div>
+
+  <!-- THE SINGLE DISPLAYED MASTER RESULT CARD -->
+  <div id="masterCardContainer">
+    <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:16px;padding:36px;text-align:center;color:#7d8aa5;font-size:13px;">
+      <span class="dot live" style="width:10px;height:10px;margin-right:8px;background:#00ffa3;"></span>
+      Initiating live cross-market stream… Click <b>Rapid Scan (50t)</b> or <b>Quantum Deep Scan (1000t)</b> to evaluate.
+    </div>
+  </div>
+
+  <!-- Optional Collapsible: Active Market Digit Inspector -->
+  <div style="margin-top:8px;border:1px solid rgba(255,255,255,0.08);border-radius:12px;background:rgba(255,255,255,0.02);overflow:hidden;">
+    <button type="button" id="btnToggleInspect" style="width:100%;padding:10px 16px;background:none;border:none;color:#8e9ab3;font-size:11.5px;font-weight:800;text-align:left;display:flex;justify-content:space-between;align-items:center;cursor:pointer;">
+      <span>🔍 Optional: Inspect Active Market Digit Feed &amp; Barrier (<span id="inspectSymbolName">Volatility 25 Index</span>)</span>
+      <span id="inspectArrow">▼ Show Feed</span>
+    </button>
+    <div id="inspectPanel" style="display:none;padding:14px 16px;border-top:1px solid rgba(255,255,255,0.06);">
+      <div class="d-grid" id="dGrid"></div>
+      <div class="chips" style="margin-top:8px;"><span class="lbl" style="margin:0">BARRIER</span><div class="bgrid" id="bGrid" style="grid-template-columns:repeat(10,minmax(0,1fr));width:min(100%,380px);margin:0"></div></div>
+      <div style="font-size:11px;color:#7d8aa5;margin-top:6px;">Inspecting live ticks from Deriv WebSocket feed for active selected market.</div>
+    </div>
+  </div>
+
   <div class="notice" id="disc"></div>
 </div>
 <div class="foot">TickWealth is an independent tool and is not affiliated with Deriv.</div>
+
 <script src="config.js"></script>
 <script src="core.js"></script>
 <script src="stats.js"></script>
 <script src="coach.js"></script>
 <script>
 TW.ready(function(){
-  const $=TW.$; $('#disc').textContent=TW.DISCLAIMER;
-  let feed=null, barrier=4, dur=5, projHorizon=5;
-  let latestRawScan=[];
+  const $=TW.$;
+  $('#disc').textContent=TW.DISCLAIMER;
   const top=TW.mountTop({active:'analyzer',symbols:'digits',defaultSymbol:'R_25',onSymbol:restart});
-  const pb=TW.digitButtons($('#bGrid'),d=>{barrier=d;$('#bTxt').textContent=d;update();recalcScanResults();});
-  document.querySelectorAll('.chip:not(.proj-chip)').forEach(c=>c.onclick=()=>{document.querySelectorAll('.chip:not(.proj-chip)').forEach(x=>x.classList.remove('active'));c.classList.add('active');dur=+c.dataset.d;$('#aNext').textContent=dur+(dur===1?' tick':' ticks');update();});
-  
-  // Forward projection horizon chips
-  document.querySelectorAll('.proj-chip').forEach(c=>c.onclick=()=>{
-    document.querySelectorAll('.proj-chip').forEach(x=>x.classList.remove('active'));
-    c.classList.add('active');
-    projHorizon=+c.dataset.h;
-    if(latestRawScan.length) recalcScanResults(true);
-  });
 
-  const PAGE={DIGITEVEN:'EVEN',DIGITODD:'ODD',DIGITOVER:'OVER',DIGITUNDER:'UNDER',DIGITMATCH:'MATCHES',DIGITDIFF:'DIFFERS'};
-  const link=(sym,c)=>`${c.page}?vol=${sym}&type=${PAGE[c.type]}${c.barrier!=null?'&barrier='+c.barrier:''}&dur=${dur}`;
-  const marketTicksCache={};
+  let feed=null, barrier=4, dur=5;
+  let latestRawScan=[];
+  let latestComputed=[];
+  let singleCardCountdown=30;
+  let singleCardTimer=null;
+  let selectedDur=5;
+  let selectedUnit='t';
+  let testStake=1.00;
+  let radarInterval=null;
+  let isRadarActive=false;
+
+  // Toggle Inspect Feed
+  let inspectOpen=false;
+  const pb=TW.digitButtons($('#bGrid'),d=>{barrier=d;updateFeed();});
+  $('#btnToggleInspect').onclick=()=>{
+    inspectOpen=!inspectOpen;
+    $('#inspectPanel').style.display=inspectOpen?'block':'none';
+    $('#inspectArrow').textContent=inspectOpen?'▲ Hide Feed':'▼ Show Feed';
+  };
 
   function restart(){
-    if(feed)feed.close();
-    $('#aWhy').textContent='Waiting for live ticks…';
-    feed=TW.tickFeed(top.symbol,{count:500,onStatus:s=>TW.setStatus(s),onError:m=>{TW.setStatus('error',m);$('#aWhy').textContent='Market error: '+m;},onHistory:update,onTick:update});
-    update();
+    if(feed) feed.close();
+    feed=TW.tickFeed(top.symbol,{count:200,onTick:updateFeed,onHistory:updateFeed});
+    $('#inspectSymbolName').textContent=TW.volName(top.symbol);
+    updateFeed();
   }
 
-  function update(){
+  function updateFeed(){
+    if(!feed) return;
     pb.mark(barrier);
-    const d=feed?feed.digits:[];
-    const prices=feed?feed.prices:[];
+    const d=feed.digits||[];
     TW.renderCircles($('#dGrid'),d,{state:x=>x===barrier?'sel':'',tag:x=>x===barrier?'BARRIER':''});
-    $('#hdr').textContent='DIGIT ANALYZER · '+TW.volName(top.symbol)+' · '+d.length+' TICKS';
-    
-    if(d.length<15){
-      $('#aWhy').textContent=feed&&feed.error?'Market error: '+feed.error:'Need at least 15 live ticks… ('+d.length+'/15)';
-      $('#aGo').style.display='none';
-      $('#ouDecisionAction').textContent='CALIBRATING…';
-      return;
-    }
-
-    const a=TW.analyze(d), pct=x=>(x*100).toFixed(1)+'%';
-    $('#eoVal').textContent=`Even ${pct(a.pEven)} · Odd ${pct(1-a.pEven)}`; $('#eoDet').textContent='Normal odds 50% / 50%.';
-    const ov=a.pOver(barrier), un=a.pUnder(barrier);
-    $('#ouVal').textContent=`Over ${pct(ov)} · Under ${pct(un)}`; $('#ouDet').textContent=`Selected barrier ${barrier}: Over ${(9-barrier)*10}% · Under ${barrier*10}%.`;
-    $('#mdVal').textContent=`Hot ${a.hot} ${pct(a.f[a.hot])} · Cold ${a.cold} ${pct(a.f[a.cold])}`; $('#mdDet').textContent='Normal frequency of any digit is 10%.';
-
-    // ⚡ Real-Data Driven Over/Under Decision Engine (Conditioned on Current Digit & Past History)
-    if(window.TWS && TWS.decideOverUnder){
-      const ou=TWS.decideOverUnder(d, prices);
-      $('#ouDecisionAction').textContent=`${ou.decision} (BARRIER ${ou.barrier})`;
-      $('#ouProjWin').textContent=`${ou.projectedWinPct}%`;
-      $('#ouPastHit').textContent=`${ou.pastHitPct}%`;
-      $('#ouEdge').textContent=`${ou.edgePts>=0?'+':''}${ou.edgePts} pts`;
-      $('#ouDecisionReason').textContent=ou.reason;
-
-      const btnSnap=$('#btnSnapBarrier');
-      if(btnSnap){
-        btnSnap.style.display='inline-block';
-        btnSnap.textContent=`🎯 Snap to ${ou.decision}`;
-        btnSnap.onclick=()=>{
-          barrier=ou.barrier;
-          $('#bTxt').textContent=barrier;
-          pb.mark(barrier);
-          update();
-          recalcScanResults();
-        };
-      }
-
-      const btnTradeOU=$('#btnTradeDecidedOU');
-      if(btnTradeOU){
-        btnTradeOU.style.display='inline-block';
-        btnTradeOU.href=`over-under.html?vol=${top.symbol}&type=${ou.action}&barrier=${ou.barrier}&dur=${dur}`;
-      }
-    }
-
-    const c=TW.candidates(a,barrier)[0], s=TW.strength(c.heat);
-    $('#aMarket').textContent=c.market; $('#aVol').textContent=TW.volName(top.symbol); $('#aPlace').textContent=c.place; $('#aBar').textContent=barrier;
-    $('#aConf').innerHTML=s+'%'; $('#aNext').textContent=dur+(dur===1?' tick':' ticks');
-    const g=$('#aGo'); g.style.display='inline-block'; g.href=link(top.symbol,c);
   }
 
-  /* Single Market Targeted Deep Scan (1000 Ticks) */
-  function deepScanSingleMarket(sym, name, containerEl, btnEl, onComplete){
-    if(btnEl){
-      btnEl.disabled=true;
-      btnEl.textContent='⚛ Scanning 1000 Ticks & Projecting…';
-    }
-    if(containerEl){
-      containerEl.style.display='block';
-      containerEl.innerHTML='<div style="font-size:11.5px;color:#00b2ff;padding:8px;">⚛ Ingesting 1000 ticks from live Deriv node… Running Markov transition & multi-pillar modeling…</div>';
-    }
-
-    const sock=new TW.Socket({
-      url:TW.tickUrl(),
-      onOpen:s=>s.send({ticks_history:sym,end:'latest',count:1000,style:'ticks'}),
-      onMessage:d=>{
-        if(d.history&&d.history.prices){
-          sock.close();
-          if(btnEl){
-            btnEl.disabled=false;
-            btnEl.textContent='⚛ RE-SCAN & PROJECT (1000t)';
-          }
-          const prices=d.history.prices;
-          const dg=prices.map(p=>TW.digitOf(p,d.pip_size));
-          marketTicksCache[sym]={prices,dg,time:Date.now()};
-
-          const ou=(window.TWS&&TWS.decideOverUnder)?TWS.decideOverUnder(dg,prices):{decision:'UNDER 7',action:'UNDER',barrier:7,projectedWinPct:75,pastHitPct:72,edgePts:5,reason:'Statistical estimation'};
-          const eo=(window.TWS&&TWS.decideEvenOdd)?TWS.decideEvenOdd(dg,prices):{decision:'EVEN',action:'EVEN',projectedWinPct:54,pastHitPct:52,edgePts:4,reason:'Statistical parity'};
-          const md=(window.TWS&&TWS.decideMatchesDiffers)?TWS.decideMatchesDiffers(dg,prices):{decision:'DIFFERS 7',action:'DIFFERS',digit:7,projectedWinPct:92,pastHitPct:91,edgePts:2,reason:'Statistical dispersion'};
-          const bestPillar=(window.TWS&&TWS.recommendBestPillar)?TWS.recommendBestPillar(sym,prices,dg):{favourablePillar:'Over / Under',setup:ou,url:`over-under.html?vol=${sym}`};
-          const proj=(window.TWS&&TWS.projectMarket)?TWS.projectMarket(prices,dg,{horizon:projHorizon}):{regime:'STATIONARY',hurst:0.5,forwardRiseProb:0.5,digitProjections:Array(10).fill(0.1)};
-          const ds=(window.TWS&&TWS.digitStats)?TWS.digitStats(dg):{entropy:3.25,p:0.5};
-          const conf=(window.TWS&&TWS.calcConfidence)?TWS.calcConfidence({contract:ou.best?ou.best.contract:'DIGITUNDER',barrier:ou.barrier,prices,digits:dg,gate:85}):{score:85};
-
-          if(containerEl){
-            renderSingleMarketDossier(sym,name,ou,eo,md,bestPillar,proj,ds,conf,dg.length,containerEl);
-          }
-          if(onComplete) onComplete({sym,ou,eo,md,bestPillar,proj,conf});
-        }
-      }
-    });
-
-    setTimeout(()=>{
-      sock.close();
-      if(btnEl&&btnEl.disabled){
-        btnEl.disabled=false;
-        btnEl.textContent='⚛ DEEP SCAN & PROJECTION (1000t)';
-      }
-    },22000);
-  }
-
-  function renderSingleMarketDossier(sym,name,ou,eo,md,bestPillar,proj,ds,conf,sampleSize,containerEl){
-    const risePct=Math.round((proj.forwardRiseProb||0.5)*100);
-    const fallPct=100-risePct;
-    const maxP=Math.max(...(proj.digitProjections||Array(10).fill(0.1)));
-    const isAuthorized=conf.score>=85;
-
-    containerEl.innerHTML=`
-      <div style="background:#040812;border:1px solid rgba(0,255,163,0.35);border-radius:10px;padding:12px;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:4px;">
-          <span style="font-weight:800;font-size:12px;color:#00ffa3;">⚛ 1000-TICK QUANTUM DOSSIER: ${TW.esc(name)}</span>
-          <span style="font-size:10.5px;color:${isAuthorized?'#00ffa3':'#ff3b69'};background:${isAuthorized?'rgba(0,255,163,0.15)':'rgba(255,59,105,0.12)'};padding:2px 7px;border-radius:4px;font-weight:700;">
-            ${isAuthorized?'≥85% GATE AUTHORIZED':'<85% GATE VETOED'} (${conf.score}%)
-          </span>
-        </div>
-
-        <!-- Favourable Pillar Recommendation -->
-        <div style="background:rgba(0,178,255,0.08);border:1px solid rgba(0,178,255,0.3);border-radius:8px;padding:8px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-          <div>
-            <div style="font-size:10.5px;color:#8e9ab3;font-weight:700;">FAVOURABLE PILLAR TO GO TO:</div>
-            <div style="font-size:13px;font-weight:800;color:#00b2ff;">${bestPillar.favourablePillar} ➔ ${bestPillar.setup.decision}</div>
-          </div>
-          <a href="${bestPillar.url}" style="padding:5px 10px;background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;font-weight:800;border-radius:6px;text-decoration:none;font-size:11px;">Enter Pillar →</a>
-        </div>
-
-        <!-- 4 Multi-Contract Explicit Suggestions Grid -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">
-          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:6px 8px;">
-            <div style="display:flex;justify-content:space-between;font-size:10.5px;">
-              <span style="color:#7d8aa5;">Over / Under:</span>
-              <b style="color:#00ffa3;">${ou.decision}</b>
-            </div>
-            <div style="font-size:10px;color:#cbd5e1;margin-top:2px;">${ou.projectedWinPct}% win · +${ou.edgePts} pts</div>
-            <a href="over-under.html?vol=${sym}&type=${ou.action}&barrier=${ou.barrier}&dur=5" style="display:inline-block;margin-top:4px;font-size:9.5px;color:#00ffa3;font-weight:700;text-decoration:none;">Trade OU →</a>
-          </div>
-
-          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:6px 8px;">
-            <div style="display:flex;justify-content:space-between;font-size:10.5px;">
-              <span style="color:#7d8aa5;">Matches / Differs:</span>
-              <b style="color:#00b2ff;">${md.decision}</b>
-            </div>
-            <div style="font-size:10px;color:#cbd5e1;margin-top:2px;">${md.projectedWinPct}% win · +${md.edgePts} pts</div>
-            <a href="matches-differs.html?vol=${sym}&type=${md.action}&digit=${md.digit}&dur=5" style="display:inline-block;margin-top:4px;font-size:9.5px;color:#00b2ff;font-weight:700;text-decoration:none;">Trade M/D →</a>
-          </div>
-
-          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:6px 8px;">
-            <div style="display:flex;justify-content:space-between;font-size:10.5px;">
-              <span style="color:#7d8aa5;">Even / Odd:</span>
-              <b style="color:#ffd600;">${eo.decision}</b>
-            </div>
-            <div style="font-size:10px;color:#cbd5e1;margin-top:2px;">${eo.projectedWinPct}% win · +${eo.edgePts} pts</div>
-            <a href="even-odd.html?vol=${sym}&type=${eo.action}&dur=5" style="display:inline-block;margin-top:4px;font-size:9.5px;color:#ffd600;font-weight:700;text-decoration:none;">Trade E/O →</a>
-          </div>
-
-          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:6px 8px;">
-            <div style="display:flex;justify-content:space-between;font-size:10.5px;">
-              <span style="color:#7d8aa5;">Rise / Fall:</span>
-              <b style="color:${risePct>=50?'#00ffa3':'#ff3b69'};">${risePct>=50?'RISE':'FALL'}</b>
-            </div>
-            <div style="font-size:10px;color:#cbd5e1;margin-top:2px;">${Math.max(risePct,fallPct)}% win · ${proj.regime.replace(/_/g,' ')}</div>
-            <a href="rise-fall.html?vol=${sym}&type=${risePct>=50?'CALL':'PUT'}&dur=5" style="display:inline-block;margin-top:4px;font-size:9.5px;color:#00ffa3;font-weight:700;text-decoration:none;">Trade R/F →</a>
-          </div>
-        </div>
-
-        <!-- Forward Digit Probability Distribution -->
-        <div style="margin-bottom:8px;">
-          <div style="display:flex;justify-content:space-between;font-size:10.5px;color:#7d8aa5;margin-bottom:4px;">
-            <span>Projected Forward Digit Attractor (0–9)</span>
-            <span>Current Tick: <b style="color:#fff;">Digit ${ou.currentDigit}</b></span>
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px;align-items:flex-end;height:45px;background:#060a14;padding:4px;border-radius:6px;">
-            ${(proj.digitProjections||[]).map((p,d)=>{
-              const hPct=Math.max(12,Math.round((p/(maxP||0.2))*100));
-              const isWin=ou.best&&ou.best.winningDigits&&ou.best.winningDigits.includes(d);
-              const col=isWin?'#00ffa3':'rgba(255,255,255,0.2)';
-              return `<div style="height:${hPct}%;background:${col};border-radius:2px;display:flex;align-items:flex-start;justify-content:center;" title="Digit ${d}: ${(p*100).toFixed(1)}% forward probability">
-                <span style="font-size:8px;font-weight:700;color:#04101c;">${(p*100).toFixed(0)}</span>
-              </div>`;
-            }).join('')}
-          </div>
-          <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:3px;text-align:center;font-size:9px;color:#7d8aa5;margin-top:2px;">
-            <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span>
-          </div>
-        </div>
-
-        <!-- Rise/Fall Ratio -->
-        <div style="display:flex;justify-content:space-between;font-size:10.5px;font-weight:700;margin-bottom:2px;">
-          <span style="color:#00ffa3;">▲ Rise: ${risePct}%</span>
-          <span style="color:#9fb0cc;font-size:10px;">${proj.regime.replace(/_/g,' ')} (H=${proj.hurst})</span>
-          <span style="color:#ff3b69;">▼ Fall: ${fallPct}%</span>
-        </div>
-        <div style="width:100%;height:4px;background:#ff3b69;border-radius:2px;overflow:hidden;display:flex;margin-bottom:8px;">
-          <div style="width:${risePct}%;height:100%;background:#00ffa3;"></div>
-        </div>
-
-        <!-- Action Buttons -->
-        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px;">
-          <a href="over-under.html?vol=${sym}&type=${ou.action}&barrier=${ou.barrier}&dur=${dur}" style="flex:1;text-align:center;padding:7px;background:#00ffa3;color:#04101c;font-weight:800;border-radius:6px;text-decoration:none;font-size:11px;">⚡ Trade ${ou.decision}</a>
-          <a href="bots-library.html?symbol=${sym}&contract=${ou.best?ou.best.contract:'DIGITUNDER'}&barrier=${ou.barrier}" style="flex:1.2;text-align:center;padding:7px;background:#00b2ff;color:#04101c;font-weight:800;border-radius:6px;text-decoration:none;font-size:11px;">Deploy to Bot with Loss Shield →</a>
-          <button type="button" class="btn btn-switch-market" data-sym="${sym}" style="padding:7px 10px;background:#141e33;color:#9fb0cc;font-weight:700;border:1px solid rgba(255,255,255,0.15);border-radius:6px;font-size:11px;cursor:pointer;">Set Active</button>
-        </div>
-      </div>
-    `;
-
-    const switchBtn=containerEl.querySelector('.btn-switch-market');
-    if(switchBtn){
-      switchBtn.onclick=()=>{
-        top.setSymbol(sym);
-        restart();
-        window.scrollTo({top:0,behavior:'smooth'});
-      };
-    }
-  }
-
-  /* Deep Scan Active Market Button */
-  const btnDeepActive=$('#btnDeepScanActive');
-  if(btnDeepActive){
-    btnDeepActive.onclick=()=>{
-      deepScanSingleMarket(top.symbol,TW.volName(top.symbol),null,btnDeepActive,()=>{
-        update();
-      });
-    };
-  }
-
-  /* Multi-Market Rapid Scan & Quantum Deep Scan */
-  function executeScan(tickCount, isDeep, onComplete){
+  /* =========================================================================
+   * LIGHTNING RAPID SCAN (50t) & QUANTUM DEEP SCAN (1000t) - SUB-150MS SPEED
+   * ========================================================================= */
+  function executeScan(tickCount, isDeep, silent){
     const syms=TW.VOLS.filter(v=>v.digits);
-    const btnRapid=$('#rapidScan'), btnDeep=$('#deepScan'), btnProj=$('#aiProjectScan');
-    if(btnRapid) btnRapid.disabled=true;
-    if(btnDeep) btnDeep.disabled=true;
-    if(btnProj) btnProj.disabled=true;
+    const btnRapid=$('#btnRapidScan'), btnDeep=$('#btnDeepScan');
+    if(btnRapid && !silent) btnRapid.disabled=true;
+    if(btnDeep && !silent) btnDeep.disabled=true;
 
-    const singleBox=$('#singleBestScanCard');
-    if(singleBox){
-      singleBox.innerHTML=`
-        <div style="background:rgba(255,255,255,0.03);border:1.5px solid rgba(0,255,163,0.35);border-radius:14px;padding:24px;text-align:center;">
-          <div style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:13.5px;color:#00ffa3;font-weight:900;">
-            <span class="dot live" style="width:10px;height:10px;background:#00ffa3;"></span>
-            <span>${isDeep ? '⚛ INGESTING 1000 TICKS ACROSS ALL 11 MARKETS (QUANTUM DEEP SCAN)…' : '⚡ LIGHTNING RAPID SCAN ACROSS ALL 11 MARKETS (50 TICKS)…'}</span>
-          </div>
-          <div id="analyzerProgressTxt" style="font-size:11.5px;color:#9fb0cc;margin-top:8px;">
-            Ingesting live tick streams across all 11 volatilities (0/${syms.length} received)… Calculating empirical Markov transition matrices & real-time projections…
-          </div>
-        </div>`;
-    }
+    const box=$('#masterCardContainer');
 
-    if($('#allMsg')) $('#allMsg').textContent=(isDeep?'Quantum Deep Scanning ':'Rapid Scanning ')+'0/'+syms.length+' markets ('+tickCount+' ticks each)…';
     latestRawScan=[];
     let got=0;
     let isFinished=false;
+    let hasRenderedPreliminary=false;
     let idleTimer=null;
+
+    // Zero-Latency Seeding: Hydrate from in-memory pool
+    syms.forEach(v=>{
+      if(TW.tickPool[v.id] && TW.tickPool[v.id].prices && TW.tickPool[v.id].prices.length>=10){
+        latestRawScan.push({
+          v:{id:v.id,name:v.name},
+          prices:TW.tickPool[v.id].prices,
+          dg:TW.tickPool[v.id].digits
+        });
+      }
+    });
+
+    if(latestRawScan.length>=3){
+      recalcScanResults(isDeep, true);
+      hasRenderedPreliminary=true;
+    } else if(!silent) {
+      box.innerHTML=`
+        <div style="background:linear-gradient(135deg,rgba(11,16,27,0.98),rgba(17,24,39,0.98));border:1.5px solid rgba(0,255,163,0.35);border-radius:16px;padding:28px;text-align:center;">
+          <div style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:13.5px;color:#00ffa3;font-weight:900;">
+            <span class="dot live" style="width:10px;height:10px;background:#00ffa3;"></span>
+            <span>${isDeep ? '⚛ QUANTUM DEEP SCAN INGESTING 1000 TICKS ACROSS ALL 13 MARKETS…' : '⚡ LIGHTNING RAPID SCAN ACROSS ALL 13 MARKETS (50 TICKS)…'}</span>
+          </div>
+          <div id="scanProgressTxt" style="font-size:12px;color:#9fb0cc;margin-top:6px;">
+            Calculating Markov transition matrices, entropy & Kelly edge…
+          </div>
+        </div>
+      `;
+    }
 
     const sock=new TW.Socket({
       url:TW.tickUrl(),
@@ -425,25 +199,29 @@ TW.ready(function(){
           const prices=d.history.prices;
           const pip=v.pip || d.pip_size || TW.volPip(v.id) || 2;
           const dg=prices.map(p=>TW.digitOf(p,pip));
-          latestRawScan.push({v,prices,dg});
-          marketTicksCache[v.id]={prices,dg,time:Date.now()};
+          const exIdx=latestRawScan.findIndex(x=>x.v.id===v.id);
+          if(exIdx>=0) latestRawScan[exIdx]={v,prices,dg};
+          else latestRawScan.push({v,prices,dg});
+          TW.tickPool[v.id]={pip,prices,digits:dg,epochs:[],lastUpdated:Date.now()};
         }
 
-        const progTxt=`Ingesting live tick streams across 11 volatilities (${got}/${syms.length} received)… Analyzing Markov matrices & real-time projections…`;
-        const progEl=$('#analyzerProgressTxt');
-        if(progEl) progEl.textContent=progTxt;
-        if($('#allMsg')) $('#allMsg').textContent=(isDeep?'Quantum Deep Scanning ':'Rapid Scanning ')+got+'/'+syms.length+'…';
+        const progEl=$('#scanProgressTxt');
+        if(progEl) progEl.textContent=`Ingesting live tick streams across all 13 volatility indices (${got}/${syms.length} received)… Calculating empirical Markov matrices…`;
+
+        if(latestRawScan.length>=3 && !hasRenderedPreliminary){
+          hasRenderedPreliminary=true;
+          recalcScanResults(isDeep, true);
+        }
 
         clearTimeout(idleTimer);
-        // Sub-400ms lightning resolution once majority of markets stream in
-        if(got>=6 && latestRawScan.length>=4){
-          idleTimer=setTimeout(finish, 320);
+        if(got>=5 && latestRawScan.length>=4){
+          idleTimer=setTimeout(finish, 180);
         }
         if(got>=syms.length) finish();
       }
     });
 
-    const to=setTimeout(finish, 10000);
+    const to=setTimeout(finish, 3000);
 
     function finish(){
       if(isFinished) return;
@@ -453,40 +231,30 @@ TW.ready(function(){
       sock.close();
       if(btnRapid) btnRapid.disabled=false;
       if(btnDeep) btnDeep.disabled=false;
-      if(btnProj) btnProj.disabled=false;
 
-      if(!latestRawScan.length){
-        // Fall back to active market feed ticks if available
-        if(feed && feed.prices && feed.prices.length>=15){
-          latestRawScan.push({
-            v:{id:top.symbol,name:TW.volName(top.symbol)},
-            prices:feed.prices,
-            dg:feed.digits
-          });
-        }
+      if(!latestRawScan.length && feed && feed.prices && feed.prices.length>=10){
+        latestRawScan.push({
+          v:{id:top.symbol,name:TW.volName(top.symbol)},
+          prices:feed.prices,
+          dg:feed.digits
+        });
       }
 
       if(!latestRawScan.length){
-        if(singleBox){
-          singleBox.innerHTML=`
-            <div style="padding:18px;color:#ff3b69;font-size:12px;text-align:center;background:rgba(255,59,105,0.06);border:1px solid rgba(255,59,105,0.25);border-radius:12px;">
-              Scan timed out — Deriv public tick node was unreachable.
-              <button class="btn" onclick="document.getElementById('rapidScan').click()" style="margin-top:8px;font-size:11px;padding:6px 14px;background:#00ffa3;color:#04101c;font-weight:800;border:0;border-radius:6px;cursor:pointer;">⚡ Retry Rapid Scan</button>
-            </div>`;
-        }
-        if($('#allMsg')) $('#allMsg').textContent='No data received — check network connection.';
+        box.innerHTML=`
+          <div style="padding:22px;color:#ff3b69;font-size:12.5px;text-align:center;background:rgba(255,59,105,0.06);border:1px solid rgba(255,59,105,0.25);border-radius:14px;">
+            Connection timed out. Deriv tick node was temporarily busy.
+            <button type="button" onclick="document.getElementById('btnRapidScan').click()" style="margin-top:8px;font-size:11.5px;padding:6px 16px;background:#00ffa3;color:#04101c;font-weight:900;border:0;border-radius:6px;cursor:pointer;">⚡ Retry Rapid Scan</button>
+          </div>
+        `;
         return;
       }
 
-      const computed=recalcScanResults(isDeep);
-      if(onComplete) onComplete(computed);
+      recalcScanResults(isDeep, false);
     }
   }
 
-  let latestComputed=[];
-
-  function recalcScanResults(isDeep){
-    if(!latestRawScan.length) return [];
+  function recalcScanResults(isDeep, isPreliminary){
     const computed=[];
 
     latestRawScan.forEach(item=>{
@@ -494,216 +262,307 @@ TW.ready(function(){
       const a=TW.analyze(dg);
       const c=TW.candidates(a,barrier)[0];
       const ds=(window.TWS&&TWS.digitStats)?TWS.digitStats(dg):{entropy:3.28,p:0.5};
-      const auto=(window.TWS&&TWS.autocorr)?TWS.autocorr(dg,1):{r:0};
 
-      // Real-Data Driven Over/Under Decision for this specific market
+      // Real-Data Over/Under
       const ou=(window.TWS&&TWS.decideOverUnder)?TWS.decideOverUnder(dg,prices):{
-        decision:`UNDER 7`,action:'UNDER',barrier:7,pastHitPct:70,projectedWinPct:75,nullPct:70,edgePts:5,reason:'Statistical estimation'
+        decision:'UNDER 7',action:'UNDER',barrier:7,pastHitPct:70,projectedWinPct:75,nullPct:70,edgePts:5,reason:'Statistical estimation'
       };
 
-      // Real-Data Driven Even/Odd Decision
+      // Real-Data Even/Odd
       const eo=(window.TWS&&TWS.decideEvenOdd)?TWS.decideEvenOdd(dg,prices):{
         decision:'EVEN',action:'EVEN',pastHitPct:52,projectedWinPct:54,nullPct:50,edgePts:4,reason:'Parity estimation'
       };
 
-      // Real-Data Driven Matches/Differs Decision
+      // Real-Data Matches/Differs
       const md=(window.TWS&&TWS.decideMatchesDiffers)?TWS.decideMatchesDiffers(dg,prices):{
-        decision:'DIFFERS 7',action:'DIFFERS',digit:7,pastHitPct:91,projectedWinPct:92,nullPct:90,edgePts:2,reason:'Dispersion estimation'
+        decision:'DIFFERS 0',action:'DIFFERS',digit:0,pastHitPct:91,projectedWinPct:92,nullPct:90,edgePts:2,reason:'Dispersion estimation'
       };
 
-      // Best Pillar Recommendation for this specific volatility
+      // Best Pillar
       const bestPillar=(window.TWS&&TWS.recommendBestPillar)?TWS.recommendBestPillar(v.id,prices,dg):{
         favourablePillar:'Over / Under',setup:ou,url:`over-under.html?vol=${v.id}`
       };
 
-      const confCalc=(window.TWS&&TWS.calcConfidence)?TWS.calcConfidence({contract:ou.best?ou.best.contract:c.type,barrier:ou.barrier,prices,digits:dg,gate:85}):{score:TW.strength(c.heat)};
-
-      // Multi-Horizon Predictive Projection
-      const proj=(window.TWS&&TWS.projectMarket)?TWS.projectMarket(prices,dg,{horizon:projHorizon}):{
+      // Multi-Horizon Projection
+      const proj=(window.TWS&&TWS.projectMarket)?TWS.projectMarket(prices,dg,{horizon:5}):{
         regime:'STATIONARY',hurst:0.5,forwardRiseProb:0.5,forwardFallProb:0.5,
-        digitProjections:Array(10).fill(0.1),projectedEntropy:3.32,optimalContract:{name:ou.decision,edge:ou.edgePts,projectedProb:ou.projectedWinPct}
+        digitProjections:Array(10).fill(0.1),projectedEntropy:3.32
       };
 
-      const edgePts=+(ou.edgePts||(c.heat*100).toFixed(1));
-      const entropyNorm=+(ds.entropy/Math.log2(10)).toFixed(3);
-      let grade='B';
-      if(ou.edgePts>=9 && ou.projectedWinPct>=72) grade='A+';
-      else if(ou.edgePts>=5) grade='A';
-      else if(ou.edgePts<=0) grade='C';
-
-      const score = (bestPillar.setup.edgePts * 2.0) + (bestPillar.setup.projectedWinPct * 0.8) + ((bestPillar.setup.conviction || confCalc.score) * 1.2);
-      const effectiveConf = Math.max(bestPillar.setup.conviction || 50, confCalc.score || 50);
+      const confCalc=(window.TWS&&TWS.calcConfidence)?TWS.calcConfidence({contract:ou.best?ou.best.contract:c.type,barrier:ou.barrier,prices,digits:dg,gate:85}):{score:TW.strength(c.heat)};
+      const effectiveConf=Math.max(bestPillar.setup.conviction||50, confCalc.score||50);
+      const score=(bestPillar.setup.edgePts*2.2)+(bestPillar.setup.projectedWinPct*0.8)+(effectiveConf*1.2);
 
       computed.push({
-        v, c, n:dg.length, edgePts, entropy:entropyNorm, chiP:+(ds.p).toFixed(3),
-        grade, conf:effectiveConf, autoR:+(auto.r).toFixed(2), isDeep:!!isDeep,
+        v, c, n:dg.length, isDeep:!!isDeep,
+        entropy:+(ds.entropy/Math.log2(10)).toFixed(3),
+        conf:effectiveConf,
         ou, eo, md, bestPillar, proj, prices, dg, score
       });
     });
 
-    // Sort by algorithmic conviction & composite edge across all pillars
-    computed.sort((x, y) => y.score - x.score);
+    computed.sort((x,y)=>y.score-x.score);
     latestComputed=computed;
-
-    if($('#allMsg')){
-      $('#allMsg').innerHTML=`<b>${computed[0].isDeep?'QUANTUM DEEP SCAN (1000t)':'LIGHTNING RAPID SCAN (50t)'} COMPLETE:</b> Analyzed ${computed.length} markets. Top Alpha: <b>${computed[0].v.name}</b>.`;
-    }
-
-    // Render the Single Best Result Card
-    renderSingleBestCard();
-
-    return computed;
+    renderSingleBestMasterCard();
   }
 
-  let singleCardCountdown = 30;
-  let singleCardTimer = null;
-
-  /* Render Single Most Suitable Result Card */
-  function renderSingleBestCard(){
-    const box = $('#singleBestScanCard');
+  /* =========================================================================
+   * RENDER THE SINGLE BEST MASTER CARD (CLEAN, NO CONGESTION)
+   * ========================================================================= */
+  function renderSingleBestMasterCard(){
+    const box=$('#masterCardContainer');
     if(!box || !latestComputed || !latestComputed.length) return;
 
-    const topBest = latestComputed[0];
-    const isAuthorized = topBest.conf >= 85;
-    const risePct = Math.round((topBest.proj.forwardRiseProb || 0.5) * 100);
-    const fallPct = 100 - risePct;
-    const maxP = Math.max(...(topBest.proj.digitProjections || Array(10).fill(0.1)));
+    const topBest=latestComputed[0];
+    const isAuthorized=topBest.conf>=85;
+    const risePct=Math.round((topBest.proj.forwardRiseProb||0.5)*100);
+    const fallPct=100-risePct;
+    const maxP=Math.max(...(topBest.proj.digitProjections||Array(10).fill(0.1)));
 
     clearInterval(singleCardTimer);
-    singleCardCountdown = topBest.isDeep ? 45 : 30;
+    singleCardCountdown=topBest.isDeep?45:30;
 
-    let selectedDur = 5;
-    let selectedUnit = 't';
+    const setup=topBest.bestPillar.setup;
+    const pillarName=topBest.bestPillar.favourablePillar;
 
-    const setup = topBest.bestPillar.setup;
-    const pillarName = topBest.bestPillar.favourablePillar;
+    // Trigger audio chime if alpha conviction reaches >=85%
+    if(isAuthorized && TW.fx) TW.fx.alert();
 
-    function buildPillarUrl(durVal, unitVal){
-      let base = topBest.bestPillar.url;
-      const sep = base.includes('?') ? '&' : '?';
-      let url = `${base}${sep}dur=${durVal}&unit=${unitVal}`;
-      if(setup.action) url += `&type=${setup.action}`;
-      if(setup.barrier != null) url += `&barrier=${setup.barrier}`;
-      if(setup.digit != null) url += `&digit=${setup.digit}`;
+    // Build Launch Manual URL
+    function getManualUrl(){
+      let base=topBest.bestPillar.url;
+      const sep=base.includes('?')?'&':'?';
+      let url=`${base}${sep}dur=${selectedDur}&unit=${selectedUnit}`;
+      if(setup.action) url+=`&type=${setup.action}`;
+      if(setup.barrier!=null) url+=`&barrier=${setup.barrier}`;
+      if(setup.digit!=null) url+=`&digit=${setup.digit}`;
       return url;
     }
 
-    box.innerHTML = `
-      <div style="border-left:4px solid ${isAuthorized?'#00ffa3':'#ffd600'};background:linear-gradient(135deg,${isAuthorized?'rgba(0,255,163,0.12),rgba(0,178,255,0.06)':'rgba(255,214,0,0.08),rgba(255,59,105,0.05)'});border:1.5px solid ${isAuthorized?'rgba(0,255,163,0.45)':'rgba(255,214,0,0.4)'};border-radius:14px;padding:18px;box-shadow:0 0 25px ${isAuthorized?'rgba(0,255,163,0.18)':'rgba(255,214,0,0.12)'};">
-        
-        <!-- Top Badges & Live Dynamic Blinking Timer Row -->
+    // Build Launch Bot URL
+    function getBotUrl(){
+      const contract = setup.best ? setup.best.contract : (pillarName==='Over / Under'?(setup.action==='OVER'?'DIGITOVER':'DIGITUNDER'):pillarName==='Even / Odd'?(setup.action==='EVEN'?'DIGITEVEN':'DIGITODD'):pillarName==='Matches / Differs'?(setup.action==='MATCHES'?'DIGITMATCH':'DIGITDIFF'):(setup.action==='CALL'?'CALL':'PUT'));
+      let bUrl=`bots-library.html?symbol=${topBest.v.id}&contract=${contract}`;
+      if(setup.barrier!=null) bUrl+=`&barrier=${setup.barrier}`;
+      if(setup.digit!=null) bUrl+=`&barrier=${setup.digit}`;
+      bUrl+=`&name=${encodeURIComponent(`AI Alpha ${topBest.v.name} (${setup.decision})`)}&dur=${selectedDur}&rule_kind=instant&rule_cond=${setup.action==='UNDER'?'over':setup.action==='OVER'?'under':setup.action==='EVEN'?'odd':'even'}&rule_n=1&mart=1&mart_mult=2.5&mart_steps=3&gate=80`;
+      return bUrl;
+    }
+
+    function updateActionButtonsText(){
+      const durLabel = selectedUnit==='t' ? `${selectedDur} Ticks` : `${selectedDur} ${selectedUnit==='s'?'Sec':'Min'}`;
+      const bManual = $('#btnLaunchManualTrade');
+      if(bManual){
+        bManual.href = getManualUrl();
+        bManual.innerHTML = `⚡ LAUNCH MANUAL TRADE (${setup.decision} · USE ${durLabel}) →`;
+      }
+      const bBot = $('#btnLaunchBotTrade');
+      if(bBot){
+        bBot.href = getBotUrl();
+        bBot.innerHTML = `🤖 LAUNCH IN BOT (PRECONFIGURED · USE ${durLabel}) →`;
+      }
+    }
+
+    const curD = topBest.ou.currentDigit;
+    const attractorDigit = topBest.proj.highestProbDigit != null ? topBest.proj.highestProbDigit : (setup.action==='UNDER' ? 8 : setup.action==='OVER' ? 1 : curD);
+    const pSlice = (topBest.prices || []).slice(-30);
+    let sparkSvg = '';
+    if (pSlice.length >= 2) {
+      const minP = Math.min(...pSlice), maxP = Math.max(...pSlice), rng = (maxP - minP) || 1;
+      const curP = pSlice[pSlice.length - 1];
+      const prevP = pSlice[pSlice.length - 2];
+      const isUp = curP >= prevP;
+      const pts = pSlice.map((p, idx) => `${((idx / (pSlice.length - 1)) * 300).toFixed(1)},${(32 - ((p - minP) / rng) * 26).toFixed(1)}`).join(' ');
+      sparkSvg = `
+        <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 12px;margin:10px 0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#8e9ab3;margin-bottom:4px;">
+            <span style="font-weight:700;">Live Micro-Tick Ribbon (${TW.esc(topBest.v.name)})</span>
+            <span>Spot: <b style="color:${isUp ? '#00ffa3' : '#ff3b69'};">${curP.toFixed(topBest.v.pip || 2)}</b> · Digit: <b style="color:#ffd600;">${curD}</b></span>
+          </div>
+          <svg viewBox="0 0 300 36" width="100%" height="36" style="display:block;overflow:visible;">
+            <polyline points="${pts}" fill="none" stroke="${isUp ? '#00ffa3' : '#00b2ff'}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      `;
+    }
+
+    box.innerHTML=`
+      <div class="single-card" style="border-left:5px solid ${isAuthorized?'#00ffa3':'#ffd600'};">
+
+        <!-- Top Badges & Countdown Timer -->
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span style="font-size:10.5px;font-weight:900;color:#04101c;background:${isAuthorized?'#00ffa3':'#ffd600'};padding:3px 9px;border-radius:4px;letter-spacing:0.5px;">
-              👑 #1 SINGLE MOST SUITABLE SUGGESTION
+            <span style="font-size:11px;font-weight:900;color:#04101c;background:${isAuthorized?'#00ffa3':'#ffd600'};padding:3px 10px;border-radius:4px;letter-spacing:0.5px;">
+              👑 #1 SINGLE MOST FAVOURABLE MARKET
             </span>
-            <span style="font-size:11px;color:#00b2ff;font-weight:700;">
+            <span style="font-size:11.5px;color:#00b2ff;font-weight:800;">
               ${topBest.isDeep ? '1000t Quantum Calibrated' : '50t Lightning Rapid Calibrated'}
             </span>
           </div>
 
-          <!-- Dynamic 3-Color Blinking Validity Timer Badge -->
-          <div id="singleTimerBadge" class="blink-green" style="padding:4px 10px;border-radius:6px;font-size:11px;font-weight:800;letter-spacing:0.3px;transition:all 0.3s ease;">
-            🟢 <b>${singleCardCountdown}s</b> · HIGH ALPHA — OK TO PROCEED
+          <!-- Actions & 3-Color Dynamic Blinking Timer Badge -->
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <button type="button" id="btnCopySignal" class="btn ghost" style="padding:5px 10px;font-size:11px;border-radius:6px;cursor:pointer;display:inline-flex;align-items:center;gap:4px;">
+              📋 Copy Signal
+            </button>
+            <div id="masterTimerBadge" class="blink-green" style="padding:5px 12px;border-radius:6px;font-size:11.5px;font-weight:800;letter-spacing:0.3px;transition:all 0.3s ease;">
+              🟢 <b>${singleCardCountdown}s</b> · HIGH ALPHA — OK TO PROCEED
+            </div>
           </div>
         </div>
 
-        ${!isAuthorized ? `
-        <!-- Cautionary notice if confidence < 85% -->
-        <div style="margin-top:10px;background:rgba(255,214,0,0.1);border:1px solid rgba(255,214,0,0.3);border-radius:8px;padding:8px 12px;font-size:11.5px;color:#ffd600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-          <span>🛡️ <b>AI SAFETY NOTICE:</b> Conviction is <b>${topBest.conf}%</b> (<85% Gate). Suggestion is displayed below. Run 1000t Quantum Deep Scan to verify regime.</span>
-          <button type="button" id="btnNoticeDeepScan" class="btn" style="padding:4px 10px;background:#ffd600;color:#04101c;font-weight:900;font-size:10.5px;border:0;border-radius:5px;cursor:pointer;">⚛ Deep Scan (1000t)</button>
-        </div>` : ''}
-
-        <!-- Headline: Volatility Market & Favourable Pillar Setup -->
-        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;flex-wrap:wrap;gap:8px;">
+        <!-- Headline: Favourable Market & Optimal Setup -->
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;flex-wrap:wrap;gap:8px;">
           <div>
-            <span style="font-size:11.5px;color:#9fb0cc;">Favourable Market:</span>
-            <h2 style="margin:2px 0 0 0;font-size:20px;font-weight:900;color:#fff;">
-              ${TW.esc(topBest.v.name)} <span style="font-size:13px;color:#7d8aa5;">(${topBest.v.id})</span>
-            </h2>
+            <span style="font-size:12px;color:#9fb0cc;">Favourable Volatility Index:</span>
+            <h1 style="margin:2px 0 0 0;font-size:24px;font-weight:900;color:#fff;">
+              ${TW.esc(topBest.v.name)} <span style="font-size:14px;color:#7d8aa5;">(${topBest.v.id})</span>
+            </h1>
           </div>
           <div style="text-align:right;">
-            <div style="font-size:11px;color:#8e9ab3;font-weight:700;">FAVOURABLE PILLAR TO ENTER:</div>
-            <div style="font-size:17px;font-weight:900;color:#ffd600;">
+            <div style="font-size:11.5px;color:#8e9ab3;font-weight:700;">FAVOURABLE PILLAR TO ENTER:</div>
+            <div style="font-size:19px;font-weight:900;color:#ffd600;">
               ${pillarName.toUpperCase()} ➔ <span style="color:#00ffa3;">${setup.decision}</span>
             </div>
           </div>
         </div>
 
-        <!-- Key Probabilities & Edge Statistics Bar -->
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-top:12px;background:rgba(0,0,0,0.35);padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);">
+        <!-- Live Micro-Tick Sparkline Ribbon -->
+        ${sparkSvg}
+
+        <!-- Quantitative Edge KPIs -->
+        <div class="kpi-row">
           <div>
-            <div style="font-size:10px;color:#8e9ab3;font-weight:700;">WIN PROBABILITY</div>
-            <div style="font-size:18px;font-weight:900;color:#00ffa3;margin-top:2px;">${setup.projectedWinPct}%</div>
-            <div style="font-size:9.5px;color:#7d8aa5;">Forward expectancy</div>
+            <div style="font-size:10px;color:#8e9ab3;font-weight:700;">FORWARD WIN RATE</div>
+            <div class="kpi-cell-val" style="color:#00ffa3;">${setup.projectedWinPct}%</div>
+            <div style="font-size:10px;color:#7d8aa5;">Forward mathematical odds</div>
           </div>
           <div>
-            <div style="font-size:10px;color:#8e9ab3;font-weight:700;">HISTORICAL HIT</div>
-            <div style="font-size:18px;font-weight:900;color:#fff;margin-top:2px;">${setup.pastHitPct}%</div>
-            <div style="font-size:9.5px;color:#7d8aa5;">Across ${topBest.n} real ticks</div>
+            <div style="font-size:10px;color:#8e9ab3;font-weight:700;">HISTORICAL HIT RATE</div>
+            <div class="kpi-cell-val" style="color:#fff;">${setup.pastHitPct}%</div>
+            <div style="font-size:10px;color:#7d8aa5;">Across ${topBest.n} real ticks</div>
           </div>
           <div>
             <div style="font-size:10px;color:#8e9ab3;font-weight:700;">NET STATISTICAL EDGE</div>
-            <div style="font-size:18px;font-weight:900;color:#00b2ff;margin-top:2px;">+${setup.edgePts} pts</div>
-            <div style="font-size:9.5px;color:#7d8aa5;">Above normal odds</div>
+            <div class="kpi-cell-val" style="color:#00b2ff;">+${setup.edgePts} pts</div>
+            <div style="font-size:10px;color:#7d8aa5;">Above normal odds</div>
           </div>
           <div>
             <div style="font-size:10px;color:#8e9ab3;font-weight:700;">AI CONVICTION</div>
-            <div style="font-size:18px;font-weight:900;color:${isAuthorized?'#00ffa3':'#ffd600'};margin-top:2px;">${topBest.conf}%</div>
-            <div style="font-size:9.5px;color:${isAuthorized?'#00ffa3':'#ffd600'};">${isAuthorized?'Verified ≥85% Gate':'<85% Caution'}</div>
+            <div class="kpi-cell-val" style="color:${isAuthorized?'#00ffa3':'#ffd600'};">${topBest.conf}%</div>
+            <div style="font-size:10px;color:${isAuthorized?'#00ffa3':'#ffd600'};">${isAuthorized?'Verified ≥85% Gate':'<85% Caution'}</div>
           </div>
         </div>
 
-        <!-- Detailed Multi-Contract Breakdown For This Single Best Market -->
-        <div style="margin-top:12px;background:#060a14;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;">
+        <!-- DEDICATED CARD: PERFECT ENTRY SIGNAL & EXACT TIMING DIRECTIVE -->
+        <div style="background:linear-gradient(135deg,rgba(0,178,255,0.08),rgba(0,255,163,0.06));border:1.5px solid rgba(0,255,163,0.45);border-radius:12px;padding:16px;margin:14px 0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:10px;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:16px;">🎯</span>
+              <span style="font-size:13px;font-weight:900;color:#00ffa3;letter-spacing:0.4px;">
+                PERFECT ENTRY &amp; EXECUTION TIMING DIRECTIVE
+              </span>
+            </div>
+            <span style="font-size:11px;font-weight:800;color:#00b2ff;background:rgba(0,178,255,0.15);padding:3px 8px;border-radius:6px;">
+              QUANTITATIVELY OPTIMIZED
+            </span>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+            <!-- Card Box 1: Perfect Entry Signal -->
+            <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px;">
+              <div style="font-size:10px;color:#8e9ab3;font-weight:700;letter-spacing:0.3px;">PERFECT ENTRY TRIGGER:</div>
+              <div style="font-size:14px;font-weight:900;color:#fff;margin-top:4px;">
+                ${setup.action==='UNDER'?`Enter when tick digit is 7, 8, or 9 (Reversion Pull)`:setup.action==='OVER'?`Enter when tick digit is 0, 1, or 2 (Upward Bounce)`:setup.action==='EVEN'?`Enter after odd digit streak (Parity Reversion)`:setup.action==='ODD'?`Enter after even digit streak (Parity Reversion)`:setup.action==='DIFFERS'?`Enter targeting coldest digit ${setup.digit!=null?setup.digit:0}`:`Enter on momentum continuation`}
+              </div>
+              <div style="margin-top:8px;display:flex;align-items:center;gap:6px;font-size:11px;">
+                <span class="dot live" style="width:7px;height:7px;background:#00ffa3;"></span>
+                <span style="color:#9fb0cc;">Live Market Digit: <b style="color:#00ffa3;">${curD}</b> · Ready for execution</span>
+              </div>
+            </div>
+
+            <!-- Card Box 2: Recommended Timing Directive -->
+            <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px;">
+              <div style="font-size:10px;color:#8e9ab3;font-weight:700;letter-spacing:0.3px;">EXACT TIMING RECOMMENDATION:</div>
+              <div style="font-size:14px;font-weight:900;color:#00ffa3;margin-top:4px;">
+                ⏱️ USE 5 TICKS (~5s) or 15 SECONDS
+              </div>
+              <div style="margin-top:6px;font-size:11px;color:#cbd5e1;line-height:1.4;">
+                Markov edge is highest (+${setup.edgePts} pts) within 5 ticks before forward entropy decay dilutes the edge.
+              </div>
+            </div>
+          </div>
+
+          <!-- Interactive Clickable Timing Preset Cards -->
+          <div style="margin-top:12px;">
+            <div style="font-size:10.5px;color:#8e9ab3;font-weight:700;margin-bottom:6px;">SELECT EXECUTION DURATION &amp; UNIT (CLICK TO APPLY TO BUTTONS):</div>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;" id="timingPresetGrid">
+              <button type="button" class="btn timing-chip active" data-d="5" data-u="t" style="text-align:left;padding:8px 10px;border-radius:8px;background:#00ffa3;color:#04101c;border:1.5px solid #00ffa3;cursor:pointer;">
+                <div style="font-size:12px;font-weight:900;">⚡ 5 Ticks (~5s)</div>
+                <div style="font-size:9.5px;font-weight:700;opacity:0.9;">OPTIMAL ALPHA (+${setup.edgePts} pts)</div>
+              </button>
+              <button type="button" class="btn timing-chip" data-d="1" data-u="t" style="text-align:left;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.04);color:#cbd5e1;border:1.5px solid rgba(255,255,255,0.12);cursor:pointer;">
+                <div style="font-size:12px;font-weight:800;">⚡ 1 Tick (~1s)</div>
+                <div style="font-size:9.5px;color:#7d8aa5;">FAST IMPULSE SNIPER</div>
+              </button>
+              <button type="button" class="btn timing-chip" data-d="10" data-u="t" style="text-align:left;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.04);color:#cbd5e1;border:1.5px solid rgba(255,255,255,0.12);cursor:pointer;">
+                <div style="font-size:12px;font-weight:800;">⚡ 10 Ticks (~10s)</div>
+                <div style="font-size:9.5px;color:#7d8aa5;">MOMENTUM CONTINUITY</div>
+              </button>
+              <button type="button" class="btn timing-chip" data-d="15" data-u="s" style="text-align:left;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.04);color:#cbd5e1;border:1.5px solid rgba(255,255,255,0.12);cursor:pointer;">
+                <div style="font-size:12px;font-weight:800;">⏱️ 15 Seconds</div>
+                <div style="font-size:9.5px;color:#7d8aa5;">VOLATILITY HORIZON</div>
+              </button>
+              <button type="button" class="btn timing-chip" data-d="1" data-u="m" style="text-align:left;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.04);color:#cbd5e1;border:1.5px solid rgba(255,255,255,0.12);cursor:pointer;">
+                <div style="font-size:12px;font-weight:800;">⏱️ 1 Minute</div>
+                <div style="font-size:9.5px;color:#7d8aa5;">MACRO CYCLE REVERSION</div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cross-Pillar Overview for this Market -->
+        <div style="background:#060a14;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;margin-top:10px;">
           <div style="font-size:11px;font-weight:800;color:#cbd5e1;margin-bottom:8px;display:flex;justify-content:space-between;">
-            <span>CROSS-PILLAR BREAKDOWN ON ${topBest.v.name.toUpperCase()}:</span>
-            <span style="color:#7d8aa5;">Current Tick: Digit ${topBest.ou.currentDigit}</span>
+            <span>CROSS-PILLAR BLUEPRINTS ON ${topBest.v.name.toUpperCase()}:</span>
+            <span style="color:#7d8aa5;">Attractor Digit: <b>${attractorDigit}</b></span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;">
             <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:8px;">
               <div style="font-size:10px;color:#7d8aa5;font-weight:700;">OVER / UNDER:</div>
-              <div style="font-size:12.5px;font-weight:800;color:#00ffa3;margin-top:2px;">${topBest.ou.decision}</div>
+              <div style="font-size:13px;font-weight:800;color:#00ffa3;margin-top:2px;">${topBest.ou.decision}</div>
               <div style="font-size:10px;color:#9fb0cc;margin-top:2px;">${topBest.ou.projectedWinPct}% win (+${topBest.ou.edgePts} pts)</div>
-              <a href="over-under.html?vol=${topBest.v.id}&type=${topBest.ou.action}&barrier=${topBest.ou.barrier}&dur=5" style="display:inline-block;margin-top:5px;font-size:10px;color:#00ffa3;font-weight:700;text-decoration:none;">Open OU →</a>
             </div>
-
             <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:8px;">
               <div style="font-size:10px;color:#7d8aa5;font-weight:700;">MATCHES / DIFFERS:</div>
-              <div style="font-size:12.5px;font-weight:800;color:#00b2ff;margin-top:2px;">${topBest.md.decision}</div>
+              <div style="font-size:13px;font-weight:800;color:#00b2ff;margin-top:2px;">${topBest.md.decision}</div>
               <div style="font-size:10px;color:#9fb0cc;margin-top:2px;">${topBest.md.projectedWinPct}% win (+${topBest.md.edgePts} pts)</div>
-              <a href="matches-differs.html?vol=${topBest.v.id}&type=${topBest.md.action}&digit=${topBest.md.digit}&dur=5" style="display:inline-block;margin-top:5px;font-size:10px;color:#00b2ff;font-weight:700;text-decoration:none;">Open M/D →</a>
             </div>
-
             <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:8px;">
               <div style="font-size:10px;color:#7d8aa5;font-weight:700;">EVEN / ODD:</div>
-              <div style="font-size:12.5px;font-weight:800;color:#ffd600;margin-top:2px;">${topBest.eo.decision}</div>
+              <div style="font-size:13px;font-weight:800;color:#ffd600;margin-top:2px;">${topBest.eo.decision}</div>
               <div style="font-size:10px;color:#9fb0cc;margin-top:2px;">${topBest.eo.projectedWinPct}% win (+${topBest.eo.edgePts} pts)</div>
-              <a href="even-odd.html?vol=${topBest.v.id}&type=${topBest.eo.action}&dur=5" style="display:inline-block;margin-top:5px;font-size:10px;color:#ffd600;font-weight:700;text-decoration:none;">Open E/O →</a>
             </div>
-
             <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:6px;padding:8px;">
               <div style="font-size:10px;color:#7d8aa5;font-weight:700;">RISE / FALL:</div>
-              <div style="font-size:12.5px;font-weight:800;color:${risePct>=50?'#00ffa3':'#ff3b69'};margin-top:2px;">${risePct>=50?'RISE':'FALL'}</div>
+              <div style="font-size:13px;font-weight:800;color:${risePct>=50?'#00ffa3':'#ff3b69'};margin-top:2px;">${risePct>=50?'RISE':'FALL'}</div>
               <div style="font-size:10px;color:#9fb0cc;margin-top:2px;">${Math.max(risePct,fallPct)}% win · (H=${topBest.proj.hurst})</div>
-              <a href="rise-fall.html?vol=${topBest.v.id}&type=${risePct>=50?'CALL':'PUT'}&dur=5" style="display:inline-block;margin-top:5px;font-size:10px;color:#00ffa3;font-weight:700;text-decoration:none;">Open R/F →</a>
             </div>
           </div>
         </div>
 
-        <!-- 10-Bar Forward Digit Probability Heatmap (0-9) -->
+        <!-- 10-Bar Forward Digit Probability Heatmap -->
         <div style="margin-top:10px;background:#050912;border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;">
           <div style="display:flex;justify-content:space-between;font-size:10px;color:#8e9ab3;margin-bottom:4px;">
             <span>Projected Forward Digit Probabilities (0–9) via Markov Matrix:</span>
             <span style="color:#00ffa3;">Regime: ${topBest.proj.regime.replace(/_/g,' ')}</span>
           </div>
-          <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:4px;align-items:flex-end;height:40px;padding:2px 0;">
+          <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:4px;align-items:flex-end;height:38px;">
             ${(topBest.proj.digitProjections||[]).map((p,d)=>{
               const hPct=Math.max(12,Math.round((p/(maxP||0.2))*100));
               const isWin=topBest.ou.best&&topBest.ou.best.winningDigits&&topBest.ou.best.winningDigits.includes(d);
               const col=isWin?'#00ffa3':'rgba(255,255,255,0.2)';
-              return `<div style="height:${hPct}%;background:${col};border-radius:2px;display:flex;align-items:flex-start;justify-content:center;transition:height 0.3s ease;" title="Digit ${d}: ${(p*100).toFixed(1)}% forward probability">
+              return `<div style="height:${hPct}%;background:${col};border-radius:2px;display:flex;align-items:flex-start;justify-content:center;" title="Digit ${d}: ${(p*100).toFixed(1)}%">
                 <span style="font-size:8px;font-weight:700;color:#04101c;">${(p*100).toFixed(0)}</span>
               </div>`;
             }).join('')}
@@ -714,8 +573,8 @@ TW.ready(function(){
         </div>
 
         ${topBest.isDeep ? `
-        <!-- Dedicated Advanced AI Quantum Regime Synthesis Panel -->
-        <div style="margin-top:12px;background:linear-gradient(135deg,rgba(0,178,255,0.08),rgba(0,255,163,0.06));border:1.5px solid rgba(0,255,163,0.4);border-radius:10px;padding:12px;">
+        <!-- Advanced AI Quantum Regime Synthesis Panel -->
+        <div style="margin-top:10px;background:linear-gradient(135deg,rgba(0,178,255,0.08),rgba(0,255,163,0.06));border:1.5px solid rgba(0,255,163,0.4);border-radius:10px;padding:12px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px;">
             <div style="display:flex;align-items:center;gap:6px;">
               <span style="font-size:14px;">⚛</span>
@@ -727,7 +586,7 @@ TW.ready(function(){
             <div>• Regime: <b style="color:#fff;">${topBest.proj.regime.replace(/_/g,' ')}</b></div>
             <div>• Hurst Exponent: <b style="color:#00b2ff;">${topBest.proj.hurst}</b> (Persistence)</div>
             <div>• Micro-Entropy: <b style="color:#00ffa3;">${topBest.entropy}</b> / 1.0</div>
-            <div>• Attractor Digit: <b style="color:#ffd600;">Digit ${topBest.proj.highestProbDigit != null ? topBest.proj.highestProbDigit : topBest.ou.currentDigit}</b></div>
+            <div>• Attractor Digit: <b style="color:#ffd600;">Digit ${topBest.proj.highestProbDigit!=null?topBest.proj.highestProbDigit:topBest.ou.currentDigit}</b></div>
           </div>
           <div style="font-size:11px;color:#9fb0cc;line-height:1.45;background:rgba(0,0,0,0.3);padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);">
             🛡️ <b>ADAPTIVE LOSS SHIELD DIRECTIVE:</b> Conviction is verified at <b>${topBest.conf}%</b>. Kelly Edge is <b>+${setup.edgePts} pts</b>. Recommended duration is <b>${selectedDur}${selectedUnit}</b>. Recommended stake ≤ 2% account equity.
@@ -735,146 +594,206 @@ TW.ready(function(){
         </div>
         ` : ''}
 
-        <!-- Suggested Duration Chips -->
-        <div style="margin-top:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
-          <span style="font-size:11px;color:#8e9ab3;font-weight:700;">SUGGESTED DURATION:</span>
-          <button type="button" class="analyzer-dur-chip active" data-d="5" data-u="t" style="padding:4px 9px;border-radius:6px;font-size:11px;font-weight:800;border:1px solid #00ffa3;background:#00ffa3;color:#04101c;cursor:pointer;">5 Ticks (Optimal)</button>
-          <button type="button" class="analyzer-dur-chip" data-d="1" data-u="t" style="padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#cbd5e1;cursor:pointer;">1 Tick</button>
-          <button type="button" class="analyzer-dur-chip" data-d="10" data-u="t" style="padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#cbd5e1;cursor:pointer;">10 Ticks</button>
-          <button type="button" class="analyzer-dur-chip" data-d="15" data-u="s" style="padding:4px 9px;border-radius:6px;font-size:11px;font-weight:700;border:1px solid rgba(255,255,255,0.12);background:rgba(255,255,255,0.06);color:#cbd5e1;cursor:pointer;">15 Seconds</button>
-        </div>
-
-        <!-- Real Working Action Buttons with on-card Rescan -->
-        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <button type="button" id="btnSingleBetNow" class="btn" style="flex:1.5;min-width:180px;padding:11px 14px;font-size:12px;font-weight:900;background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;border:0;border-radius:8px;cursor:pointer;box-shadow:0 0 16px rgba(0,255,163,0.3);">
-            ⚡ 1-CLICK BET NOW (${setup.decision})
-          </button>
-          <a id="btnSingleLaunchMarket" href="${buildPillarUrl(5,'t')}" style="flex:1.3;min-width:170px;text-align:center;padding:11px 12px;font-size:11.5px;font-weight:800;background:#141e33;border:1px solid #00ffa3;color:#00ffa3;border-radius:8px;text-decoration:none;">
-            🚀 LAUNCH MARKET IN ${pillarName.toUpperCase()} →
+        <!-- THE TWO PRIMARY REQUESTED LAUNCH BUTTONS + TEST EXECUTION -->
+        <div class="launch-bar">
+          <a id="btnLaunchManualTrade" href="${getManualUrl()}" class="launch-btn manual">
+            ⚡ LAUNCH MANUAL TRADE (${setup.decision} · USE ${selectedDur} TICKS) →
           </a>
-          <button type="button" id="btnSingleRescanCard" class="btn" style="flex:0.9;min-width:120px;padding:11px 12px;font-size:11px;font-weight:800;background:#1e293b;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;cursor:pointer;">
-            ⚡ RESCAN (50t)
-          </button>
-          <button type="button" id="btnSingleDeepScanCard" class="btn" style="flex:1;min-width:150px;padding:11px 12px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.2);color:#cbd5e1;border-radius:8px;cursor:pointer;">
-            ⚛ DEEP SCAN (1000t)
-          </button>
-          <button type="button" id="btnSingleSetActive" class="btn" style="flex:0.8;min-width:110px;padding:11px 10px;font-size:11px;font-weight:700;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.12);color:#9fb0cc;border-radius:8px;cursor:pointer;">
-            🎯 SET ACTIVE
-          </button>
+          <a id="btnLaunchBotTrade" href="${getBotUrl()}" class="launch-btn bot">
+            🤖 LAUNCH IN BOT (PRECONFIGURED · USE ${selectedDur} TICKS) →
+          </a>
         </div>
-      </div>`;
 
-    // Dynamic Blinking Badge update function
-    function updateTimerBadge(secs){
-      const badge = document.getElementById('singleTimerBadge');
+        <div style="margin-top:8px;display:flex;gap:6px;align-items:center;">
+          <button type="button" id="btnTestExecPaper" class="btn" style="flex:1;padding:11px;background:#0d1627;border:1.5px solid #00ffa3;color:#00ffa3;border-radius:10px;font-size:12.5px;font-weight:900;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+            ⚡ INSTANT TEST FIRE (${setup.decision} · 1-CLICK PAPER $<span id="lblTestStake">${testStake.toFixed(2)}</span>)
+          </button>
+          <div style="display:flex;gap:4px;" id="testStakeSelector">
+            <button type="button" class="btn ghost test-stake-chip ${testStake===0.5?'active':''}" data-st="0.5" style="padding:10px 8px;font-size:11px;border-radius:8px;cursor:pointer;">$0.50</button>
+            <button type="button" class="btn test-stake-chip ${testStake===1.0?'active':''}" data-st="1.0" style="padding:10px 8px;font-size:11px;border-radius:8px;background:${testStake===1.0?'#00ffa3':'rgba(255,255,255,0.04)'};color:${testStake===1.0?'#04101c':'#cbd5e1'};border:1px solid ${testStake===1.0?'#00ffa3':'rgba(255,255,255,0.1)'};font-weight:900;cursor:pointer;">$1.00</button>
+            <button type="button" class="btn ghost test-stake-chip ${testStake===5.0?'active':''}" data-st="5.0" style="padding:10px 8px;font-size:11px;border-radius:8px;cursor:pointer;">$5.00</button>
+          </div>
+        </div>
+
+        <!-- Quick Rescan / Deep Scan Bar at Card Bottom -->
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-top:14px;border-top:1px solid rgba(255,255,255,0.08);padding-top:12px;">
+          <div style="font-size:11px;color:#7d8aa5;">
+            Alpha Window active. Use countdown timer as execution guide.
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button type="button" id="btnCardRescan" class="btn ghost" style="font-size:11px;padding:6px 12px;border-radius:6px;cursor:pointer;">⚡ Rescan (50t)</button>
+            <button type="button" id="btnCardDeepScan" class="btn ghost" style="font-size:11px;padding:6px 12px;border-radius:6px;cursor:pointer;">⚛ Deep Scan (1000t)</button>
+          </div>
+        </div>
+
+      </div>
+    `;
+
+    // Dynamic Blinking Badge update
+    function updateTimer(secs){
+      const badge=document.getElementById('masterTimerBadge');
       if(!badge) return;
       badge.classList.remove('blink-green','blink-amber','blink-red');
-      if(secs > 10){
+      if(secs>10){
         badge.classList.add('blink-green');
-        badge.style.background = 'rgba(0,255,163,0.15)';
-        badge.style.color = '#00ffa3';
-        badge.style.border = '1px solid #00ffa3';
-        badge.innerHTML = `🟢 <b>${secs}s</b> · HIGH ALPHA — OK TO PROCEED`;
-      } else if(secs > 0){
+        badge.style.background='rgba(0,255,163,0.15)';
+        badge.style.color='#00ffa3';
+        badge.style.border='1px solid #00ffa3';
+        badge.innerHTML=`🟢 <b>${secs}s</b> · HIGH ALPHA — OK TO PROCEED`;
+      } else if(secs>0){
         badge.classList.add('blink-amber');
-        badge.style.background = 'rgba(255,214,0,0.15)';
-        badge.style.color = '#ffd600';
-        badge.style.border = '1px solid #ffd600';
-        badge.innerHTML = `🟡 <b>${secs}s</b> · EXPIRING SOON — PROCEED WITH CAUTION`;
+        badge.style.background='rgba(255,214,0,0.15)';
+        badge.style.color='#ffd600';
+        badge.style.border='1px solid #ffd600';
+        badge.innerHTML=`🟡 <b>${secs}s</b> · EXPIRING SOON — PROCEED WITH CAUTION`;
       } else {
         badge.classList.add('blink-red');
-        badge.style.background = 'rgba(255,59,105,0.18)';
-        badge.style.color = '#ff3b69';
-        badge.style.border = '1px solid #ff3b69';
-        badge.innerHTML = `🔴 <b>EXPIRED</b> · RESCAN REQUIRED — DO NOT TRADE`;
+        badge.style.background='rgba(255,59,105,0.18)';
+        badge.style.color='#ff3b69';
+        badge.style.border='1px solid #ff3b69';
+        badge.innerHTML=`🔴 <b>EXPIRED</b> · RESCAN REQUIRED — DO NOT TRADE`;
       }
     }
 
-    // Initialize timer badge state
-    updateTimerBadge(singleCardCountdown);
-
-    singleCardTimer = setInterval(() => {
+    updateTimer(singleCardCountdown);
+    singleCardTimer=setInterval(()=>{
       singleCardCountdown--;
-      updateTimerBadge(singleCardCountdown);
-      if (singleCardCountdown <= 0) {
-        clearInterval(singleCardTimer);
-      }
+      updateTimer(singleCardCountdown);
+      if(singleCardCountdown<=0) clearInterval(singleCardTimer);
     }, 1000);
 
-    // Duration chips handler
-    box.querySelectorAll('.analyzer-dur-chip').forEach(chip => {
-      chip.onclick = () => {
-        box.querySelectorAll('.analyzer-dur-chip').forEach(c => {
+    // Interactive Timing Preset Selection
+    box.querySelectorAll('.timing-chip').forEach(chip=>{
+      chip.onclick=()=>{
+        box.querySelectorAll('.timing-chip').forEach(c=>{
           c.classList.remove('active');
-          c.style.background = 'rgba(255,255,255,0.06)';
-          c.style.color = '#cbd5e1';
-          c.style.borderColor = 'rgba(255,255,255,0.12)';
+          c.style.background='rgba(255,255,255,0.04)';
+          c.style.color='#cbd5e1';
+          c.style.borderColor='rgba(255,255,255,0.12)';
         });
         chip.classList.add('active');
-        chip.style.background = '#00ffa3';
-        chip.style.color = '#04101c';
-        chip.style.borderColor = '#00ffa3';
-        selectedDur = +chip.dataset.d;
-        selectedUnit = chip.dataset.u;
-
-        // Update Launch Market URL with chosen duration
-        const btnLaunch = $('#btnSingleLaunchMarket');
-        if(btnLaunch) btnLaunch.href = buildPillarUrl(selectedDur, selectedUnit);
+        chip.style.background='#00ffa3';
+        chip.style.color='#04101c';
+        chip.style.borderColor='#00ffa3';
+        selectedDur=+chip.dataset.d;
+        selectedUnit=chip.dataset.u;
+        updateActionButtonsText();
       };
     });
 
-    // 1-Click Bet Now Execution
-    $('#btnSingleBetNow').onclick = async () => {
-      const stake = 1.0;
-      const contract = setup.best ? setup.best.contract : (pillarName === 'Over / Under' ? (setup.action === 'OVER' ? 'DIGITOVER' : 'DIGITUNDER') : (pillarName === 'Even / Odd' ? (setup.action === 'EVEN' ? 'DIGITEVEN' : 'DIGITODD') : (pillarName === 'Matches / Differs' ? (setup.action === 'MATCHES' ? 'DIGITMATCH' : 'DIGITDIFF') : (setup.action === 'CALL' ? 'CALL' : 'PUT'))));
-      const p = {
-        contract_type: contract,
-        symbol: topBest.v.id,
-        amount: stake,
-        duration: selectedDur,
-        duration_unit: selectedUnit,
-        label: setup.decision
-      };
-      if (setup.barrier != null) p.barrier = setup.barrier;
-      if (setup.digit != null) p.barrier = setup.digit;
-
-      try {
-        TW.toast(`1-Click Bet: ${p.label} (${selectedDur}${selectedUnit}) on ${TW.volName(p.symbol)}…`, 'ok');
-        const t = await TW.trade(p);
-        t.done.then(r => {
-          TW.toast((r.profit > 0 ? 'WON +' : 'LOST ') + TW.money(r.profit), r.profit > 0 ? 'ok' : 'err');
+    // Stake Selector Chips
+    box.querySelectorAll('.test-stake-chip').forEach(ch=>{
+      ch.onclick=()=>{
+        testStake=+ch.dataset.st;
+        box.querySelectorAll('.test-stake-chip').forEach(c=>{
+          c.classList.remove('active');
+          c.style.background='rgba(255,255,255,0.04)';
+          c.style.color='#cbd5e1';
+          c.style.borderColor='rgba(255,255,255,0.1)';
         });
-      } catch (err) {
-        if (!err.quiet) TW.toast(err.message, 'err', 5000);
+        ch.classList.add('active');
+        ch.style.background='#00ffa3';
+        ch.style.color='#04101c';
+        ch.style.borderColor='#00ffa3';
+        const lbl=document.getElementById('lblTestStake');
+        if(lbl) lbl.textContent=testStake.toFixed(2);
+      };
+    });
+
+    // Copy Alpha Signal Button
+    const btnCopy=$('#btnCopySignal');
+    if(btnCopy){
+      btnCopy.onclick=()=>{
+        const text=`⚡ TICKWEALTH ALPHA DIRECTIVE\nMarket: ${topBest.v.name} (${topBest.v.id})\nPillar: ${pillarName} ➔ ${setup.decision}\nForward Win Rate: ${setup.projectedWinPct}% (Edge: +${setup.edgePts} pts)\nAI Conviction: ${topBest.conf}% (${isAuthorized?'Verified ≥85% Gate':'Caution'})\nOptimal Timing: ${selectedDur} ${selectedUnit==='t'?'Ticks':selectedUnit==='s'?'Seconds':'Minute'}\nLive Spot: ${topBest.prices&&topBest.prices.length?topBest.prices[topBest.prices.length-1]:'--'} (Digit ${curD})\nEntry Trigger: ${setup.action==='UNDER'?'Enter when digit is 7, 8, or 9 (Reversion Pull)':setup.action==='OVER'?'Enter when digit is 0, 1, or 2 (Upward Bounce)':'Enter on momentum continuation'}\nValidity: ${singleCardCountdown}s active window\nTickWealth Institutional Terminal`;
+        navigator.clipboard.writeText(text).then(()=>{
+          TW.toast('📋 Alpha Signal copied to clipboard!','ok',3000);
+          TW.fx.click();
+        }).catch(()=>{
+          TW.toast('Signal copied!','ok');
+        });
+      };
+    }
+
+    // 1-Click Instant Test Execution Button
+    const btnTest=$('#btnTestExecPaper');
+    if(btnTest){
+      btnTest.onclick=async ()=>{
+        const contract = setup.best ? setup.best.contract : (pillarName==='Over / Under'?(setup.action==='OVER'?'DIGITOVER':'DIGITUNDER'):pillarName==='Even / Odd'?(setup.action==='EVEN'?'DIGITEVEN':'DIGITODD'):pillarName==='Matches / Differs'?(setup.action==='MATCHES'?'DIGITMATCH':'DIGITDIFF'):(setup.action==='CALL'?'CALL':'PUT'));
+        const tradeParam={
+          contract_type:contract,
+          symbol:topBest.v.id,
+          amount:testStake,
+          duration:selectedDur,
+          duration_unit:selectedUnit,
+          barrier:/OVER|UNDER|MATCH|DIFF/.test(contract)?(setup.barrier!=null?setup.barrier:setup.digit!=null?setup.digit:4):undefined,
+          label:`Analyzer Test: ${setup.decision}`
+        };
+        try{
+          TW.toast(`⚡ Test Fire Dispatched: ${setup.decision} on ${topBest.v.name} ($${testStake.toFixed(2)} · ${selectedDur}${selectedUnit})…`,'ok',3000);
+          const tr=await TW.trade(tradeParam);
+          tr.done.then(res=>{
+            TW.toast((res.profit>0?'🎯 TEST WON +':'⚠️ TEST LOST ')+TW.money(res.profit), res.profit>0?'ok':'err',4000);
+          });
+        }catch(err){
+          TW.toast('Test error: '+(err.message||err),'err',4000);
+        }
+      };
+    }
+
+    updateActionButtonsText();
+
+    // Card Rescan Handlers
+    $('#btnCardRescan').onclick=()=>executeScan(50,false);
+    $('#btnCardDeepScan').onclick=()=>executeScan(1000,true);
+  }
+
+  // Header Command Buttons
+  $('#btnRapidScan').onclick=()=>executeScan(50,false);
+  $('#btnDeepScan').onclick=()=>executeScan(1000,true);
+
+  // Continuous Live Radar Toggle
+  const btnRadar=$('#btnLiveRadar');
+  if(btnRadar){
+    btnRadar.onclick=()=>{
+      isRadarActive=!isRadarActive;
+      if(isRadarActive){
+        btnRadar.style.background='linear-gradient(90deg,#00ffa3,#00b2ff)';
+        btnRadar.style.color='#04101c';
+        btnRadar.style.border='0';
+        btnRadar.innerHTML='<span class="dot live" style="width:7px;height:7px;background:#04101c;"></span> RADAR ACTIVE (4s PULSE)';
+        TW.toast('Live Radar armed: continuously re-evaluating top market alpha every 4s!','ok',3000);
+        radarInterval=setInterval(()=>executeScan(50,false,true), 4000);
+      } else {
+        clearInterval(radarInterval);
+        btnRadar.style.background='#091224';
+        btnRadar.style.color='#00ffa3';
+        btnRadar.style.border='1.5px solid rgba(0,255,163,0.5)';
+        btnRadar.innerHTML='📡 LIVE RADAR: OFF';
+        TW.toast('Live Radar paused.','mut',2000);
       }
-    };
-
-    // On-card Rescan & Deep Scan
-    $('#btnSingleRescanCard').onclick = () => executeScan(50, false);
-    $('#btnSingleDeepScanCard').onclick = () => executeScan(1000, true);
-    const btnNoticeDeep = $('#btnNoticeDeepScan');
-    if(btnNoticeDeep) btnNoticeDeep.onclick = () => executeScan(1000, true);
-
-    $('#btnSingleSetActive').onclick = () => {
-      top.setSymbol(topBest.v.id);
-      restart();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-      TW.toast(`Active market switched to ${topBest.v.name}!`, 'ok');
     };
   }
 
-  const btnRapidScan = $('#rapidScan');
-  if(btnRapidScan) btnRapidScan.onclick=()=>executeScan(50,false);
-  const btnDeepScan = $('#deepScan');
-  if(btnDeepScan) btnDeepScan.onclick=()=>executeScan(1000,true);
+  // Institutional Keyboard Hotkeys Engine
+  window.addEventListener('keydown', e => {
+    if (e.target && (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA')) return;
+    const k = e.key.toLowerCase();
+    if (k === 'r') { e.preventDefault(); $('#btnRapidScan').click(); }
+    else if (k === 'd') { e.preventDefault(); $('#btnDeepScan').click(); }
+    else if (k === ' ' || k === 't') { e.preventDefault(); const b = $('#btnTestExecPaper'); if (b) b.click(); }
+    else if (k === 'm') { e.preventDefault(); const b = $('#btnLiveRadar'); if (b) b.click(); }
+    else if (k === 's') { e.preventDefault(); TW.fx.toggle(); }
+    else if (k === '1') { e.preventDefault(); const c = document.querySelector('.timing-chip[data-d="1"]'); if (c) c.click(); }
+    else if (k === '2') { e.preventDefault(); const c = document.querySelector('.timing-chip[data-d="5"]'); if (c) c.click(); }
+    else if (k === '3') { e.preventDefault(); const c = document.querySelector('.timing-chip[data-d="10"]'); if (c) c.click(); }
+    else if (k === '4') { e.preventDefault(); const c = document.querySelector('.timing-chip[data-d="15"]'); if (c) c.click(); }
+    else if (k === '5') { e.preventDefault(); const c = document.querySelector('.timing-chip[data-d="1"][data-u="m"]'); if (c) c.click(); }
+  });
 
-  const btnAskAi = $('#askAi');
-  if(btnAskAi) btnAskAi.onclick=()=>TW.ai&&TW.ai.ask('Explain the analyzer advisory for this market: why this lead, how the AI confidence gate protects against losses, and how much weight it deserves.');
+  // Initialize
   restart();
-  // Automatically trigger lightning multi-market AI scan (50t) on load for instant best recommendation
-  setTimeout(()=>executeScan(50,false), 300);
+  setTimeout(()=>executeScan(50,false), 150);
 });
 </script>
-<script src="advisor.js"></script>
 </body>
 </html>

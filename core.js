@@ -77,8 +77,87 @@
   TW.DIGIT_COLORS = ['#ef4444', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'].map(c => ({ c, bg: `linear-gradient(135deg,${c},${c}bb)` }));
   TW.digitOf = (q, pip) => { const s = Number(q).toFixed(pip == null ? 2 : pip); return +s[s.length - 1]; };
 
+  // =========================================================================
+  // ULTRA-CRISP WEB AUDIO API SOUND FX (Zero External Assets, Zero Network Latency)
+  // =========================================================================
+  let audioCtx = null;
+  function getAudio() {
+    if (!audioCtx && (window.AudioContext || window.webkitAudioContext)) {
+      try { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); } catch(e){}
+    }
+    if (audioCtx && audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(()=>{});
+    }
+    return audioCtx;
+  }
+
+  TW.fx = {
+    enabled: TW.settings.sound !== false,
+    toggle() {
+      this.enabled = !this.enabled;
+      TW.settings.sound = this.enabled;
+      TW.saveSettings();
+      const btn = document.getElementById('twSoundBtn');
+      if (btn) btn.innerHTML = this.enabled ? '🔊 FX' : '🔇 FX';
+      if (this.enabled) this.click();
+      return this.enabled;
+    },
+    play(fn) {
+      if (!this.enabled) return;
+      try { const ctx = getAudio(); if (ctx) fn(ctx); } catch (e) {}
+    },
+    click() {
+      this.play(ctx => {
+        const osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.type = 'sine'; osc.frequency.setValueAtTime(800, ctx.currentTime);
+        osc.frequency.exponentialRampToValueAtTime(300, ctx.currentTime + 0.04);
+        gain.gain.setValueAtTime(0.08, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.04);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + 0.04);
+      });
+    },
+    win() {
+      this.play(ctx => {
+        [523.25, 659.25, 783.99, 1046.50].forEach((freq, i) => {
+          const osc = ctx.createOscillator(), gain = ctx.createGain();
+          osc.type = 'triangle'; osc.frequency.value = freq;
+          const t = ctx.currentTime + i * 0.06;
+          gain.gain.setValueAtTime(0.12, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(t); osc.stop(t + 0.35);
+        });
+      });
+    },
+    loss() {
+      this.play(ctx => {
+        const osc = ctx.createOscillator(), gain = ctx.createGain();
+        osc.type = 'sawtooth'; osc.frequency.setValueAtTime(220, ctx.currentTime);
+        osc.frequency.linearRampToValueAtTime(110, ctx.currentTime + 0.25);
+        gain.gain.setValueAtTime(0.09, ctx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+        osc.connect(gain); gain.connect(ctx.destination);
+        osc.start(); osc.stop(ctx.currentTime + 0.25);
+      });
+    },
+    alert() {
+      this.play(ctx => {
+        [880, 1174.66].forEach((freq, i) => {
+          const osc = ctx.createOscillator(), gain = ctx.createGain();
+          osc.type = 'sine'; osc.frequency.value = freq;
+          const t = ctx.currentTime + i * 0.08;
+          gain.gain.setValueAtTime(0.12, t);
+          gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+          osc.connect(gain); gain.connect(ctx.destination);
+          osc.start(t); osc.stop(t + 0.22);
+        });
+      });
+    }
+  };
+
   class Socket {
-    constructor(o) { this.o = o; this.closed = false; this.tries = 0; this.ws = null; this.urlOverride = o.url || null; this.open(); }
+    constructor(o) { this.o = o; this.closed = false; this.tries = 0; this.ws = null; this.urlOverride = o.url || null; this.lastPingTime = 0; this.open(); }
     status(s, msg) { this.state = s; this.o.onStatus && this.o.onStatus(s, msg); }
     open() {
       if (this.closed) return;
@@ -91,12 +170,26 @@
       ws.onopen = () => {
         if (this.ws !== ws) return;
         this.tries = 0; this.status('live');
-        clearInterval(this.ping); this.ping = setInterval(() => this.send({ ping: 1 }), 25000);
+        clearInterval(this.ping);
+        this.lastPingTime = Date.now();
+        this.send({ ping: 1 });
+        this.ping = setInterval(() => {
+          this.lastPingTime = Date.now();
+          this.send({ ping: 1 });
+        }, 15000);
         this.o.onOpen && this.o.onOpen(this);
       };
       ws.onmessage = e => {
         if (this.ws !== ws) return;
         let d; try { d = JSON.parse(e.data); } catch (_) { return; }
+        if (d.msg_type === 'ping' || d.ping === 'pong') {
+          if (this.lastPingTime > 0) {
+            const lat = Date.now() - this.lastPingTime;
+            TW.pingMs = lat;
+            const pEl = document.getElementById('twPing');
+            if (pEl) pEl.innerHTML = `⚡ <b>${lat}ms</b>`;
+          }
+        }
         this.o.onMessage && this.o.onMessage(d, this);
       };
       ws.onclose = () => { if (this.ws !== ws || this.closed) return; clearInterval(this.ping); this.retry(); };
@@ -117,10 +210,27 @@
   }
   TW.Socket = Socket;
 
+  // =========================================================================
+  // CROSS-MARKET IN-MEMORY TICK POOL (Instant Zero-Latency Hydration)
+  // =========================================================================
+  TW.tickPool = {};
+
   TW.tickFeed = function (symbol, h) {
     h = h || {};
-    const st = { symbol, pip: 2, prices: [], digits: [], epochs: [], status: 'connecting', error: '' };
+    const st = { symbol, pip: TW.volPip(symbol) || 2, prices: [], digits: [], epochs: [], status: 'connecting', error: '' };
     const max = h.max || 1000;
+
+    // Zero-latency instant cache hydration if market data exists in memory
+    if (TW.tickPool[symbol] && TW.tickPool[symbol].prices && TW.tickPool[symbol].prices.length >= 10) {
+      const cached = TW.tickPool[symbol];
+      st.pip = cached.pip || st.pip;
+      st.prices = cached.prices.slice(-max);
+      st.digits = cached.digits.slice(-max);
+      st.epochs = cached.epochs.slice(-max);
+      st.status = 'live';
+      if (h.onHistory) setTimeout(() => h.onHistory(st), 0);
+    }
+
     st.sock = new Socket({
       url: TW.tickUrl(),
       onStatus: (s, m) => { st.status = s; if ((s === 'live' || s === 'error') && TW.setStatus) TW.setStatus(s, m); h.onStatus && h.onStatus(s, m); },
@@ -131,6 +241,7 @@
           if (d.pip_size != null) st.pip = d.pip_size;
           st.prices = d.history.prices.map(Number); st.epochs = d.history.times.map(Number);
           st.digits = st.prices.map(p => TW.digitOf(p, st.pip)); st.error = '';
+          TW.tickPool[symbol] = { pip: st.pip, prices: st.prices.slice(-max), digits: st.digits.slice(-max), epochs: st.epochs.slice(-max), lastUpdated: Date.now() };
           h.onHistory && h.onHistory(st);
         } else if (d.msg_type === 'tick' && d.tick) {
           if (d.tick.symbol && d.tick.symbol !== symbol) return;
@@ -138,6 +249,7 @@
           const price = Number(d.tick.quote), digit = TW.digitOf(price, st.pip), epoch = d.tick.epoch;
           st.prices.push(price); st.digits.push(digit); st.epochs.push(epoch);
           if (st.prices.length > max) { st.prices.shift(); st.digits.shift(); st.epochs.shift(); }
+          TW.tickPool[symbol] = { pip: st.pip, prices: st.prices.slice(-max), digits: st.digits.slice(-max), epochs: st.epochs.slice(-max), lastUpdated: Date.now() };
           h.onTick && h.onTick(st, { price, digit, epoch });
         }
       }
@@ -432,8 +544,32 @@
     t.profit = +profit.toFixed(2); t.status = t.profit > 0 ? 'won' : 'lost';
     TW.session.trades++; if (t.profit > 0) TW.session.wins++; TW.session.pnl = +(TW.session.pnl + t.profit).toFixed(2); TW.saveSession();
     if (t.mode === 'paper') { TW.paper.balance = +(TW.paper.balance + t.profit).toFixed(2); savePaper(); emit('account'); }
+    if (t.profit > 0) {
+      TW.fx.win();
+      TW.toast(`🎯 WON +${TW.money(t.profit)} (${t.label || t.type})`, 'ok', 3500);
+    } else if (t.profit < 0) {
+      TW.fx.loss();
+      TW.toast(`⚠️ LOST -${TW.money(t.stake)} · Adaptive Shield Active`, 'err', 3500);
+    }
+    // Target profit protection check
+    if (TW.settings.targetProfit > 0 && TW.session.pnl >= TW.settings.targetProfit) {
+      TW.fx.win();
+      TW.toast(`🏆 DAILY TARGET ACHIEVED (+${TW.money(TW.session.pnl)})! Pausing to protect profit.`, 'ok', 9000);
+      TW.emergencyKill && TW.emergencyKill();
+    }
     emit('trade', t); t._done(t);
   }
+
+  TW.emergencyKill = function () {
+    TW.fx.alert();
+    while (paperOpen.length) {
+      const t = paperOpen.pop();
+      t.status = 'lost';
+      t.profit = 0;
+    }
+    emit('kill');
+    TW.toast('🚨 EMERGENCY KILL SWITCH: All active bots & trades stopped.', 'err', 5000);
+  };
   function onPOC(c) {
     const w = watch[c.contract_id]; if (!w) return;
     const t = w.trade; t.spot = c.current_spot;
@@ -486,6 +622,7 @@
 
   TW.trade = async function (p, o) {
     o = o || {};
+    TW.fx.click();
     const s = TW.settings, mode = TW.mode(), amount = +(+p.amount).toFixed(2);
     if (!(amount >= 0.35)) throw err('Minimum stake is 0.35.');
     if (amount > s.maxStake) throw err(`Stake ${amount} is above your max-stake limit (${s.maxStake}). Raise it in Settings if you really want this.`);
@@ -586,7 +723,7 @@
     o = o || {};
     const el = $('#top'); el.className = 'top';
     const isAct = p => p[0] === o.active || p[0].replace('.html','') === String(o.active).replace('.html','') || (p[0] === 'bots-library.html' && o.active === 'bots');
-    el.innerHTML = `<div class="top-row"><a class="brand" href="index.html" aria-label="TickWealth home"><img src="logo-mark.svg" alt="" width="30" height="30"><span>Tick<b style="color:#00ffa3">Wealth</b></span></a>${o.symbols ? '<select class="sel" id="twSym" aria-label="Market"></select>' : ''}<span class="dot" id="twDot"></span><span class="mut" id="twStatus" style="font-size:11px"></span><span class="spacer"></span><button class="pill" id="twAcc" title="Account & mode"></button></div><nav class="nav">${PAGES.map(p => `<a href="${p[0]}" class="${isAct(p) ? 'on' : ''}">${p[1]}</a>`).join('')}</nav>`;
+    el.innerHTML = `<div class="top-row"><a class="brand" href="index.html" aria-label="TickWealth home"><img src="logo-mark.svg" alt="" width="30" height="30"><span>Tick<b style="color:#00ffa3">Wealth</b></span></a>${o.symbols ? '<select class="sel" id="twSym" aria-label="Market"></select>' : ''}<span class="dot" id="twDot"></span><span class="mut" id="twStatus" style="font-size:11px"></span><span id="twPing" style="font-size:10.5px;color:#00ffa3;font-weight:800;background:rgba(0,255,163,0.08);padding:3px 8px;border-radius:6px;border:1px solid rgba(0,255,163,0.25);">⚡ <b>--ms</b></span><span class="spacer"></span><button type="button" class="pill" id="twSoundBtn" title="Toggle Sound FX" style="padding:4px 10px;font-size:11px;cursor:pointer;">${TW.fx.enabled?'🔊 FX':'🔇 FX'}</button><button type="button" class="pill" id="twKillBtn" title="Emergency Stop All Bots & Trades" style="padding:4px 8px;font-size:11px;font-weight:900;background:rgba(255,59,105,0.12);color:#ff3b69;border:1px solid rgba(255,59,105,0.4);cursor:pointer;">🚨 STOP</button><button class="pill" id="twAcc" title="Account & mode"></button></div><nav class="nav">${PAGES.map(p => `<a href="${p[0]}" class="${isAct(p) ? 'on' : ''}">${p[1]}</a>`).join('')}</nav>`;
     const out = { symbol: o.defaultSymbol || 'R_25' };
     if (o.symbols) {
       const sel = $('#twSym'), list = TW.VOLS.filter(v => o.symbols === 'all' || v.digits);
@@ -595,6 +732,10 @@
       sel.value = out.symbol;
       sel.onchange = () => { out.symbol = sel.value; o.onSymbol && o.onSymbol(sel.value); };
     }
+    const sBtn = $('#twSoundBtn');
+    if (sBtn) sBtn.onclick = () => TW.fx.toggle();
+    const kBtn = $('#twKillBtn');
+    if (kBtn) kBtn.onclick = () => TW.emergencyKill && TW.emergencyKill();
     $('#twAcc').onclick = TW.openAccount;
     TW.on('account', drawAcc); drawAcc(); TW.setStatus('connecting');
     if (!TW.embed) TW.handleOAuth();
@@ -602,6 +743,8 @@
     // NEW: Auto-connect with OTP if stored
     if (!TW.embed && store.sget('tw_otp')) { wantAuth = true; tconnect(); TW.settings.mode = 'live'; }
     TW.mountAI && TW.mountAI();
+    // Pre-warm trading socket for zero-latency execution
+    setTimeout(tconnect, 100);
     return out;
   };
 

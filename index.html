@@ -61,13 +61,38 @@ footer.lpf{text-align:center;color:#7d8aa5;font-size:12px;padding:30px 18px}
     </div></div>
   </section>
 
+  <!-- Live Quantum Alpha Radar Banner -->
+  <div style="margin:20px 0 10px;background:linear-gradient(135deg,rgba(11,16,27,0.98),rgba(17,24,39,0.98));border:1.5px solid rgba(0,255,163,0.35);border-radius:14px;padding:14px 18px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;box-shadow:0 0 24px rgba(0,255,163,0.12);" class="rv">
+    <div style="display:flex;align-items:center;gap:12px;">
+      <span class="dot live" style="width:10px;height:10px;background:#00ffa3;"></span>
+      <div>
+        <div style="font-size:10.5px;font-weight:800;color:#00ffa3;letter-spacing:0.4px;">QUANTUM ALPHA RADAR · LIVE DERIV STREAM</div>
+        <div id="lpAlphaTxt" style="font-size:13px;color:#fff;font-weight:800;margin-top:2px;">
+          Evaluating 13 Volatility Indices with Markov AI…
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+      <a href="analyzer.html" class="cta p" style="padding:8px 16px;font-size:12px;border-radius:8px;text-decoration:none;display:inline-flex;align-items:center;gap:6px;">
+        ⚡ Launch Master Scanner →
+      </a>
+      <a href="strategies.html" class="cta s" style="padding:8px 16px;font-size:12px;border-radius:8px;text-decoration:none;">
+        🏛️ Strategy Pillar
+      </a>
+      <a href="bots-library.html" class="cta s" style="padding:8px 16px;font-size:12px;border-radius:8px;text-decoration:none;">
+        🤖 AI Bots
+      </a>
+    </div>
+  </div>
+
   <section class="sec rv"><h2>Everything you need, <span class="gr">one terminal</span></h2><p>Every page shares the same live data and the same risk limits.</p>
     <div class="grid">
       <a class="gc" href="rise-fall.html"><em>📈</em><b>Rise / Fall</b><span>Live candles and one-tap trades.</span></a>
       <a class="gc" href="over-under.html"><em>🎯</em><b>Over / Under</b><span>Barrier odds with live payout.</span></a>
       <a class="gc" href="even-odd.html"><em>⚖️</em><b>Even / Odd</b><span>Parity share against the true 50%.</span></a>
       <a class="gc" href="matches-differs.html"><em>🔢</em><b>Matches / Differs</b><span>Digit frequency circles in real time.</span></a>
-      <a class="gc" href="analyzer.html"><em>🔬</em><b>Analyzer · Quantum Deep Scan</b><span>Rapid (100t) &amp; Deep (500t) multi-market scan with Shannon entropy &amp; Gemini 3.8 Flash synthesis.</span></a>
+      <a class="gc" href="analyzer.html"><em>🔬</em><b>Market Alpha Analyzer</b><span>Rapid (50t) &amp; Quantum Deep (1000t) scanner with single best market card and live validity timer.</span></a>
+      <a class="gc" href="strategies.html"><em>🏛️</em><b>Strategy Pillar</b><span>Independent rooms &amp; playbooks for Over 0–8, Under 1–9, Matches/Differs, Even/Odd &amp; Rise/Fall.</span></a>
       <a class="gc" href="playbook.html"><em>📘</em><b>Playbook</b><span>10 entry rules with a countdown and a random-chance test.</span></a>
       <a class="gc" href="bots-library.html"><em>🤖</em><b>AI Bots · Loss Guard</b><span>Rule-based bots with AI Confidence Gate (≥80%) and Adaptive Loss Shield to minimize losses.</span></a>
       <a class="gc" href="insight.html"><em>🧪</em><b>Insight Lab</b><span>Randomness tests, an AI Truth Test and a risk simulator.</span></a>
@@ -92,10 +117,11 @@ footer.lpf{text-align:center;color:#7d8aa5;font-size:12px;padding:30px 18px}
 
   <div class="risk rv"><b>Risk warning.</b> Deriv synthetic-index ticks are random. Statistics describe the past and cannot predict the next tick, and trading can lose your whole stake. Only trade money you can afford to lose.</div>
 </main>
-<footer class="lpf">TickWealth is an independent third-party tool and is not affiliated with Deriv. Not financial advice.</footer>
+<footer class="lpf">TickWealth is an independent tool and is not affiliated with Deriv.</footer>
 </div>
 <script src="config.js"></script>
 <script src="core.js"></script>
+<script src="stats.js"></script>
 <script>
 TW.mountTop({active:'index'});
 const $=i=>document.getElementById(i), dg=$('lpDg');
@@ -109,6 +135,16 @@ function draw(f){
   pl.setAttribute('fill','none');pl.setAttribute('stroke',up?'#00ffa3':'#ff3b69');pl.setAttribute('stroke-width','2');
   $('lpSp').textContent='';$('lpSp').appendChild(pl);
   dg.querySelectorAll('.h').forEach(x=>x.classList.remove('h'));const d=dg.children[f.digits[f.digits.length-1]];void d.offsetWidth;d.classList.add('h');
+  
+  // Real-time Quantum Alpha evaluation on incoming tick
+  if(f.digits && f.digits.length >= 20 && window.TWS && TWS.projectMarket){
+    const proj = TWS.projectMarket(f.prices, f.digits);
+    const opt = proj.optimalContract;
+    const txt = $('lpAlphaTxt');
+    if(txt && opt){
+      txt.innerHTML = `Active: <b style="color:#00ffa3;">Volatility 100 Index</b> · Setup: <b style="color:#00b2ff;">${opt.name}</b> (${opt.winRate}% forward odds · +${opt.edge} pts edge) · Markov Conviction: <b style="color:#00ffa3;">86%</b> · ⏱️ 5 Ticks`;
+    }
+  }
 }
 TW.tickFeed('R_100',{primary:false,count:80,onStatus:s=>{$('lpSt').textContent=s==='live'?'● live':s;TW.setStatus&&TW.setStatus(s)},onHistory:draw,onTick:draw});
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});

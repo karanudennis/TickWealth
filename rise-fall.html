@@ -105,7 +105,7 @@ TW.ready(function(){
   let consecutiveLosses=0, baseGate=85;
 
   $('#disc').textContent=TW.DISCLAIMER;
-  $('#foot').textContent='TickWealth is an independent tool and is not affiliated with Deriv. '+TW.DISCLAIMER;
+  $('#foot').textContent='TickWealth is an independent tool and is not affiliated with Deriv.';
   const q=TW.qs();
   const top=TW.mountTop({active:'rise-fall',symbols:'all',defaultSymbol:q.vol||'R_100',onSymbol:()=>restart()});
   const chart=TW.Chart($('#chartBox'));
@@ -175,6 +175,10 @@ TW.ready(function(){
     else {$('#qTxt').textContent=msg==='loading'?'Getting price…':msg; $('#qProfit').textContent=''; if(msg!=='loading')$('#buySub').innerHTML='&nbsp;';}
   });
   ['stake','dur'].forEach(i=>$('#'+i).addEventListener('input',refreshQuote));
+  if(q.type) setType(q.type==='PUT'||q.type==='FALL'?'PUT':'CALL');
+  if(q.dur) { $('#dur').value = q.dur; }
+  if(q.unit && UNITS[q.unit]) { const u=UNITS[q.unit]; $('#unit').value=q.unit; $('#dur').min=u.min; $('#dur').max=u.max; $('#durU').textContent=u.l; }
+  refreshQuote();
 
   async function buy(opts){
     if(busy)return; busy=true; $('#buyBtn').disabled=true;
