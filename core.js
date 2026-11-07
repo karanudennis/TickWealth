@@ -68,9 +68,22 @@
     { id: '1HZ75V', name: 'Volatility 75 (1s) Index', digits: true, pip: 2 },
     { id: '1HZ90V', name: 'Volatility 90 (1s) Index', digits: true, pip: 3 },
     { id: '1HZ100V', name: 'Volatility 100 (1s) Index', digits: true, pip: 2 },
-    { id: 'BOOM500', name: 'Boom 500 Index' }, { id: 'BOOM1000', name: 'Boom 1000 Index' },
-    { id: 'CRASH500', name: 'Crash 500 Index' }, { id: 'CRASH1000', name: 'Crash 1000 Index' },
-    { id: 'RDBULL', name: 'Bull Market Index' }, { id: 'RDBEAR', name: 'Bear Market Index' }
+    { id: '1HZ150V', name: 'Volatility 150 (1s) Index', digits: true, pip: 2 },
+    { id: '1HZ200V', name: 'Volatility 200 (1s) Index', digits: true, pip: 2 },
+    { id: '1HZ250V', name: 'Volatility 250 (1s) Index', digits: true, pip: 2 },
+    { id: '1HZ300V', name: 'Volatility 300 (1s) Index', digits: true, pip: 2 },
+    { id: 'BOOM300', name: 'Boom 300 Index', pip: 2 },
+    { id: 'BOOM500', name: 'Boom 500 Index', pip: 2 },
+    { id: 'BOOM1000', name: 'Boom 1000 Index', pip: 2 },
+    { id: 'CRASH300', name: 'Crash 300 Index', pip: 2 },
+    { id: 'CRASH500', name: 'Crash 500 Index', pip: 2 },
+    { id: 'CRASH1000', name: 'Crash 1000 Index', pip: 2 },
+    { id: 'STEPINDEX', name: 'Step Index', pip: 2 },
+    { id: 'JD10', name: 'Jump 10 Index', pip: 2 },
+    { id: 'JD50', name: 'Jump 50 Index', pip: 2 },
+    { id: 'JD100', name: 'Jump 100 Index', pip: 2 },
+    { id: 'RDBULL', name: 'Bull Market Index', pip: 2 },
+    { id: 'RDBEAR', name: 'Bear Market Index', pip: 2 }
   ];
   TW.volName = id => (TW.VOLS.find(v => v.id === id) || { name: id }).name;
   TW.volPip = id => (TW.VOLS.find(v => v.id === id) || { pip: 2 }).pip || 2;
@@ -251,6 +264,8 @@
           if (st.prices.length > max) { st.prices.shift(); st.digits.shift(); st.epochs.shift(); }
           TW.tickPool[symbol] = { pip: st.pip, prices: st.prices.slice(-max), digits: st.digits.slice(-max), epochs: st.epochs.slice(-max), lastUpdated: Date.now() };
           h.onTick && h.onTick(st, { price, digit, epoch });
+          if (TW.onGlobalTick) TW.onGlobalTick(symbol, { price, digit, epoch });
+          if (typeof paperTick === 'function') paperTick(symbol, { price, digit, epoch });
         }
       }
     });
@@ -581,34 +596,68 @@
   }
 
   const paperOpen = [], paperFeeds = {};
+  TW.onGlobalTick = (sym, tk) => paperTick(sym, tk);
+
   function paperEnsureFeed(sym) {
     if (paperFeeds[sym]) return;
-    paperFeeds[sym] = TW.tickFeed(sym, { primary: false, count: 1, max: 5, onTick: (st, tk) => paperTick(sym, tk) });
+    paperFeeds[sym] = TW.tickFeed(sym, { primary: false, count: 2, max: 10, onTick: (st, tk) => paperTick(sym, tk) });
   }
   function paperCleanup(sym) {
-    if (!paperOpen.some(t => t.symbol === sym && t.status === 'open') && paperFeeds[sym]) { paperFeeds[sym].close(); delete paperFeeds[sym]; }
+    if (!paperOpen.some(t => t.symbol === sym && t.status === 'open') && paperFeeds[sym]) {
+      try { paperFeeds[sym].close(); } catch (e) {}
+      delete paperFeeds[sym];
+    }
   }
+
+  function resolvePaperTrade(t, exitPrice, exitDigit) {
+    if (t.status !== 'open') return;
+    if (t._watchdog) { clearTimeout(t._watchdog); t._watchdog = null; }
+    t.exit = exitPrice;
+    t.exitDigit = exitDigit;
+    const b = +t.barrier, d = exitDigit;
+    let win = false;
+    switch (t.type) {
+      case 'CALL': win = exitPrice > t.entry; break;
+      case 'PUT': win = exitPrice < t.entry; break;
+      case 'DIGITEVEN': win = d % 2 === 0; break;
+      case 'DIGITODD': win = d % 2 === 1; break;
+      case 'DIGITOVER': win = d > b; break;
+      case 'DIGITUNDER': win = d < b; break;
+      case 'DIGITMATCH': win = d === b; break;
+      case 'DIGITDIFF': win = d !== b; break;
+      default: win = exitPrice > t.entry; break;
+    }
+    settle(t, win ? t.payout - t.stake : -t.stake);
+    const i = paperOpen.indexOf(t);
+    if (i >= 0) paperOpen.splice(i, 1);
+    setTimeout(() => paperCleanup(t.symbol), 600);
+  }
+
   function paperTick(sym, tk) {
-    paperOpen.filter(t => t.symbol === sym && t.status === 'open').forEach(t => {
-      t.count++;
-      if (t.count === 1) { t.entry = tk.price; t.entryEpoch = tk.epoch; }
-      const byTime = t.unit !== 't';
-      const finished = byTime ? tk.epoch >= t.entryEpoch + secs(t.duration, t.unit) : t.count >= t.duration;
-      if (!finished) { emit('trade', t); return; }
-      t.exit = tk.price;
-      const b = +t.barrier, d = tk.digit; let win = false;
-      switch (t.type) {
-        case 'CALL': win = tk.price > t.entry; break; case 'PUT': win = tk.price < t.entry; break;
-        case 'DIGITEVEN': win = d % 2 === 0; break; case 'DIGITODD': win = d % 2 === 1; break;
-        case 'DIGITOVER': win = d > b; break; case 'DIGITUNDER': win = d < b; break;
-        case 'DIGITMATCH': win = d === b; break; case 'DIGITDIFF': win = d !== b; break;
+    const list = paperOpen.filter(t => t.symbol === sym && t.status === 'open');
+    if (!list.length) return;
+    list.forEach(t => {
+      // If entry was not populated at trade creation time, establish it on tick 0
+      if (t.entry == null) {
+        t.entry = tk.price;
+        t.entryDigit = tk.digit;
+        t.entryEpoch = tk.epoch || Math.floor(Date.now() / 1000);
+        return;
       }
-      t.exitDigit = d;
-      settle(t, win ? t.payout - t.stake : -t.stake);
-      const i = paperOpen.indexOf(t); if (i >= 0) paperOpen.splice(i, 1);
-      setTimeout(() => paperCleanup(sym), 500);
+      t.ticksElapsed = (t.ticksElapsed || 0) + 1;
+      t.count = t.ticksElapsed;
+      const byTime = t.unit !== 't';
+      const finished = byTime ? (tk.epoch || Math.floor(Date.now() / 1000)) >= t.entryEpoch + secs(t.duration, t.unit) : t.ticksElapsed >= t.duration;
+      if (!finished) {
+        emit('trade', t);
+        return;
+      }
+      resolvePaperTrade(t, tk.price, tk.digit);
     });
   }
+
+  TW.resolvePaperTrade = resolvePaperTrade;
+  TW.paperTick = paperTick;
 
   // Fast mathematical payout estimation for zero-latency paper execution
   function estimatePayout(type, barrier, stake) {
@@ -654,9 +703,41 @@
 
     // Paper trade: instant local execution with mathematical payout or live quote
     const estPayout = estimatePayout(params.contract_type, params.barrier, amount);
-    const t = newTrade(p, 'paper', { id: 'P' + Date.now().toString(36), payout: estPayout, count: 0, longcode: p.label || p.contract_type });
-    paperOpen.push(t); paperEnsureFeed(params.symbol); emit('trade', t);
-    
+    const pool = TW.tickPool[params.symbol];
+    const curPrice = (pool && pool.prices && pool.prices.length) ? pool.prices[pool.prices.length - 1] : null;
+    const curDigit = (pool && pool.digits && pool.digits.length) ? pool.digits[pool.digits.length - 1] : null;
+
+    const t = newTrade(p, 'paper', {
+      id: 'P' + Date.now().toString(36),
+      payout: estPayout,
+      count: 0,
+      ticksElapsed: 0,
+      entry: curPrice,
+      entryDigit: curDigit,
+      entryEpoch: Math.floor(Date.now() / 1000),
+      longcode: p.label || p.contract_type
+    });
+
+    paperOpen.push(t);
+    paperEnsureFeed(params.symbol);
+    emit('trade', t);
+
+    // Hard fail-safe watchdog timer: guarantees paper trades NEVER hang
+    const maxWaitMs = t.unit === 't' ? Math.max(2000, (t.duration * 1200) + 1000) : (secs(t.duration, t.unit) + 3) * 1000;
+    t._watchdog = setTimeout(() => {
+      if (t.status === 'open') {
+        const pData = TW.tickPool[params.symbol];
+        let exitPrice = (pData && pData.prices && pData.prices.length) ? pData.prices[pData.prices.length - 1] : (t.entry || 100);
+        let exitDigit = (pData && pData.digits && pData.digits.length) ? pData.digits[pData.digits.length - 1] : TW.digitOf(exitPrice, 2);
+        if ((t.type === 'CALL' || t.type === 'PUT') && exitPrice === t.entry) {
+          const pip = (pData && pData.pip) || 2;
+          const step = Math.pow(10, -pip);
+          exitPrice = +(exitPrice + (Math.random() > 0.5 ? step : -step)).toFixed(pip);
+        }
+        resolvePaperTrade(t, exitPrice, exitDigit);
+      }
+    }, maxWaitMs);
+
     // Background quote refinement (non-blocking)
     TW.quote(params).then(q => { if (q && q.payout) t.payout = +q.payout; }).catch(() => {});
     return t;
@@ -672,6 +753,92 @@
     el.addEventListener('click', e => { if (e.target.closest('[data-ai]') && TW.ai) TW.ai.ask('Review my session so far and tell me what stands out about my risk.'); });
     TW.on('trade', draw); TW.on('account', draw); draw();
   };
+
+  // =========================================================================
+  // LIVE TRADE PROGRESS HUD (Real-time visual tick progression & beginner feedback)
+  // =========================================================================
+  function renderTradeHud(t) {
+    if (!t) return;
+    let hud = document.getElementById('twTradeHud');
+    if (!hud) {
+      hud = document.createElement('div');
+      hud.id = 'twTradeHud';
+      hud.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:99999;max-width:350px;width:calc(100vw - 40px);background:linear-gradient(135deg,rgba(11,16,27,0.98),rgba(17,24,39,0.98));border:1.5px solid #00ffa3;border-radius:14px;padding:14px 16px;box-shadow:0 12px 36px rgba(0,0,0,0.8),0 0 24px rgba(0,255,163,0.25);font-family:system-ui,-apple-system,sans-serif;color:#fff;transition:all 0.25s ease;';
+      document.body.appendChild(hud);
+    }
+    const isOpen = t.status === 'open';
+    const isWon = t.status === 'won';
+    const dur = t.duration || 1;
+    const count = t.count || t.ticksElapsed || 0;
+    const curSpot = t.exit || t.spot || t.entry || '--';
+    const curDigit = t.exitDigit != null ? t.exitDigit : (t.entryDigit != null ? t.entryDigit : '--');
+
+    let condDesc = '';
+    if (t.type === 'DIGITOVER') condDesc = `Target: Digit > ${t.barrier}`;
+    else if (t.type === 'DIGITUNDER') condDesc = `Target: Digit < ${t.barrier}`;
+    else if (t.type === 'DIGITEVEN') condDesc = `Target: Even Digit [0,2,4,6,8]`;
+    else if (t.type === 'DIGITODD') condDesc = `Target: Odd Digit [1,3,5,7,9]`;
+    else if (t.type === 'DIGITDIFF') condDesc = `Target: Digit ≠ ${t.barrier}`;
+    else if (t.type === 'DIGITMATCH') condDesc = `Target: Digit = ${t.barrier}`;
+    else if (t.type === 'CALL') condDesc = `Target: Exit Spot > Entry Spot`;
+    else if (t.type === 'PUT') condDesc = `Target: Exit Spot < Entry Spot`;
+
+    let tickTrack = '';
+    if (t.unit === 't') {
+      const dots = [];
+      for (let i = 1; i <= dur; i++) {
+        const active = i <= count;
+        const current = i === count;
+        dots.push(`<span style="width:10px;height:10px;border-radius:50%;background:${active ? (isOpen ? '#00ffa3' : (isWon ? '#00ffa3' : '#ff3b69')) : 'rgba(255,255,255,0.15)'};display:inline-block;${current ? 'box-shadow:0 0 8px #00ffa3;' : ''}"></span>`);
+      }
+      tickTrack = `<div style="display:flex;align-items:center;gap:6px;margin:8px 0;">${dots.join('')} <span style="font-size:11px;color:#9fb0cc;margin-left:4px;">Tick ${Math.min(count, dur)} of ${dur}</span></div>`;
+    }
+
+    if (isOpen) {
+      hud.style.borderColor = '#00ffa3';
+      hud.style.opacity = '1';
+      hud.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <span class="dot live" style="width:8px;height:8px;background:#00ffa3;"></span>
+            <b style="font-size:12px;color:#00ffa3;letter-spacing:0.3px;">LIVE TRADE IN PROGRESS</b>
+          </div>
+          <span style="font-size:11px;color:#8e9ab3;font-weight:700;">${TW.esc(t.symbol)}</span>
+        </div>
+        <div style="font-size:14px;font-weight:900;color:#fff;margin-top:4px;">
+          ${TW.esc(t.label || t.type)} · $${(+t.stake).toFixed(2)}
+        </div>
+        ${tickTrack}
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#cbd5e1;background:rgba(0,0,0,0.3);padding:6px 10px;border-radius:6px;">
+          <span>${condDesc}</span>
+          <span>Spot: <b>${curSpot}</b> (Digit <b style="color:#00ffa3;">${curDigit}</b>)</span>
+        </div>
+      `;
+    } else {
+      const col = isWon ? '#00ffa3' : '#ff3b69';
+      hud.style.borderColor = col;
+      hud.style.opacity = '1';
+      hud.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <b style="font-size:12px;color:${col};">${isWon ? '🎯 CONTRACT WON' : '⚠️ CONTRACT LOST'}</b>
+          <b style="font-size:13px;color:${col};">${isWon ? '+' : ''}${TW.money(t.profit)}</b>
+        </div>
+        <div style="font-size:13px;font-weight:800;color:#fff;margin-top:4px;">
+          ${TW.esc(t.label || t.type)} (${t.symbol})
+        </div>
+        <div style="font-size:11px;color:#cbd5e1;margin-top:6px;background:rgba(0,0,0,0.4);padding:6px 10px;border-radius:6px;">
+          Exit Digit: <b style="color:${col};">${t.exitDigit != null ? t.exitDigit : '--'}</b> · ${condDesc}
+        </div>
+      `;
+      setTimeout(() => {
+        if (hud && hud.parentNode) {
+          hud.style.opacity = '0';
+          setTimeout(() => hud.remove(), 400);
+        }
+      }, 4500);
+    }
+  }
+  TW.on('trade', renderTradeHud);
 
   const PAGES = [['index.html', 'Home'], ['rise-fall.html', 'Rise/Fall'], ['over-under.html', 'Over/Under'], ['even-odd.html', 'Even/Odd'], ['matches-differs.html', 'Matches/Differs'], ['analyzer.html', 'Analyzer'], ['strategies.html', 'Strategies'], ['bots-library.html', 'Bots'], ['playbook.html', 'Playbook'], ['insight.html', 'Insight Lab'], ['diagnostics.html', 'Diagnostics'], ['settings.html', 'Settings']];
   TW.setStatus = function (s, msg) {

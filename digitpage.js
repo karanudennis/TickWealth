@@ -106,7 +106,7 @@ TW.digitPage = function (cfg) {
         <div class="panel" id="logPanel"></div>
       </aside>
     </div>
-    <div class="foot">TickWealth is an independent tool and is not affiliated with Deriv.</div>`;
+    <div class="foot">Engineered & Owned by Dennis Karanu Muthoni (DKM) · TickWealth is an independent tool and is not affiliated with Deriv.</div>`;
 
     let feed = null, busy = false;
     const top = TW.mountTop({ active: cfg.active, symbols: 'digits', defaultSymbol: q.vol || 'R_100', onSymbol: () => restart() });

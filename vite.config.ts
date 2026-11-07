@@ -25,6 +25,7 @@ export default defineConfig(() => {
           diagnostics: path.resolve(__dirname, 'diagnostics.html'),
           settings: path.resolve(__dirname, 'settings.html'),
           insight: path.resolve(__dirname, 'insight.html'),
+          strategies: path.resolve(__dirname, 'strategies.html'),
         },
       },
     },

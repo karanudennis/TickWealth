@@ -93,7 +93,7 @@
 
   <div class="notice" id="disc"></div>
 </div>
-<div class="foot">TickWealth is an independent tool and is not affiliated with Deriv.</div>
+<div class="foot">Engineered & Owned by Dennis Karanu Muthoni (DKM) · TickWealth is an independent tool and is not affiliated with Deriv.</div>
 
 <script src="config.js"></script>
 <script src="core.js"></script>
@@ -175,7 +175,7 @@ TW.ready(function(){
         <div style="background:linear-gradient(135deg,rgba(11,16,27,0.98),rgba(17,24,39,0.98));border:1.5px solid rgba(0,255,163,0.35);border-radius:16px;padding:28px;text-align:center;">
           <div style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:13.5px;color:#00ffa3;font-weight:900;">
             <span class="dot live" style="width:10px;height:10px;background:#00ffa3;"></span>
-            <span>${isDeep ? '⚛ QUANTUM DEEP SCAN INGESTING 1000 TICKS ACROSS ALL 13 MARKETS…' : '⚡ LIGHTNING RAPID SCAN ACROSS ALL 13 MARKETS (50 TICKS)…'}</span>
+            <span>${isDeep ? `⚛ QUANTUM DEEP SCAN INGESTING 1000 TICKS ACROSS ALL ${syms.length} MARKETS…` : `⚡ LIGHTNING RAPID SCAN ACROSS ALL ${syms.length} MARKETS (50 TICKS)…`}</span>
           </div>
           <div id="scanProgressTxt" style="font-size:12px;color:#9fb0cc;margin-top:6px;">
             Calculating Markov transition matrices, entropy & Kelly edge…
@@ -206,7 +206,7 @@ TW.ready(function(){
         }
 
         const progEl=$('#scanProgressTxt');
-        if(progEl) progEl.textContent=`Ingesting live tick streams across all 13 volatility indices (${got}/${syms.length} received)… Calculating empirical Markov matrices…`;
+        if(progEl) progEl.textContent=`Ingesting live tick streams across all ${syms.length} volatility indices (${got}/${syms.length} received)… Calculating empirical Markov matrices…`;
 
         if(latestRawScan.length>=3 && !hasRenderedPreliminary){
           hasRenderedPreliminary=true;
@@ -339,13 +339,14 @@ TW.ready(function(){
       return url;
     }
 
-    // Build Launch Bot URL
+    // Build Launch Bot URL with contract-calibrated AI gate
     function getBotUrl(){
       const contract = setup.best ? setup.best.contract : (pillarName==='Over / Under'?(setup.action==='OVER'?'DIGITOVER':'DIGITUNDER'):pillarName==='Even / Odd'?(setup.action==='EVEN'?'DIGITEVEN':'DIGITODD'):pillarName==='Matches / Differs'?(setup.action==='MATCHES'?'DIGITMATCH':'DIGITDIFF'):(setup.action==='CALL'?'CALL':'PUT'));
       let bUrl=`bots-library.html?symbol=${topBest.v.id}&contract=${contract}`;
-      if(setup.barrier!=null) bUrl+=`&barrier=${setup.barrier}`;
-      if(setup.digit!=null) bUrl+=`&barrier=${setup.digit}`;
-      bUrl+=`&name=${encodeURIComponent(`AI Alpha ${topBest.v.name} (${setup.decision})`)}&dur=${selectedDur}&rule_kind=instant&rule_cond=${setup.action==='UNDER'?'over':setup.action==='OVER'?'under':setup.action==='EVEN'?'odd':'even'}&rule_n=1&mart=1&mart_mult=2.5&mart_steps=3&gate=80`;
+      const barr = setup.barrier != null ? setup.barrier : (setup.digit != null ? setup.digit : 2);
+      bUrl+=`&barrier=${barr}`;
+      const recGate = (contract==='DIGITOVER'&&barr<=2)?68:(contract==='DIGITUNDER'&&barr>=7)?68:contract==='DIGITDIFF'?85:54;
+      bUrl+=`&name=${encodeURIComponent(`AI Alpha ${topBest.v.name} (${setup.decision})`)}&dur=${selectedDur}&rule_kind=instant&rule_cond=${setup.action==='UNDER'?'over':setup.action==='OVER'?'under':setup.action==='EVEN'?'odd':'even'}&rule_n=1&mart=1&mart_mult=2.5&mart_steps=3&gate=${recGate}`;
       return bUrl;
     }
 

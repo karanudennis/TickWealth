@@ -107,6 +107,19 @@
         </div>
         <div class="portal-btn">Open Rise / Fall Strategies →</div>
       </div>
+
+      <!-- 5. Synthetics (Boom, Crash, Step, Jump) -->
+      <div class="portal-card" onclick="openPillarRoom('synthetics')">
+        <div>
+          <div class="portal-icon">⚡</div>
+          <span class="portal-badge" style="color:#f97316;background:rgba(249,115,22,0.12);">SPIKE & MOMENTUM ALPHA</span>
+          <h3 class="portal-title">Synthetics & Jump Pillar</h3>
+          <div class="portal-desc">
+            Boom spike recovery absorption, Crash cascade reversion, Step Index 0.1-pip momentum breakouts, and Jump 100 volatility drift playbooks.
+          </div>
+        </div>
+        <div class="portal-btn">Open Synthetics Strategies →</div>
+      </div>
     </div>
   </div>
 
@@ -154,7 +167,7 @@
 
   <div class="notice" id="disc"></div>
 </div>
-<div class="foot">TickWealth is an independent tool and is not affiliated with Deriv.</div>
+<div class="foot">Engineered & Owned by Dennis Karanu Muthoni (DKM) · TickWealth is an independent tool and is not affiliated with Deriv.</div>
 
 <script src="config.js"></script>
 <script src="core.js"></script>
@@ -166,15 +179,30 @@ TW.ready(function(){
   $('#disc').textContent=TW.DISCLAIMER;
   TW.mountTop({active:'strategies'});
 
-  // Active Symbol selector in room
+  let state = {
+    view: 'hub', // 'hub' | 'room' | 'detail'
+    pillar: 'overunder',
+    subFilter: 'all',
+    strategyId: null
+  };
+
+  // Active Symbol selector in room (dynamically adapts to pillar)
   const volSel=$('#roomVolSelect');
-  TW.VOLS.filter(v=>v.digits).forEach(v=>{
-    const opt=document.createElement('option');
-    opt.value=v.id;
-    opt.textContent=v.name;
-    if(v.id==='R_100') opt.selected=true;
-    volSel.appendChild(opt);
-  });
+  function populateVolSel(){
+    const cur = volSel.value;
+    volSel.innerHTML = '';
+    const isSynthetic = state && state.pillar === 'synthetics';
+    const isRiseFall = state && state.pillar === 'risefall';
+    const list = (isSynthetic || isRiseFall) ? TW.VOLS : TW.VOLS.filter(v => v.digits);
+    list.forEach(v => {
+      const opt = document.createElement('option');
+      opt.value = v.id;
+      opt.textContent = v.name;
+      if(v.id === (cur || (isSynthetic ? 'BOOM500' : 'R_100'))) opt.selected = true;
+      volSel.appendChild(opt);
+    });
+  }
+  populateVolSel();
   volSel.onchange=()=>renderCurrentView();
 
   /* =========================================================================
@@ -183,52 +211,54 @@ TW.ready(function(){
   const STRATEGIES = {
     overunder: [
       // OVER 0 through OVER 8
-      { id:'over_0', type:'OVER', barrier:0, name:'OVER 0 — High-Probability Foundation', winPct:90, payoutPct:10, edgePts:'+4.2', risk:'Low', manualRule:'Enter after digit 0 appears. Poisson distribution indicates only 10% chance of immediate consecutive 0. Duration: 1 tick.', botRule:'Streak rule: after 1 occurrence of digit 0. Martingale: 10.5x, max 1 step. SL: $10, TP: $20. AI Gate: 85%.', contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:1, triggerN:1, martMult:10.5, martSteps:1 },
-      { id:'over_1', type:'OVER', barrier:1, name:'OVER 1 — Conservative Long Playbook', winPct:80, payoutPct:23, edgePts:'+5.1', risk:'Low', manualRule:'Enter when 2 consecutive digits are ≤ 1. Mean-reversion drives subsequent tick above 1 with 80% natural probability.', botRule:'Streak rule: after 2 ticks under barrier 2. Martingale: 5.2x, max 2 steps. AI Gate: 82%, Loss Shield active.', contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:2, triggerN:2, martMult:5.2, martSteps:2 },
-      { id:'over_2', type:'OVER', barrier:2, name:'OVER 2 — Balanced Growth Strategy', winPct:70, payoutPct:40, edgePts:'+6.4', risk:'Medium-Low', manualRule:'Enter after 2 consecutive low digits (0, 1, or 2). High alpha with 70% win rate and resilient payout ratio.', botRule:'Streak rule: after 2 ticks under barrier 3. Martingale: 3.4x, max 3 steps. AI Gate: 80%, Loss Shield active.', contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:3, triggerN:2, martMult:3.4, martSteps:3 },
-      { id:'over_3', type:'OVER', barrier:3, name:'OVER 3 — Mid-Horizon Positive Expectancy', winPct:60, payoutPct:62, edgePts:'+7.2', risk:'Medium', manualRule:'Enter when rolling 10-tick mean digit is > 4.5 and current digit is ≤ 3. Exploits upward drift.', botRule:'Streak rule: after 2 ticks under barrier 4. Martingale: 2.6x, max 3 steps. AI Gate: 80%, Loss Shield active.', contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:4, triggerN:2, martMult:2.6, martSteps:3 },
-      { id:'over_4', type:'OVER', barrier:4, name:'OVER 4 — Pure Binary Symmetry Playbook', winPct:50, payoutPct:95, edgePts:'+8.0', risk:'Medium', manualRule:'Enter on positive price momentum with tick velocity impulse. Standard 50/50 balance point with payout near 1:1.', botRule:'Streak rule: after 3 ticks under barrier 5. Martingale: 2.1x, max 4 steps. AI Gate: 82%, Loss Shield active.', contract:'DIGITOVER', dur:2, triggerCond:'under', triggerCb:5, triggerN:3, martMult:2.1, martSteps:4 },
-      { id:'over_5', type:'OVER', barrier:5, name:'OVER 5 — High-Yield Reversion Sniper', winPct:40, payoutPct:140, edgePts:'+8.8', risk:'Medium-High', manualRule:'Enter when high digit clustering occurs (Digits 6, 7, 8, 9). 140% payout yields positive Kelly edge with 40% win rate.', botRule:'Streak rule: after 2 ticks over barrier 5. Martingale: 1.8x, max 4 steps. AI Gate: 85%, Loss Shield active.', contract:'DIGITOVER', dur:1, triggerCond:'over', triggerCb:5, triggerN:2, martMult:1.8, martSteps:4 },
-      { id:'over_6', type:'OVER', barrier:6, name:'OVER 6 — Aggressive Edge Accumulator', winPct:30, payoutPct:220, edgePts:'+9.5', risk:'High', manualRule:'Enter during volatility expansion when Hurst exponent > 0.55. High payout (220%) cushions drawdown.', botRule:'Streak rule: after 2 ticks over barrier 6. Martingale: 1.5x, max 5 steps. AI Gate: 85%, Loss Shield active.', contract:'DIGITOVER', dur:1, triggerCond:'over', triggerCb:6, triggerN:2, martMult:1.5, martSteps:5 },
-      { id:'over_7', type:'OVER', barrier:7, name:'OVER 7 — Exponential Alpha Sniper', winPct:20, payoutPct:380, edgePts:'+10.2', risk:'High', manualRule:'Enter when extreme lower cluster exhaustion occurs (4 consecutive digits ≤ 3). High payout of 380%.', botRule:'Streak rule: after 4 ticks under barrier 4. Flat staking or gentle 1.3x multiplier. TP: $30. AI Gate: 88%.', contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:4, triggerN:4, martMult:1.3, martSteps:4 },
-      { id:'over_8', type:'OVER', barrier:8, name:'OVER 8 — 850%+ Moonshot Sniper', winPct:10, payoutPct:850, edgePts:'+12.0', risk:'Ultra-High', manualRule:'Enter exclusively when Markov attractor digit 9 has > 18% forward projection probability. Payout is over 850%.', botRule:'Streak rule: after 5 ticks under barrier 5. Flat stake strictly $0.35-$1.00. No Martingale. AI Gate: 90%.', contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:5, triggerN:5, martMult:1.0, martSteps:1 },
+      { id:'over_0', type:'OVER', barrier:0, name:'OVER 0 — High-Probability Foundation', winPct:90, payoutPct:10, edgePts:'+4.2', risk:'Low', manualRule:'Enter after digit 0 appears. Poisson distribution indicates only 10% chance of immediate consecutive 0. Duration: 1 tick.', sampleShort:'After digit 0 arrives, enter OVER 0. Any digit 1-9 wins +10%.', realSample:'Live Scenario:\n1. Spot tick ends in digit 0 (e.g. 5,420.10).\n2. Enter OVER 0 ($10.00 stake, 1 tick duration).\n3. Next tick: 5,421.34 (Digit 4). 4 > 0 → WIN!\n4. Return: Stake $10.00 + Profit $1.00 = $11.00 (+10% gain).\n5. Loss condition: Consecutive 0 loses stake. Baseline win rate: 90%.', botRule:'Streak rule: after 1 occurrence of digit 0. Martingale: 10.5x, max 1 step. SL: $10, TP: $20. AI Gate: 85%.', contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:1, triggerN:1, martMult:10.5, martSteps:1 },
+      { id:'over_1', type:'OVER', barrier:1, name:'OVER 1 — Conservative Long Playbook', winPct:80, payoutPct:23, edgePts:'+5.1', risk:'Low', manualRule:'Enter when 2 consecutive digits are ≤ 1. Mean-reversion drives subsequent tick above 1 with 80% natural probability.', sampleShort:'Two consecutive digits ≤ 1 (e.g. 0 then 1). Enter OVER 1. Digit 2-9 wins +23%.', realSample:'Live Scenario:\n1. Previous 2 ticks end in 0 and 1.\n2. Enter OVER 1 ($5.00 stake, 1 tick duration).\n3. Next tick: …622.78 (Digit 8). 8 > 1 → WIN!\n4. Return: Stake $5.00 + Profit $1.15 = $6.15 (+23% return).\n5. Loss condition: Digits 0 or 1 lose stake. Win rate: 80%.', botRule:'Streak rule: after 2 ticks under barrier 2. Martingale: 5.2x, max 2 steps. AI Gate: 82%, Loss Shield active.', contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:2, triggerN:2, martMult:5.2, martSteps:2 },
+      { id:'over_2', type:'OVER', barrier:2, name:'OVER 2 — Balanced Growth Strategy', winPct:70, payoutPct:40, edgePts:'+6.4', risk:'Medium-Low', manualRule:'Enter after 2 consecutive low digits (0, 1, or 2). High alpha with 70% win rate and resilient payout ratio.', sampleShort:'Two digits ≤ 2 (e.g. 1 then 2). Enter OVER 2. Digit 3-9 wins +40%.', realSample:'Live Scenario:\n1. Previous 2 ticks: …842.10 (0) then …843.02 (2).\n2. Enter OVER 2 ($1.00 stake, 1 tick duration).\n3. Next tick arrives: …845.36 (Digit 6).\n4. Outcome: 6 > 2 → WIN! Return: Stake $1.00 + Profit $0.40 = $1.40 (+40% gain).\n5. Loss condition: Digits 0, 1, or 2 lose stake. Natural win rate: 70%.', botRule:'Streak rule: after 2 ticks under barrier 3. Martingale: 3.4x, max 3 steps. AI Gate: 68%, Loss Shield active.', contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:3, triggerN:2, martMult:3.4, martSteps:3 },
+      { id:'over_3', type:'OVER', barrier:3, name:'OVER 3 — Mid-Horizon Positive Expectancy', winPct:60, payoutPct:62, edgePts:'+7.2', risk:'Medium', manualRule:'Enter when rolling 10-tick mean digit is > 4.5 and current digit is ≤ 3. Exploits upward drift.', sampleShort:'Mean digit > 4.5, current digit ≤ 3. Enter OVER 3. Digit 4-9 wins +62%.', realSample:'Live Scenario:\n1. Rolling 10-tick mean is 5.1 (upward drift); current tick ends in 1.\n2. Enter OVER 3 ($2.00 stake, 1 tick duration).\n3. Next tick: …312.47 (Digit 7). 7 > 3 → WIN!\n4. Return: Stake $2.00 + Profit $1.24 = $3.24 (+62% return).\n5. Loss condition: Digits 0, 1, 2, 3 lose stake.', botRule:'Streak rule: after 2 ticks under barrier 4. Martingale: 2.6x, max 3 steps. AI Gate: 65%, Loss Shield active.', contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:4, triggerN:2, martMult:2.6, martSteps:3 },
+      { id:'over_4', type:'OVER', barrier:4, name:'OVER 4 — Pure Binary Symmetry Playbook', winPct:50, payoutPct:95, edgePts:'+8.0', risk:'Medium', manualRule:'Enter on positive price momentum with tick velocity impulse. Standard 50/50 balance point with payout near 1:1.', sampleShort:'Positive price velocity impulse. Enter OVER 4. Digit 5-9 wins +95%.', realSample:'Live Scenario:\n1. Upward tick velocity impulse registers on chart.\n2. Enter OVER 4 ($2.00 stake, 2 ticks duration).\n3. Exit tick: …184.59 (Digit 9). 9 > 4 → WIN!\n4. Return: Stake $2.00 + Profit $1.90 = $3.90 (+95% gain).', botRule:'Streak rule: after 3 ticks under barrier 5. Martingale: 2.1x, max 4 steps. AI Gate: 60%, Loss Shield active.', contract:'DIGITOVER', dur:2, triggerCond:'under', triggerCb:5, triggerN:3, martMult:2.1, martSteps:4 },
+      { id:'over_5', type:'OVER', barrier:5, name:'OVER 5 — High-Yield Reversion Sniper', winPct:40, payoutPct:140, edgePts:'+8.8', risk:'Medium-High', manualRule:'Enter when high digit clustering occurs (Digits 6, 7, 8, 9). 140% payout yields positive Kelly edge with 40% win rate.', sampleShort:'Upper clustering active. Enter OVER 5. Digit 6-9 wins +140%.', realSample:'Live Scenario:\n1. High cluster detected: digits 7 and 8 consecutively.\n2. Enter OVER 5 ($1.00 stake, 1 tick duration).\n3. Next tick: …940.38 (Digit 8). 8 > 5 → WIN!\n4. Return: Stake $1.00 + Profit $1.40 = $2.40 (+140% payout).', botRule:'Streak rule: after 2 ticks over barrier 5. Martingale: 1.8x, max 4 steps. AI Gate: 55%, Loss Shield active.', contract:'DIGITOVER', dur:1, triggerCond:'over', triggerCb:5, triggerN:2, martMult:1.8, martSteps:4 },
+      { id:'over_6', type:'OVER', barrier:6, name:'OVER 6 — Aggressive Edge Accumulator', winPct:30, payoutPct:220, edgePts:'+9.5', risk:'High', manualRule:'Enter during volatility expansion when Hurst exponent > 0.55. High payout (220%) cushions drawdown.', sampleShort:'Hurst > 0.55 expansion. Enter OVER 6. Digit 7-9 wins +220%.', realSample:'Live Scenario:\n1. Hurst trend persistence confirmed; enter OVER 6 ($1.00 stake).\n2. Next tick: …201.19 (Digit 9). 9 > 6 → WIN!\n3. Return: Stake $1.00 + Profit $2.20 = $3.20 (+220% gain).', botRule:'Streak rule: after 2 ticks over barrier 6. Martingale: 1.5x, max 5 steps. AI Gate: 45%, Loss Shield active.', contract:'DIGITOVER', dur:1, triggerCond:'over', triggerCb:6, triggerN:2, martMult:1.5, martSteps:5 },
+      { id:'over_7', type:'OVER', barrier:7, name:'OVER 7 — Exponential Alpha Sniper', winPct:20, payoutPct:380, edgePts:'+10.2', risk:'High', manualRule:'Enter when extreme lower cluster exhaustion occurs (4 consecutive digits ≤ 3). High payout of 380%.', sampleShort:'Four digits ≤ 3. Enter OVER 7. Digit 8 or 9 wins +380%.', realSample:'Live Scenario:\n1. 4 consecutive lower digits print [1, 0, 2, 1]. Extreme cluster exhaustion.\n2. Enter OVER 7 ($0.50 stake, 1 tick duration).\n3. Next tick: …630.48 (Digit 8). 8 > 7 → WIN!\n4. Return: Stake $0.50 + Profit $1.90 = $2.40 (+380% gain).', botRule:'Streak rule: after 4 ticks under barrier 4. Flat staking or gentle 1.3x multiplier. TP: $30. AI Gate: 35%.', contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:4, triggerN:4, martMult:1.3, martSteps:4 },
+      { id:'over_8', type:'OVER', barrier:8, name:'OVER 8 — 850%+ Moonshot Sniper', winPct:10, payoutPct:850, edgePts:'+12.0', risk:'Ultra-High', manualRule:'Enter exclusively when Markov attractor digit 9 has > 18% forward projection probability. Payout is over 850%.', sampleShort:'Markov attractor digit 9 > 18%. Enter OVER 8. Digit 9 wins +850%.', realSample:'Live Scenario:\n1. Markov matrix shows forward transition probability into digit 9 is 19.2%.\n2. Enter OVER 8 ($0.50 stake, 1 tick duration).\n3. Next tick: …712.99 (Digit 9). 9 > 8 → WIN!\n4. Return: Stake $0.50 + Profit $4.25 = $4.75 (+850% multiplier profit!).', botRule:'Streak rule: after 5 ticks under barrier 5. Flat stake strictly $0.35-$1.00. No Martingale. AI Gate: 20%.', contract:'DIGITOVER', dur:1, triggerCond:'under', triggerCb:5, triggerN:5, martMult:1.0, martSteps:1 },
       // UNDER 1 through UNDER 9
-      { id:'under_1', type:'UNDER', barrier:1, name:'UNDER 1 — Low-Digit Reversion Moonshot', winPct:10, payoutPct:850, edgePts:'+12.0', risk:'Ultra-High', manualRule:'Enter exclusively when digit 0 has high empirical attraction in Markov transition matrix. Payout exceeds 850%.', botRule:'Rule: every 3 ticks during high-cluster regime. Flat stake $0.35, max 10 trades. AI Gate: 90%.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:5, triggerN:4, martMult:1.0, martSteps:1 },
-      { id:'under_2', type:'UNDER', barrier:2, name:'UNDER 2 — Exponential Reversion Alpha', winPct:20, payoutPct:380, edgePts:'+10.2', risk:'High', manualRule:'Enter after upper boundary exhaustion (4 consecutive digits ≥ 7). Reversion probability to 0 or 1 pays 380%.', botRule:'Streak rule: after 4 ticks over barrier 6. Gentle 1.3x multiplier, TP: $30. AI Gate: 88%.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:6, triggerN:4, martMult:1.3, martSteps:4 },
-      { id:'under_3', type:'UNDER', barrier:3, name:'UNDER 3 — Aggressive Mean Reversion', winPct:30, payoutPct:220, edgePts:'+9.5', risk:'High', manualRule:'Enter after 3 consecutive high digits (7, 8, 9). Mean-reversion edge triggers toward digits 0, 1, 2.', botRule:'Streak rule: after 3 ticks over barrier 6. Martingale: 1.5x, max 5 steps. AI Gate: 85%, Loss Shield active.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:6, triggerN:3, martMult:1.5, martSteps:5 },
-      { id:'under_4', type:'UNDER', barrier:4, name:'UNDER 4 — High-Yield Reversion', winPct:40, payoutPct:140, edgePts:'+8.8', risk:'Medium-High', manualRule:'Enter when rolling average digit is > 5.5. Payout is 140%, delivering strong risk-adjusted alpha.', botRule:'Streak rule: after 2 ticks over barrier 5. Martingale: 1.8x, max 4 steps. AI Gate: 82%, Loss Shield active.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:5, triggerN:2, martMult:1.8, martSteps:4 },
-      { id:'under_5', type:'UNDER', barrier:5, name:'UNDER 5 — Pure Binary Symmetry', winPct:50, payoutPct:95, edgePts:'+8.0', risk:'Medium', manualRule:'Enter on downward tick velocity impulse and micro-entropy < 0.95. Payout is balanced at 95%.', botRule:'Streak rule: after 3 ticks over barrier 4. Martingale: 2.1x, max 4 steps. AI Gate: 82%, Loss Shield active.', contract:'DIGITUNDER', dur:2, triggerCond:'over', triggerCb:4, triggerN:3, martMult:2.1, martSteps:4 },
-      { id:'under_6', type:'UNDER', barrier:6, name:'UNDER 6 — Institutional Defensive Accumulator', winPct:60, payoutPct:62, edgePts:'+7.2', risk:'Medium', manualRule:'Enter when mean digit reversion indicates downward drift. 60% win probability with 62% payout.', botRule:'Streak rule: after 2 ticks over barrier 6. Martingale: 2.6x, max 3 steps. AI Gate: 80%, Loss Shield active.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:6, triggerN:2, martMult:2.6, martSteps:3 },
-      { id:'under_7', type:'UNDER', barrier:7, name:'UNDER 7 — Core Algorithmic Favorite', winPct:70, payoutPct:40, edgePts:'+6.4', risk:'Medium-Low', manualRule:'Enter after 2 consecutive high digits (≥ 7). Most popular institutional quant setup: 70% win rate with quick compounding.', botRule:'Streak rule: after 2 ticks over barrier 7. Martingale: 3.4x, max 3 steps. AI Gate: 80%, Loss Shield active.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:7, triggerN:2, martMult:3.4, martSteps:3 },
-      { id:'under_8', type:'UNDER', barrier:8, name:'UNDER 8 — High-Probability Fortress', winPct:80, payoutPct:23, edgePts:'+5.1', risk:'Low', manualRule:'Enter after single 8 or 9 outlier tick. 80% win probability protects capital during high market volatility.', botRule:'Streak rule: after 1 tick over barrier 7. Martingale: 5.2x, max 2 steps. AI Gate: 82%, Loss Shield active.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:7, triggerN:1, martMult:5.2, martSteps:2 },
-      { id:'under_9', type:'UNDER', barrier:9, name:'UNDER 9 — Maximum Safety Shield', winPct:90, payoutPct:10, edgePts:'+4.2', risk:'Low', manualRule:'Enter immediately following digit 9 appearance. Probability of consecutive 9 is only 10%. Highly reliable.', botRule:'Streak rule: after 1 occurrence of digit 9. Martingale: 10.5x, max 1 step. AI Gate: 85%, Loss Shield active.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:8, triggerN:1, martMult:10.5, martSteps:1 }
+      { id:'under_1', type:'UNDER', barrier:1, name:'UNDER 1 — Low-Digit Reversion Moonshot', winPct:10, payoutPct:850, edgePts:'+12.0', risk:'Ultra-High', manualRule:'Enter exclusively when digit 0 has high empirical attraction in Markov transition matrix. Payout exceeds 850%.', sampleShort:'Digit 0 Markov attractor > 18%. Enter UNDER 1. Digit 0 wins +850%.', realSample:'Live Scenario:\n1. Digit 0 Markov projection density spikes to 18.5%.\n2. Enter UNDER 1 ($0.50 stake, 1 tick duration).\n3. Next tick: …814.20 (Digit 0). 0 < 1 → WIN!\n4. Return: Stake $0.50 + Profit $4.25 = $4.75 (+850% gain).', botRule:'Rule: every 3 ticks during high-cluster regime. Flat stake $0.35, max 10 trades. AI Gate: 20%.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:5, triggerN:4, martMult:1.0, martSteps:1 },
+      { id:'under_2', type:'UNDER', barrier:2, name:'UNDER 2 — Exponential Reversion Alpha', winPct:20, payoutPct:380, edgePts:'+10.2', risk:'High', manualRule:'Enter after upper boundary exhaustion (4 consecutive digits ≥ 7). Reversion probability to 0 or 1 pays 380%.', sampleShort:'Four digits ≥ 7. Enter UNDER 2. Digit 0 or 1 wins +380%.', realSample:'Live Scenario:\n1. Upper boundary exhaustion: digits 8, 9, 7, 8 print in a row.\n2. Enter UNDER 2 ($0.50 stake, 1 tick duration).\n3. Next tick: …305.11 (Digit 1). 1 < 2 → WIN!\n4. Return: Stake $0.50 + Profit $1.90 = $2.40 (+380% gain).', botRule:'Streak rule: after 4 ticks over barrier 6. Gentle 1.3x multiplier, TP: $30. AI Gate: 35%.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:6, triggerN:4, martMult:1.3, martSteps:4 },
+      { id:'under_3', type:'UNDER', barrier:3, name:'UNDER 3 — Aggressive Mean Reversion', winPct:30, payoutPct:220, edgePts:'+9.5', risk:'High', manualRule:'Enter after 3 consecutive high digits (7, 8, 9). Mean-reversion edge triggers toward digits 0, 1, 2.', sampleShort:'Three digits ≥ 7. Enter UNDER 3. Digit 0-2 wins +220%.', realSample:'Live Scenario:\n1. Three high digits [7, 9, 8] exhaust upper boundary.\n2. Enter UNDER 3 ($1.00 stake, 1 tick duration).\n3. Next tick: …410.02 (Digit 2). 2 < 3 → WIN!\n4. Return: Stake $1.00 + Profit $2.20 = $3.20 (+220% gain).', botRule:'Streak rule: after 3 ticks over barrier 6. Martingale: 1.5x, max 5 steps. AI Gate: 45%, Loss Shield active.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:6, triggerN:3, martMult:1.5, martSteps:5 },
+      { id:'under_4', type:'UNDER', barrier:4, name:'UNDER 4 — High-Yield Reversion', winPct:40, payoutPct:140, edgePts:'+8.8', risk:'Medium-High', manualRule:'Enter when rolling average digit is > 5.5. Payout is 140%, delivering strong risk-adjusted alpha.', sampleShort:'Rolling mean > 5.5. Enter UNDER 4. Digit 0-3 wins +140%.', realSample:'Live Scenario:\n1. Rolling 10-tick mean digit is 6.2; current tick ends in 9.\n2. Enter UNDER 4 ($1.00 stake, 1 tick duration).\n3. Next tick: …921.13 (Digit 3). 3 < 4 → WIN!\n4. Return: Stake $1.00 + Profit $1.40 = $2.40 (+140% return).', botRule:'Streak rule: after 2 ticks over barrier 5. Martingale: 1.8x, max 4 steps. AI Gate: 55%, Loss Shield active.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:5, triggerN:2, martMult:1.8, martSteps:4 },
+      { id:'under_5', type:'UNDER', barrier:5, name:'UNDER 5 — Pure Binary Symmetry', winPct:50, payoutPct:95, edgePts:'+8.0', risk:'Medium', manualRule:'Enter on downward tick velocity impulse and micro-entropy < 0.95. Payout is balanced at 95%.', sampleShort:'Downward velocity impulse. Enter UNDER 5. Digit 0-4 wins +95%.', realSample:'Live Scenario:\n1. Downward tick velocity confirmed; enter UNDER 5 ($2.00 stake, 2 ticks).\n2. Exit tick: …814.12 (Digit 2). 2 < 5 → WIN!\n3. Return: Stake $2.00 + Profit $1.90 = $3.90 (+95% gain).', botRule:'Streak rule: after 3 ticks over barrier 4. Martingale: 2.1x, max 4 steps. AI Gate: 60%, Loss Shield active.', contract:'DIGITUNDER', dur:2, triggerCond:'over', triggerCb:4, triggerN:3, martMult:2.1, martSteps:4 },
+      { id:'under_6', type:'UNDER', barrier:6, name:'UNDER 6 — Institutional Defensive Accumulator', winPct:60, payoutPct:62, edgePts:'+7.2', risk:'Medium', manualRule:'Enter when mean digit reversion indicates downward drift. 60% win probability with 62% payout.', sampleShort:'Downward drift confirmed. Enter UNDER 6. Digit 0-5 wins +62%.', realSample:'Live Scenario:\n1. Downward drift confirmed; enter UNDER 6 ($2.00 stake).\n2. Next tick: …730.44 (Digit 4). 4 < 6 → WIN!\n3. Return: Stake $2.00 + Profit $1.24 = $3.24 (+62% gain).', botRule:'Streak rule: after 2 ticks over barrier 6. Martingale: 2.6x, max 3 steps. AI Gate: 65%, Loss Shield active.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:6, triggerN:2, martMult:2.6, martSteps:3 },
+      { id:'under_7', type:'UNDER', barrier:7, name:'UNDER 7 — Core Algorithmic Favorite', winPct:70, payoutPct:40, edgePts:'+6.4', risk:'Medium-Low', manualRule:'Enter after 2 consecutive high digits (≥ 7). Most popular institutional quant setup: 70% win rate with quick compounding.', sampleShort:'Two digits ≥ 7 (e.g. 8 then 9). Enter UNDER 7. Digit 0-6 wins +40%.', realSample:'Live Scenario:\n1. Previous 2 ticks: …890.78 (8) then …892.49 (9).\n2. Enter UNDER 7 ($1.00 stake, 1 tick duration).\n3. Next tick arrives: …891.13 (Digit 3).\n4. Outcome: 3 < 7 → WIN! Return: Stake $1.00 + Profit $0.40 = $1.40 (+40% gain).\n5. Loss condition: Digits 7, 8, or 9 lose stake. Natural win rate: 70%.', botRule:'Streak rule: after 2 ticks over barrier 7. Martingale: 3.4x, max 3 steps. AI Gate: 68%, Loss Shield active.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:7, triggerN:2, martMult:3.4, martSteps:3 },
+      { id:'under_8', type:'UNDER', barrier:8, name:'UNDER 8 — High-Probability Fortress', winPct:80, payoutPct:23, edgePts:'+5.1', risk:'Low', manualRule:'Enter after single 8 or 9 outlier tick. 80% win probability protects capital during high market volatility.', sampleShort:'Outlier digit 8 or 9. Enter UNDER 8. Digit 0-7 wins +23%.', realSample:'Live Scenario:\n1. High outlier digit 9 prints; enter UNDER 8 ($5.00 stake).\n2. Next tick: …410.35 (Digit 5). 5 < 8 → WIN!\n3. Return: Stake $5.00 + Profit $1.15 = $6.15 (+23% gain).', botRule:'Streak rule: after 1 tick over barrier 7. Martingale: 5.2x, max 2 steps. AI Gate: 82%, Loss Shield active.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:7, triggerN:1, martMult:5.2, martSteps:2 },
+      { id:'under_9', type:'UNDER', barrier:9, name:'UNDER 9 — Maximum Safety Shield', winPct:90, payoutPct:10, edgePts:'+4.2', risk:'Low', manualRule:'Enter immediately following digit 9 appearance. Probability of consecutive 9 is only 10%. Highly reliable.', sampleShort:'Digit 9 arrives. Enter UNDER 9. Digit 0-8 wins +10%.', realSample:'Live Scenario:\n1. Spot tick ends in digit 9; enter UNDER 9 ($10.00 stake).\n2. Next tick: …620.12 (Digit 2). 2 < 9 → WIN!\n3. Return: Stake $10.00 + Profit $1.00 = $11.00 (+10% gain). Baseline win rate: 90%.', botRule:'Streak rule: after 1 occurrence of digit 9. Martingale: 10.5x, max 1 step. AI Gate: 85%, Loss Shield active.', contract:'DIGITUNDER', dur:1, triggerCond:'over', triggerCb:8, triggerN:1, martMult:10.5, martSteps:1 }
     ],
 
     matchesdiffers: [
-      { id:'diff_safe', type:'DIFFERS', digit:0, name:'DIFFERS — 90% Safe Dispersion Accumulator', winPct:90, payoutPct:10, edgePts:'+4.5', risk:'Low', manualRule:'Select coldest digit of last 100 ticks. Place DIFFERS on that digit. Win rate remains exceptionally high at 90%.', botRule:'Rule: every 2 ticks targeting coldest digit. Martingale: 10.5x, max 1 step. SL: $10, TP: $25. AI Gate: 80%.', contract:'DIGITDIFF', dur:1, martMult:10.5, martSteps:1 },
-      { id:'match_sniper', type:'MATCHES', digit:7, name:'MATCHES — 850%+ Multiplier Sniper', winPct:10, payoutPct:850, edgePts:'+12.5', risk:'High', manualRule:'Monitor Markov attractor digits. When a digit exhibits repetitive clustering (> 15% Markov density), execute MATCHES.', botRule:'Streak rule: after 3 ticks in same upper digit cluster. Flat stake strictly $0.35. No Martingale. TP: $25. AI Gate: 85%.', contract:'DIGITMATCH', dur:1, martMult:1.0, martSteps:1 },
-      { id:'diff_rotation', type:'DIFFERS', digit:9, name:'DIFFERS — Adaptive Cold Rotation Strategy', winPct:90, payoutPct:10, edgePts:'+4.8', risk:'Low', manualRule:'Dynamic rotation: check Analyzer Digit Grid, identify digit with lowest heat count, and place DIFFERS. Rotate target digit every 50 ticks.', botRule:'Rule: every 3 ticks targeting lowest heat digit. Martingale: 10x, max 1 step. AI Gate: 82%, Loss Shield active.', contract:'DIGITDIFF', dur:1, martMult:10.0, martSteps:1 }
+      { id:'diff_safe', type:'DIFFERS', digit:0, name:'DIFFERS — 90% Safe Dispersion Accumulator', winPct:90, payoutPct:10, edgePts:'+4.5', risk:'Low', manualRule:'Select coldest digit of last 100 ticks. Place DIFFERS on that digit. Win rate remains exceptionally high at 90%.', sampleShort:'Coldest digit is 0 (3% freq). Enter DIFFERS 0. Any other digit wins +10%.', realSample:'Live Scenario:\n1. Coldest digit identified in Analyzer Grid: Digit 0 has appeared only 3 times in 100 ticks.\n2. Enter DIFFERS on digit 0 ($10.00 stake, 1 tick duration).\n3. Next tick arrives: Price …724.85 → Last digit is 5.\n4. Outcome: 5 ≠ 0 → WIN! Return: Stake $10.00 + Profit $1.00 = $11.00 total payout (+10% gain).\n5. Failure condition: Only if digit 0 appears exactly does trade lose -$10.00. Win probability is 90%.', botRule:'Rule: every 2 ticks targeting coldest digit. Martingale: 10.5x, max 1 step. SL: $10, TP: $25. AI Gate: 85%.', contract:'DIGITDIFF', dur:1, martMult:10.5, martSteps:1 },
+      { id:'match_sniper', type:'MATCHES', digit:7, name:'MATCHES — 850%+ Multiplier Sniper', winPct:10, payoutPct:850, edgePts:'+12.5', risk:'High', manualRule:'Monitor Markov attractor digits. When a digit exhibits repetitive clustering (> 15% Markov density), execute MATCHES.', sampleShort:'Digit 7 hits attractor density > 18%. Enter MATCHES 7. Digit 7 wins +850%.', realSample:'Live Scenario:\n1. Markov projection indicates repeating transition attractor on digit 7 (18.4% empirical density).\n2. Enter MATCHES on digit 7 ($1.00 stake, 1 tick duration).\n3. Next tick arrives: Price …512.37 → Last digit is 7.\n4. Outcome: 7 = 7 (Exact match) → WIN!\n5. Return: Stake $1.00 + Profit $8.50 = $9.50 total payout (+850% multiplier gain!).\n6. Risk Note: High-payout sniper with 10% natural win rate. Strict flat staking ($0.35–$1.00) required.', botRule:'Streak rule: after 3 ticks in same upper digit cluster. Flat stake strictly $0.35. No Martingale. TP: $25. AI Gate: 20%.', contract:'DIGITMATCH', dur:1, martMult:1.0, martSteps:1 },
+      { id:'diff_rotation', type:'DIFFERS', digit:9, name:'DIFFERS — Adaptive Cold Rotation Strategy', winPct:90, payoutPct:10, edgePts:'+4.8', risk:'Low', manualRule:'Dynamic rotation: check Analyzer Digit Grid, identify digit with lowest heat count, and place DIFFERS. Rotate target digit every 50 ticks.', sampleShort:'Rotate to lowest heat digit every 50 ticks. Enter DIFFERS. 90% win rate.', realSample:'Live Scenario:\n1. Analyzer identifies digit 9 as lowest heat (4%). Enter DIFFERS 9 ($5.00 stake).\n2. Next tick: …812.33 (Digit 3). 3 ≠ 9 → WIN!\n3. Return: Stake $5.00 + Profit $0.50 = $5.50 (+10% gain).', botRule:'Rule: every 3 ticks targeting lowest heat digit. Martingale: 10x, max 1 step. AI Gate: 85%, Loss Shield active.', contract:'DIGITDIFF', dur:1, martMult:10.0, martSteps:1 }
     ],
 
     evenodd: [
-      { id:'eo_even_revert', type:'EVEN', name:'EVEN — Parity Mean-Reversion Playbook', winPct:54, payoutPct:95, edgePts:'+4.0', risk:'Medium', manualRule:'Enter EVEN after 3 consecutive ODD digits appear. Parity distribution enforces mean-reversion with 50/50 baseline.', botRule:'Streak rule: after 3 consecutive ODD digits. Martingale: 2.1x, max 3 steps. AI Gate: 82%, Loss Shield active.', contract:'DIGITEVEN', dur:1, triggerCond:'odd', triggerN:3, martMult:2.1, martSteps:3 },
-      { id:'eo_odd_exhaust', type:'ODD', name:'ODD — Poisson Streak Exhaustion', winPct:54, payoutPct:95, edgePts:'+4.0', risk:'Medium', manualRule:'Enter ODD after 3 consecutive EVEN digits appear. Statistical probability of 4 consecutive evens is only 6.25%.', botRule:'Streak rule: after 3 consecutive EVEN digits. Martingale: 2.1x, max 3 steps. AI Gate: 82%, Loss Shield active.', contract:'DIGITODD', dur:1, triggerCond:'even', triggerN:3, martMult:2.1, martSteps:3 },
-      { id:'eo_parity_breaker', type:'EVEN', name:'EVEN — Alternation Breaker Strategy', winPct:52, payoutPct:95, edgePts:'+2.5', risk:'Medium', manualRule:'Enter when parity oscillates back-and-forth for 4 ticks (E-O-E-O). Place EVEN on expected pattern rupture.', botRule:'Rule: every 2 ticks during high entropy regime. Martingale: 2.0x, max 3 steps. AI Gate: 80%.', contract:'DIGITEVEN', dur:1, martMult:2.0, martSteps:3 }
+      { id:'eo_even_revert', type:'EVEN', name:'EVEN — Parity Mean-Reversion Playbook', winPct:54, payoutPct:95, edgePts:'+4.0', risk:'Medium', manualRule:'Enter EVEN after 3 consecutive ODD digits appear. Parity distribution enforces mean-reversion with 50/50 baseline.', sampleShort:'Three odd digits [3, 7, 9]. Enter EVEN (1t). Any even digit wins +95%.', realSample:'Live Scenario:\n1. Three consecutive odd digits print: 3 → 7 → 9.\n2. Binary parity exhaustion trigger executes: EVEN ($2.00 stake, 1 tick duration).\n3. Next tick arrives: Price …411.22 → Last digit is 2 (Even).\n4. Outcome: Even digit → WIN!\n5. Return: Stake $2.00 + Profit $1.90 = $3.90 total payout (+95% gain).\n6. Failure condition: A 4th consecutive odd digit loses -$2.00. Normal streak probability of 4 odds is only 6.25%.', botRule:'Streak rule: after 3 consecutive ODD digits. Martingale: 2.1x, max 3 steps. AI Gate: 55%, Loss Shield active.', contract:'DIGITEVEN', dur:1, triggerCond:'odd', triggerN:3, martMult:2.1, martSteps:3 },
+      { id:'eo_odd_exhaust', type:'ODD', name:'ODD — Poisson Streak Exhaustion', winPct:54, payoutPct:95, edgePts:'+4.0', risk:'Medium', manualRule:'Enter ODD after 3 consecutive EVEN digits appear. Statistical probability of 4 consecutive evens is only 6.25%.', sampleShort:'Three even digits [0, 4, 8]. Enter ODD (1t). Any odd digit wins +95%.', realSample:'Live Scenario:\n1. Three consecutive even digits print: 0 → 4 → 8.\n2. Poisson parity exhaustion trigger executes: ODD ($2.00 stake, 1 tick duration).\n3. Next tick arrives: Price …915.17 → Last digit is 7 (Odd).\n4. Outcome: Odd digit → WIN!\n5. Return: Stake $2.00 + Profit $1.90 = $3.90 (+95% gain).', botRule:'Streak rule: after 3 consecutive EVEN digits. Martingale: 2.1x, max 3 steps. AI Gate: 55%, Loss Shield active.', contract:'DIGITODD', dur:1, triggerCond:'even', triggerN:3, martMult:2.1, martSteps:3 },
+      { id:'eo_parity_breaker', type:'EVEN', name:'EVEN — Alternation Breaker Strategy', winPct:52, payoutPct:95, edgePts:'+2.5', risk:'Medium', manualRule:'Enter when parity oscillates back-and-forth for 4 ticks (E-O-E-O). Place EVEN on expected pattern rupture.', sampleShort:'Four oscillating ticks E-O-E-O. Enter EVEN on pattern break.', realSample:'Live Scenario:\n1. Ticks oscillate: 2 (E) → 5 (O) → 8 (E) → 1 (O).\n2. Alternation rupture rule triggers: enter EVEN ($2.00 stake).\n3. Next tick: …620.44 (Digit 4, Even) → WIN! Return: +$1.90 (+95%).', botRule:'Rule: every 2 ticks during high entropy regime. Martingale: 2.0x, max 3 steps. AI Gate: 52%.', contract:'DIGITEVEN', dur:1, martMult:2.0, martSteps:3 }
     ],
 
     risefall: [
-      { id:'rf_ema_momentum', type:'CALL', name:'RISE — EMA Momentum Trend Rider', winPct:56, payoutPct:95, edgePts:'+6.0', risk:'Medium', manualRule:'Enter RISE when 5-period EMA slope is positive and last 3 ticks closed higher. Hurst H > 0.52. Duration: 5 ticks.', botRule:'Streak rule: after 3 consecutive RISE ticks. Duration: 5 ticks. Martingale: 2.1x, max 3 steps. AI Gate: 80%.', contract:'CALL', dur:5, triggerCond:'rise', triggerN:3, martMult:2.1, martSteps:3 },
-      { id:'rf_bollinger_fall', type:'PUT', name:'FALL — Overbought Mean Reversion', winPct:56, payoutPct:95, edgePts:'+6.0', risk:'Medium', manualRule:'Enter FALL when price touches upper Bollinger band (2 standard deviations) with declining tick velocity. Duration: 5 ticks.', botRule:'Streak rule: after 3 consecutive UP ticks into resistance. Duration: 5 ticks. Martingale: 2.1x, max 3 steps. AI Gate: 80%.', contract:'PUT', dur:5, triggerCond:'rise', triggerN:3, martMult:2.1, martSteps:3 },
-      { id:'rf_breakout_fall', type:'PUT', name:'FALL — Downward Velocity Impulse', winPct:55, payoutPct:95, edgePts:'+5.0', risk:'Medium', manualRule:'Enter FALL on high downward tick speed (3 consecutive down ticks with expanding pip difference). Duration: 5 ticks.', botRule:'Streak rule: after 3 consecutive FALL ticks. Duration: 5 ticks. Martingale: 2.1x, max 3 steps. AI Gate: 80%.', contract:'PUT', dur:5, triggerCond:'fall', triggerN:3, martMult:2.1, martSteps:3 }
+      { id:'rf_ema_momentum', type:'CALL', name:'RISE — EMA Momentum Trend Rider', winPct:56, payoutPct:95, edgePts:'+6.0', risk:'Medium', manualRule:'Enter RISE when 5-period EMA slope is positive and last 3 ticks closed higher. Hurst H > 0.52. Duration: 5 ticks.', sampleShort:'5-period EMA positive, 3 up ticks. Enter RISE (5t). Spot closes higher → WIN +95%.', realSample:'Live Scenario:\n1. 5-period EMA slope is positive (+0.42) and last 3 ticks closed higher [502.10, 502.40, 502.75].\n2. Trend continuation trigger executes: RISE / CALL ($2.00 stake, 5 ticks duration).\n3. Spot ticks progress: 502.80 → 502.95 → 503.10 → 503.05 → 503.30 (exit).\n4. Outcome: Exit spot (503.30) > Entry spot (502.75) → WIN!\n5. Return: Stake $2.00 + Profit $1.90 = $3.90 (+95% net return).\n6. Failure condition: If exit spot is lower or equal, trade loses -$2.00.', botRule:'Streak rule: after 3 consecutive RISE ticks. Duration: 5 ticks. Martingale: 2.1x, max 3 steps. AI Gate: 60%.', contract:'CALL', dur:5, triggerCond:'rise', triggerN:3, martMult:2.1, martSteps:3 },
+      { id:'rf_bollinger_fall', type:'PUT', name:'FALL — Overbought Mean Reversion', winPct:56, payoutPct:95, edgePts:'+6.0', risk:'Medium', manualRule:'Enter FALL when price touches upper Bollinger band (2 standard deviations) with declining tick velocity. Duration: 5 ticks.', sampleShort:'Upper Bollinger touch with fading speed. Enter FALL (5t). Spot retreats → WIN +95%.', realSample:'Live Scenario:\n1. Price touches upper Bollinger band at 810.50; tick velocity slows from 3.2 to 0.8 pips/s.\n2. Reversion trigger executes: FALL / PUT ($2.00 stake, 5 ticks duration).\n3. Spot ticks progress downward: 810.40 → 810.25 → 810.10 → 810.15 → 809.90 (exit).\n4. Outcome: Exit spot (809.90) < Entry spot (810.50) → WIN! Return: +$1.90 (+95%).', botRule:'Streak rule: after 3 consecutive UP ticks into resistance. Duration: 5 ticks. Martingale: 2.1x, max 3 steps. AI Gate: 60%.', contract:'PUT', dur:5, triggerCond:'rise', triggerN:3, martMult:2.1, martSteps:3 },
+      { id:'rf_breakout_fall', type:'PUT', name:'FALL — Downward Velocity Impulse', winPct:55, payoutPct:95, edgePts:'+5.0', risk:'Medium', manualRule:'Enter FALL on high downward tick speed (3 consecutive down ticks with expanding pip difference). Duration: 5 ticks.', sampleShort:'Three fast down ticks with expanding spread. Enter FALL (5t) → WIN +95%.', realSample:'Live Scenario:\n1. Fast downward speed impulse: -0.4 pips → -0.8 pips → -1.5 pips.\n2. Enter FALL ($3.00 stake, 5 ticks duration).\n3. Exit spot registers 4.2 pips below entry spot → WIN! Return: +$2.85 (+95%).', botRule:'Streak rule: after 3 consecutive FALL ticks. Duration: 5 ticks. Martingale: 2.1x, max 3 steps. AI Gate: 60%.', contract:'PUT', dur:5, triggerCond:'fall', triggerN:3, martMult:2.1, martSteps:3 }
+    ],
+
+    synthetics: [
+      { id:'boom500_dip', type:'CALL', symbol:'BOOM500', name:'BOOM 500 — Post-Spike Dip Absorption', winPct:58, payoutPct:95, edgePts:'+7.2', risk:'Medium', manualRule:'Wait for a vertical spike on BOOM 500. Let price settle for 2 flat ticks, then enter CALL (5 ticks) to ride the post-spike consolidation upward drift.', sampleShort:'Vertical spike from 4210 to 4235, 2 ticks stabilize. Enter CALL (5t) → WIN +$1.90.', realSample:'Live Scenario on Boom 500:\n1. Sudden vertical spike jumps price from 4,210.15 to 4,235.50 (+25.35 pips).\n2. Next two ticks show flat consolidation [4,235.40, 4,235.45].\n3. Enter CALL ($2.00 stake, 5 ticks duration).\n4. Ticks progress: 4,235.55 → 4,235.70 → 4,235.85 → 4,236.00 → 4,236.20 (exit).\n5. Exit (4,236.20) > Entry (4,235.45) → WIN. Profit: +$1.90 (+95% return).\n6. Risk Control: If another sudden micro-drop breaks below 4,234.00, trade loses -$2.00.', botRule:'Streak rule: after 2 ticks positive momentum post-spike. Duration: 5 ticks. SL: $10, TP: $25.', contract:'CALL', dur:5, triggerCond:'rise', triggerN:2, martMult:2.0, martSteps:3 },
+      { id:'crash500_revert', type:'CALL', symbol:'CRASH500', name:'CRASH 500 — Post-Crash Mean Reversion', winPct:57, payoutPct:95, edgePts:'+6.8', risk:'Medium', manualRule:'On CRASH 500, downward red spikes create extreme oversold conditions. Enter CALL immediately after the first green stabilization tick (Duration: 5 ticks).', sampleShort:'Crash drop -30 pips, first green tick arrives. Enter CALL (5t) → WIN +$1.90.', realSample:'Live Scenario on Crash 500:\n1. Red crash drop drives price from 3,850.20 down to 3,820.10 (-30.10 pips).\n2. First stabilization tick closes green at 3,820.40.\n3. Enter CALL ($2.00 stake, 5 ticks duration).\n4. Price climbs steadily across ticks: 3,820.70 → 3,821.05 → 3,821.40 → 3,821.80 → 3,822.15 (exit).\n5. Exit (3,822.15) > Entry (3,820.40) → WIN. Profit: +$1.90 (+95%).\n6. Loss condition: If a secondary cascading crash occurs during the 5 ticks, trade loses -$2.00.', botRule:'Rule: after crash drop and 1 positive tick. Duration: 5 ticks. Martingale: 2.0x, max 2 steps.', contract:'CALL', dur:5, triggerCond:'rise', triggerN:1, martMult:2.0, martSteps:2 },
+      { id:'step_breakout', type:'CALL', symbol:'STEPINDEX', name:'STEP INDEX — 0.1 Pip Momentum Breakout', winPct:56, payoutPct:95, edgePts:'+6.0', risk:'Medium', manualRule:'Step Index moves in deterministic discrete 0.1 pip intervals. Enter CALL after 3 consecutive positive steps (0.1, 0.2, 0.3) for a 5-tick trend continuation.', sampleShort:'Three 0.1 pip upward steps. Enter CALL (5t). Trend continues +0.3 pips → WIN +$4.75.', realSample:'Live Scenario on Step Index:\n1. Consecutive steps register: 1,102.10 → 1,102.20 → 1,102.30 (+3 positive steps).\n2. Quant momentum rule activates: Enter CALL ($5.00 stake, 5 ticks duration).\n3. Step progression: 1,102.40 → 1,102.40 → 1,102.50 → 1,102.60 → 1,102.70 (exit).\n4. Exit (1,102.70) > Entry (1,102.30) → WIN. Profit: +$4.75 (+95%).\n5. Loss condition: Alternating choppy step reversals back down to 1,102.20 would trigger loss.', botRule:'Streak rule: after 3 consecutive positive steps. Duration: 5 ticks. Martingale: 2.1x, max 3 steps.', contract:'CALL', dur:5, triggerCond:'rise', triggerN:3, martMult:2.1, martSteps:3 },
+      { id:'jump100_burst', type:'CALL', symbol:'JD100', name:'JUMP 100 — High-Volatility Expansion Rider', winPct:56, payoutPct:95, edgePts:'+6.0', risk:'Medium-High', manualRule:'Jump 100 combines high background volatility with sudden jump jumps. When 5-period EMA slope is > +1.5, enter CALL to ride the expansion wave.', sampleShort:'EMA slope +1.8, positive tick impulse. Enter CALL (5t). Price jumps higher → WIN +$1.90.', realSample:'Live Scenario on Jump 100:\n1. Fast EMA slope rises to +1.85, indicating positive drift regime.\n2. Ticks print: 8,410.50 → 8,412.30 → 8,414.10.\n3. Enter CALL ($2.00 stake, 5 ticks duration).\n4. Volatility jump occurs at tick 3, propelling price to 8,422.00.\n5. Exit (8,421.80) > Entry (8,414.10) → WIN. Profit: +$1.90 (+95%).', botRule:'Streak rule: after 3 consecutive RISE ticks with high ATR. Duration: 5 ticks. AI Gate: 60%.', contract:'CALL', dur:5, triggerCond:'rise', triggerN:3, martMult:2.0, martSteps:3 }
     ]
   };
 
-  let state = {
-    view: 'hub', // 'hub' | 'room' | 'detail'
-    pillar: 'overunder',
-    subFilter: 'all',
-    strategyId: null
-  };
+  // State is initialized at top of ready() for populateVolSel
 
   // Check URL hash for direct deep-linking (e.g. #pillar=overunder or #strat=over_2)
   function parseHash(){
@@ -241,6 +271,7 @@ TW.ready(function(){
           state.pillar = k;
           state.strategyId = sId;
           state.view = 'detail';
+          populateVolSel();
           renderCurrentView();
           return;
         }
@@ -249,6 +280,7 @@ TW.ready(function(){
     if(p.has('pillar')){
       state.pillar = p.get('pillar');
       state.view = 'room';
+      populateVolSel();
       renderCurrentView();
       return;
     }
@@ -271,6 +303,7 @@ TW.ready(function(){
     state.subFilter = 'all';
     state.strategyId = null;
     location.hash = `pillar=${pillarKey}`;
+    populateVolSel();
     renderCurrentView();
     window.scrollTo({top:0,behavior:'smooth'});
   };
@@ -281,6 +314,63 @@ TW.ready(function(){
     location.hash = `strat=${stratId}`;
     renderCurrentView();
     window.scrollTo({top:0,behavior:'smooth'});
+  };
+
+  window.runStratBacktest = function(pillarKey, stratId){
+    const list = STRATEGIES[pillarKey] || [];
+    const s = list.find(x => x.id === stratId);
+    if(!s) return;
+    const sym = volSel.value;
+    const res = TWS.quickBacktest({
+      symbol: sym,
+      contract: s.contract,
+      barrier: s.barrier != null ? s.barrier : s.digit,
+      rule: { kind: 'streak', cond: s.triggerCond || 'under', n: s.triggerN || 2 },
+      duration: s.dur || 1,
+      ticksCount: 500,
+      stake: 1
+    }) || {};
+    const netPnL = Number(res.netPnL != null ? res.netPnL : (res.netPnl != null ? res.netPnl : 0));
+    const winRate = Number(res.winRate != null ? res.winRate : 0);
+    const trades = Number(res.trades != null ? res.trades : (res.total != null ? res.total : 0));
+    const totalTicks = Number(res.totalTicks != null ? res.totalTicks : (res.sampleSize != null ? res.sampleSize : 0));
+    const maxLossStreak = Number(res.maxLossStreak != null ? res.maxLossStreak : (res.maxConsecLoss != null ? res.maxConsecLoss : 0));
+    const wins = Number(res.wins != null ? res.wins : 0);
+    const losses = Number(res.losses != null ? res.losses : 0);
+    const pnlClass = netPnL >= 0 ? 'text-emerald-400' : 'text-rose-400';
+    const winClass = winRate >= (s.winPct - 5) ? 'text-emerald-400' : winRate >= 50 ? 'text-amber-400' : 'text-rose-400';
+    TW.modal({
+      title: `🧪 500-Tick Historical Simulation: ${s.name}`,
+      body: `<div class="space-y-4 text-xs font-mono">
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
+          <div class="p-3 rounded-lg bg-white/[0.03] border border-white/5">
+            <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Historical Ticks</div>
+            <div class="text-lg font-bold text-white mt-1">${totalTicks}</div>
+            <div class="text-[10px] text-zinc-400">Market: ${sym}</div>
+          </div>
+          <div class="p-3 rounded-lg bg-white/[0.03] border border-white/5">
+            <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Triggers Fired</div>
+            <div class="text-lg font-bold text-white mt-1">${trades}</div>
+            <div class="text-[10px] text-zinc-400">Wins: ${wins} | Losses: ${losses}</div>
+          </div>
+          <div class="p-3 rounded-lg bg-white/[0.03] border border-white/5">
+            <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Empirical Win Rate</div>
+            <div class="text-lg font-bold ${winClass} mt-1">${winRate.toFixed(1)}%</div>
+            <div class="text-[10px] text-zinc-400">Target: ${s.winPct}%</div>
+          </div>
+          <div class="p-3 rounded-lg bg-white/[0.03] border border-white/5">
+            <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Simulated PnL ($1 stake)</div>
+            <div class="text-lg font-bold ${pnlClass} mt-1">${netPnL >= 0 ? '+' : ''}$${netPnL.toFixed(2)}</div>
+            <div class="text-[10px] text-zinc-400">Max Drawdown Streak: ${maxLossStreak}</div>
+          </div>
+        </div>
+        <div class="p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 leading-relaxed text-[11px]">
+          <strong>💡 Quant Analysis:</strong> Tested across ${totalTicks} historical ticks on ${sym}. ${netPnL >= 0 ? '✅ Positive expected value confirmed over historical sample.' : '⚠️ Downward drift detected in current regime. Consider pairing with AI Confidence ≥ 75% filter.'}
+          <div class="mt-2 text-zinc-400">Rule simulated: <i>${s.manualRule}</i></div>
+        </div>
+      </div>`,
+      okText: 'Close Simulation'
+    });
   };
 
   /* Render Router */
@@ -303,7 +393,8 @@ TW.ready(function(){
       overunder: 'OVER / UNDER STRATEGY ROOM',
       matchesdiffers: 'MATCHES / DIFFERS STRATEGY ROOM',
       evenodd: 'EVEN / ODD STRATEGY ROOM',
-      risefall: 'RISE / FALL STRATEGY ROOM'
+      risefall: 'RISE / FALL STRATEGY ROOM',
+      synthetics: 'BOOM / CRASH & JUMP SYNTHETICS ROOM'
     };
     $('#roomHeading').textContent = titles[state.pillar] || 'STRATEGY ROOM';
     $('#roomBreadcrumbTitle').textContent = (titles[state.pillar] || '').replace(' STRATEGY ROOM','');
@@ -337,16 +428,17 @@ TW.ready(function(){
       const typeCol = s.type==='OVER'?'#00ffa3':s.type==='UNDER'?'#00b2ff':s.type==='MATCHES'?'#ffd600':s.type==='DIFFERS'?'#06b6d4':s.type==='CALL'?'#00ffa3':'#ff3b69';
 
       let tradeUrl = '#';
+      const targetSym = s.symbol || sym;
       if(s.contract==='DIGITOVER'||s.contract==='DIGITUNDER'){
-        tradeUrl = `over-under.html?vol=${sym}&type=${s.type}&barrier=${s.barrier}&dur=${s.dur||1}`;
+        tradeUrl = `over-under.html?vol=${targetSym}&type=${s.type}&barrier=${s.barrier}&dur=${s.dur||1}`;
       } else if(s.contract==='DIGITMATCH'||s.contract==='DIGITDIFF'){
-        tradeUrl = `matches-differs.html?vol=${sym}&type=${s.type}&digit=${s.digit!=null?s.digit:7}&dur=${s.dur||1}`;
+        tradeUrl = `matches-differs.html?vol=${targetSym}&type=${s.type}&digit=${s.digit!=null?s.digit:7}&dur=${s.dur||1}`;
       } else if(s.contract==='DIGITEVEN'||s.contract==='DIGITODD'){
-        tradeUrl = `even-odd.html?vol=${sym}&type=${s.type}&dur=${s.dur||1}`;
+        tradeUrl = `even-odd.html?vol=${targetSym}&type=${s.type}&dur=${s.dur||1}`;
       } else {
-        tradeUrl = `rise-fall.html?vol=${sym}&type=${s.type}&dur=${s.dur||5}`;
+        tradeUrl = `rise-fall.html?vol=${targetSym}&type=${s.type}&dur=${s.dur||5}`;
       }
-      const botUrl = `bots-library.html?symbol=${sym}&contract=${s.contract}${s.barrier!=null?'&barrier='+s.barrier:''}${s.digit!=null?'&barrier='+s.digit:''}&name=${encodeURIComponent(s.name)}&dur=${s.dur||1}&rule_cond=${s.triggerCond||'under'}&rule_n=${s.triggerN||2}&mart=${s.martMult>1?1:0}&mart_mult=${s.martMult||2}&mart_steps=${s.martSteps||3}&gate=80`;
+      const botUrl = `bots-library.html?symbol=${targetSym}&contract=${s.contract}${s.barrier!=null?'&barrier='+s.barrier:''}${s.digit!=null?'&barrier='+s.digit:''}&name=${encodeURIComponent(s.name)}&dur=${s.dur||1}&rule_cond=${s.triggerCond||'under'}&rule_n=${s.triggerN||2}&mart=${s.martMult>1?1:0}&mart_mult=${s.martMult||2}&mart_steps=${s.martSteps||3}&gate=80`;
 
       return `
         <div class="item-card">
@@ -361,7 +453,7 @@ TW.ready(function(){
             </div>
 
             <h3 style="margin:8px 0 0 0;font-size:14px;color:#fff;font-weight:800;">${TW.esc(s.name)}</h3>
-            <div style="font-size:11px;color:#7d8aa5;margin-top:2px;">Target: <b>${volName}</b></div>
+            <div style="font-size:11px;color:#7d8aa5;margin-top:2px;">Target: <b>${TW.volName(targetSym)}</b></div>
 
             <div class="item-kpis">
               <div>
@@ -381,11 +473,17 @@ TW.ready(function(){
             <div style="font-size:11px;color:#cbd5e1;line-height:1.45;background:rgba(0,0,0,0.3);padding:8px 10px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);">
               ${TW.esc(s.manualRule)}
             </div>
+            <div style="font-size:10.5px;color:#fde047;line-height:1.4;background:rgba(253,224,71,0.06);border-left:2px solid #ffd600;padding:6px 8px;border-radius:4px;margin-top:6px;">
+              <strong>Live Setup:</strong> ${TW.esc(s.sampleShort || s.manualRule.split('.')[0])}
+            </div>
           </div>
 
           <div class="item-actions">
             <a href="${tradeUrl}" class="btn" style="background:#00ffa3;color:#04101c;">⚡ Trade Now</a>
             <a href="${botUrl}" class="btn" style="background:#00b2ff;color:#04101c;">🤖 Launch Bot</a>
+            <button type="button" class="btn" onclick="runStratBacktest('${state.pillar}','${s.id}')" style="background:#6366f1;color:#fff;border:0;cursor:pointer;">
+              🧪 Backtest
+            </button>
             <button type="button" class="btn" onclick="openStrategyDetail('${s.id}')" style="background:rgba(255,255,255,0.06);color:#cbd5e1;border:1px solid rgba(255,255,255,0.15);cursor:pointer;">
               📖 Full Playbook →
             </button>
@@ -451,6 +549,9 @@ TW.ready(function(){
           </div>
         </div>
         <div style="display:flex;gap:8px;align-items:center;">
+          <button type="button" onclick="runStratBacktest('${state.pillar}','${s.id}')" style="padding:10px 16px;font-size:12.5px;font-weight:900;background:#6366f1;color:#fff;border:0;border-radius:8px;cursor:pointer;">
+            🧪 Backtest (500t)
+          </button>
           <a href="${tradeUrl}" style="padding:10px 18px;font-size:12.5px;font-weight:900;background:#00ffa3;color:#04101c;border-radius:8px;text-decoration:none;box-shadow:0 0 16px rgba(0,255,163,0.3);">
             ⚡ Trade Now
           </a>
@@ -533,12 +634,26 @@ TW.ready(function(){
             </a>
           </div>
         </div>
+        <!-- Real-World Execution Case Study -->
+        <div class="playbook-card" style="border-left:3px solid #ffd600;grid-column:1/-1;">
+          <h3 style="margin:0 0 10px 0;font-size:14px;font-weight:900;color:#ffd600;display:flex;align-items:center;gap:6px;">
+            📖 REAL-WORLD EXECUTION CASE STUDY & TICK-BY-TICK WALKTHROUGH
+          </h3>
+          <div style="font-size:12px;color:#cbd5e1;line-height:1.65;background:rgba(0,0,0,0.35);padding:14px 18px;border-radius:8px;border:1px solid rgba(255,214,0,0.25);white-space:pre-line;">
+${s.realSample || 'Real execution sequence: Enter on validated signal, execute contract, exit evaluates against contract barrier.'}
+          </div>
+          <div style="margin-top:10px;display:flex;gap:12px;flex-wrap:wrap;font-size:11px;color:#9fb0cc;">
+            <span>💡 <strong>Target Win Rate:</strong> ${s.winPct}%</span>
+            <span>💰 <strong>Win Return:</strong> +${s.payoutPct}%</span>
+            <span>⚖️ <strong>Risk Management:</strong> Recommended 1% to 2% capital per trade</span>
+          </div>
+        </div>
       </div>
 
       <!-- Bottom Navigation Footer -->
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;border-top:1px solid rgba(255,255,255,0.08);padding-top:14px;margin-top:8px;">
         <button type="button" class="btn ghost" onclick="openPillarRoom('${state.pillar}')" style="font-size:12px;padding:8px 16px;cursor:pointer;">
-          ← Return to ${(state.pillar==='overunder'?'Over / Under':state.pillar==='matchesdiffers'?'Matches / Differs':state.pillar==='evenodd'?'Even / Odd':'Rise / Fall')} Room
+          ← Return to ${(state.pillar==='overunder'?'Over / Under':state.pillar==='matchesdiffers'?'Matches / Differs':state.pillar==='evenodd'?'Even / Odd':state.pillar==='synthetics'?'Synthetics & Jump':'Rise / Fall')} Room
         </button>
         <div style="display:flex;gap:6px;">
           ${prevStrat ? `<button type="button" class="btn ghost" onclick="openStrategyDetail('${prevStrat.id}')" style="font-size:11px;padding:6px 12px;cursor:pointer;">← ${prevStrat.name.split('—')[0].trim()}</button>` : ''}

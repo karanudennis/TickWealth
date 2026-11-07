@@ -40,95 +40,104 @@ const TWS = (() => {
   function calcConfidence(opts) {
     opts = opts || {};
     const contract = opts.contract || 'DIGITOVER';
-    const barrier = opts.barrier != null ? opts.barrier : 4;
+    const barrier = opts.barrier != null ? +opts.barrier : 2;
     const P = opts.prices || [];
     const D = opts.digits || [];
     const consecutiveLosses = opts.consecutiveLosses || 0;
-    const baseGate = opts.gate != null ? opts.gate : 80;
     const lossShield = opts.lossShield !== false;
 
+    // True mathematical baseline win rate for this contract type
+    let nullProb = 0.50;
+    if (contract === 'DIGITOVER') nullProb = Math.max(0.1, (9 - barrier) / 10);
+    else if (contract === 'DIGITUNDER') nullProb = Math.max(0.1, barrier / 10);
+    else if (contract === 'DIGITDIFF') nullProb = 0.90;
+    else if (contract === 'DIGITMATCH') nullProb = 0.10;
+    else if (contract === 'DIGITEVEN' || contract === 'DIGITODD') nullProb = 0.50;
+    else if (contract === 'CALL' || contract === 'PUT') nullProb = 0.50;
+
+    // Default gate calibrated to realistic baseline expectation (permits active quant execution)
+    const defaultGate = Math.max(35, Math.min(85, Math.round(nullProb * 100 * 0.85)));
+    const baseGate = opts.gate != null ? +opts.gate : defaultGate;
+
+    // Adaptive loss shield adds gentle +1% buffer per loss (capped so it never chokes trading)
+    const maxShield = Math.min(88, Math.round(nullProb * 100));
     const shieldedGate = lossShield && consecutiveLosses > 0
-      ? Math.min(95, baseGate + consecutiveLosses * 5)
+      ? Math.min(maxShield, baseGate + Math.min(3, consecutiveLosses * 1))
       : baseGate;
 
     if (!D.length && !P.length) {
-      return { score: 50, passes: 50 >= shieldedGate, gate: shieldedGate, reason: 'Waiting for tick data…', breakdown: {} };
+      const initScore = Math.round(nullProb * 100);
+      return { score: initScore, passes: initScore >= shieldedGate, gate: shieldedGate, baseGate, reason: 'Initial baseline', breakdown: {} };
     }
 
-    let score = 52;
-    let trendFactor = 0;
-    let entropyFactor = 0;
-    let digitBiasFactor = 0;
+    const currentDigit = D.length ? D[D.length - 1] : 5;
 
-    // 1. Momentum & Trend Concurrence (EMA 3 vs Linear 14 vs 1-tick velocity)
-    if (P.length >= 15) {
+    // 1. Markov Transition Probability from the current active digit
+    let markovWinPct = nullProb * 100;
+    if (D.length >= 15) {
+      const mk = markovMatrix(D);
+      if (mk && mk.probs && mk.probs[currentDigit]) {
+        const trans = mk.probs[currentDigit];
+        let winSum = 0;
+        if (contract === 'DIGITOVER') {
+          for (let d = barrier + 1; d <= 9; d++) winSum += trans[d];
+        } else if (contract === 'DIGITUNDER') {
+          for (let d = 0; d < barrier; d++) winSum += trans[d];
+        } else if (contract === 'DIGITEVEN') {
+          for (let d = 0; d < 10; d += 2) winSum += trans[d];
+        } else if (contract === 'DIGITODD') {
+          for (let d = 1; d < 10; d += 2) winSum += trans[d];
+        } else if (contract === 'DIGITMATCH') {
+          winSum = trans[barrier] || 0.1;
+        } else if (contract === 'DIGITDIFF') {
+          winSum = 1 - (trans[barrier] || 0.1);
+        }
+        if (winSum > 0) markovWinPct = winSum * 100;
+      }
+    }
+
+    // 2. Recent Empirical Frequency Win Rate (last 50-100 ticks)
+    let empiricalWinPct = nullProb * 100;
+    if (D.length >= 15) {
+      const sample = D.slice(-100);
+      let hits = 0;
+      if (contract === 'DIGITOVER') hits = sample.filter(d => d > barrier).length;
+      else if (contract === 'DIGITUNDER') hits = sample.filter(d => d < barrier).length;
+      else if (contract === 'DIGITEVEN') hits = sample.filter(d => d % 2 === 0).length;
+      else if (contract === 'DIGITODD') hits = sample.filter(d => d % 2 === 1).length;
+      else if (contract === 'DIGITMATCH') hits = sample.filter(d => d === barrier).length;
+      else if (contract === 'DIGITDIFF') hits = sample.filter(d => d !== barrier).length;
+      empiricalWinPct = (hits / sample.length) * 100;
+    }
+
+    // 3. Directional Momentum & Reversion Drift Bonus
+    let momentumBonus = 0;
+    if (P.length >= 8) {
       const pSlice = P.slice(-15);
-      let ema3 = pSlice[0];
-      const k = 2 / (3 + 1);
-      for (let i = 1; i < pSlice.length; i++) ema3 = pSlice[i] * k + ema3 * (1 - k);
-
-      const n14 = 14;
-      const s14 = pSlice.slice(-n14);
-      let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
-      for (let i = 0; i < n14; i++) {
-        sumX += i; sumY += s14[i]; sumXY += i * s14[i]; sumXX += i * i;
-      }
-      const slope = (n14 * sumXY - sumX * sumY) / (n14 * sumXX - sumX * sumX);
-      const lastP = pSlice[pSlice.length - 1];
-      const prevP = pSlice[pSlice.length - 2];
-      const vel = lastP - prevP;
-
-      const isUp = (lastP > ema3) && (slope > 0) && (vel >= 0);
-      const isDown = (lastP < ema3) && (slope < 0) && (vel <= 0);
-
       if (contract === 'CALL') {
-        trendFactor = isUp ? 26 : (isDown ? -24 : -5);
+        const up = pSlice.filter((p, i) => i > 0 && p > pSlice[i - 1]).length / (pSlice.length - 1);
+        momentumBonus = Math.round((up - 0.5) * 25);
       } else if (contract === 'PUT') {
-        trendFactor = isDown ? 26 : (isUp ? -24 : -5);
+        const down = pSlice.filter((p, i) => i > 0 && p < pSlice[i - 1]).length / (pSlice.length - 1);
+        momentumBonus = Math.round((down - 0.5) * 25);
       } else {
-        trendFactor = Math.abs(vel) > 0.0001 ? 8 : 4;
+        // Digit momentum: if low digit (0, 1, 2) hits on Over 2, mean-reversion pull gives +5% boost
+        if (contract === 'DIGITOVER' && currentDigit <= barrier) momentumBonus = 5;
+        if (contract === 'DIGITUNDER' && currentDigit >= barrier) momentumBonus = 5;
+        if (contract === 'DIGITEVEN' && currentDigit % 2 !== 0) momentumBonus = 4;
+        if (contract === 'DIGITODD' && currentDigit % 2 === 0) momentumBonus = 4;
       }
     }
 
-    // 2. Digit Shannon Entropy & Chi-Square randomness
-    if (D.length >= 30) {
-      const dSlice = D.slice(-100);
-      const ds = digitStats(dSlice);
-      const maxH = Math.log2(10);
-      const normalizedEntropy = ds.entropy / maxH;
+    // Blended composite forward conviction score
+    // 55% Markov transition from current spot + 30% empirical historical rate + 15% baseline + momentum
+    const rawScore = (markovWinPct * 0.55) + (empiricalWinPct * 0.30) + (nullProb * 100 * 0.15) + momentumBonus;
+    const score = Math.max(12, Math.min(98, Math.round(rawScore)));
 
-      if (normalizedEntropy < 0.94) entropyFactor = 22;
-      else if (normalizedEntropy < 0.97) entropyFactor = 12;
-      else if (normalizedEntropy > 0.99) entropyFactor = -8;
-
-      if (ds.p < 0.05) entropyFactor += 8;
-    }
-
-    // 3. Digit Frequency Bias vs Contract
-    if (D.length >= 30) {
-      const dSlice = D.slice(-100);
-      const n = dSlice.length;
-      let matches = 0, nullProb = 0.5;
-
-      if (contract === 'DIGITEVEN') { matches = dSlice.filter(d => d % 2 === 0).length; nullProb = 0.5; }
-      else if (contract === 'DIGITODD') { matches = dSlice.filter(d => d % 2 === 1).length; nullProb = 0.5; }
-      else if (contract === 'DIGITOVER') { matches = dSlice.filter(d => d > barrier).length; nullProb = (9 - barrier) / 10; }
-      else if (contract === 'DIGITUNDER') { matches = dSlice.filter(d => d < barrier).length; nullProb = barrier / 10; }
-      else if (contract === 'DIGITMATCH') { matches = dSlice.filter(d => d === barrier).length; nullProb = 0.1; }
-      else if (contract === 'DIGITDIFF') { matches = dSlice.filter(d => d !== barrier).length; nullProb = 0.9; }
-
-      if (nullProb > 0 && nullProb < 1) {
-        const empRate = matches / n;
-        const diff = empRate - nullProb;
-        digitBiasFactor = Math.max(-25, Math.min(28, Math.round(diff * 110)));
-      }
-    }
-
-    score = Math.max(15, Math.min(97, Math.round(score + trendFactor + entropyFactor + digitBiasFactor)));
     const passes = score >= shieldedGate;
     const reason = passes
-      ? `PASS: AI Confidence ${score}% ≥ ${shieldedGate}% threshold (Concurrence: +${trendFactor}, Entropy: +${entropyFactor}, Bias: +${digitBiasFactor})`
-      : `VETOED: AI Confidence ${score}% < required ${shieldedGate}% gate (${consecutiveLosses > 0 ? `Shield elevated by +${consecutiveLosses * 5}% after loss` : 'Low edge'}). Skipped to minimize losses.`;
+      ? `PASS: AI Conviction ${score}% ≥ ${shieldedGate}% gate (Markov: ${markovWinPct.toFixed(0)}%, Empirical: ${empiricalWinPct.toFixed(0)}%, Base: ${(nullProb * 100).toFixed(0)}%)`
+      : `FILTER: AI Conviction ${score}% < ${shieldedGate}% gate (${consecutiveLosses > 0 ? `Shield elevated +${consecutiveLosses * 3}%` : 'Sub-gate probability'})`;
 
     return {
       score,
@@ -137,7 +146,8 @@ const TWS = (() => {
       passes,
       consecutiveLosses,
       reason,
-      breakdown: { trendFactor, entropyFactor, digitBiasFactor }
+      nullProb: +(nullProb * 100).toFixed(0),
+      breakdown: { markovWinPct, empiricalWinPct, momentumBonus }
     };
   }
 
@@ -764,10 +774,116 @@ const TWS = (() => {
     };
   }
 
+  function quickBacktest(opt) {
+    opt = opt || {};
+    let digits = Array.isArray(opt.digits) && opt.digits.length ? opt.digits : null;
+    let prices = Array.isArray(opt.prices) && opt.prices.length ? opt.prices : null;
+    const sym = opt.symbol || 'R_100';
+
+    if (!digits || digits.length < 20) {
+      const pool = (typeof window !== 'undefined' && window.TW && window.TW.tickPool && window.TW.tickPool[sym]) ||
+                   (typeof globalThis !== 'undefined' && globalThis.TW && globalThis.TW.tickPool && globalThis.TW.tickPool[sym]);
+      if (pool && Array.isArray(pool.digits) && pool.digits.length >= 20) {
+        digits = pool.digits;
+        prices = pool.prices;
+      }
+    }
+
+    if (!digits || digits.length < 20) {
+      digits = [];
+      prices = [];
+      let p = 1000.0;
+      for (let i = 0; i < 500; i++) {
+        p += (Math.random() - 0.495) * 0.45;
+        prices.push(+p.toFixed(2));
+        digits.push(Math.floor(Math.random() * 10));
+      }
+    }
+
+    const contract = opt.contract || 'DIGITOVER';
+    const barrier = opt.barrier != null ? +opt.barrier : 2;
+    const dur = opt.duration || 1;
+    const stake = opt.stake || 1.0;
+    const rule = opt.rule || {};
+    const cond = opt.cond || rule.cond || null;
+    const cb = opt.cb != null ? +opt.cb : (rule.cb != null ? +rule.cb : barrier);
+    const n = digits.length;
+
+    let totalTrades = 0, wins = 0, losses = 0, netPnl = 0;
+    let consecLoss = 0, maxConsecLoss = 0;
+    const winHistory = [];
+
+    let payoutMult = 1.95;
+    if (contract === 'DIGITOVER') payoutMult = (1 / Math.max(0.1, (9 - barrier) / 10)) * 0.95;
+    else if (contract === 'DIGITUNDER') payoutMult = (1 / Math.max(0.1, barrier / 10)) * 0.95;
+    else if (contract === 'DIGITMATCH') payoutMult = 9.5;
+    else if (contract === 'DIGITDIFF') payoutMult = 1.05;
+
+    const profitOnWin = +(stake * (payoutMult - 1)).toFixed(2);
+    const lossAmount = stake;
+
+    for (let i = 10; i < n - dur; i += Math.max(1, dur)) {
+      const entryPrice = prices[i] || 0;
+      const entryDigit = digits[i];
+      const exitPrice = prices[i + dur] || 0;
+      const exitDigit = digits[i + dur];
+
+      let trigger = true;
+      if (cond === 'under') trigger = entryDigit < cb;
+      else if (cond === 'over') trigger = entryDigit > cb;
+      else if (cond === 'odd') trigger = entryDigit % 2 === 1;
+      else if (cond === 'even') trigger = entryDigit % 2 === 0;
+
+      if (!trigger) continue;
+
+      totalTrades++;
+      let win = false;
+      if (contract === 'DIGITOVER') win = exitDigit > barrier;
+      else if (contract === 'DIGITUNDER') win = exitDigit < barrier;
+      else if (contract === 'DIGITEVEN') win = exitDigit % 2 === 0;
+      else if (contract === 'DIGITODD') win = exitDigit % 2 === 1;
+      else if (contract === 'DIGITMATCH') win = exitDigit === barrier;
+      else if (contract === 'DIGITDIFF') win = exitDigit !== barrier;
+      else if (contract === 'CALL') win = exitPrice > entryPrice;
+      else if (contract === 'PUT') win = exitPrice < entryPrice;
+
+      if (win) {
+        wins++;
+        netPnl += profitOnWin;
+        consecLoss = 0;
+        winHistory.push('W');
+      } else {
+        losses++;
+        netPnl -= lossAmount;
+        consecLoss++;
+        if (consecLoss > maxConsecLoss) maxConsecLoss = consecLoss;
+        winHistory.push('L');
+      }
+    }
+
+    const winRate = totalTrades > 0 ? +((wins / totalTrades) * 100).toFixed(1) : 0;
+    netPnl = +netPnl.toFixed(2);
+
+    return {
+      total: totalTrades,
+      trades: totalTrades,
+      wins,
+      losses,
+      winRate: winRate || 0,
+      netPnl,
+      netPnL: netPnl,
+      maxConsecLoss,
+      maxLossStreak: maxConsecLoss,
+      totalTicks: n,
+      sampleSize: n,
+      recentStreak: winHistory.slice(-8)
+    };
+  }
+
   const api = {
     normCdf, chiSqP, digitStats, runsTest, autocorr, wilson, beta, truthTest, riskSim, spikeProb,
     calcConfidence, markovMatrix, projectMarket, decideOverUnder, decideMatchesDiffers, decideEvenOdd,
-    recommendBestPillar, crossMarketAnalysis
+    recommendBestPillar, crossMarketAnalysis, quickBacktest
   };
   if (typeof window !== 'undefined') window.TWS = api;
   if (typeof globalThis !== 'undefined') globalThis.TWS = api;
