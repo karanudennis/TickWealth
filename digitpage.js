@@ -23,6 +23,20 @@ TW.digitPage = function (cfg) {
           <div class="dim" id="liveTxt" style="font-size:11px"></div>
         </div>
         <div class="sub">${cfg.hint}</div>
+
+        <!-- LIVE 5 / 10 TICKER STREAM WITH BLINKING LIGHTS -->
+        <div id="liveTickerBar" style="margin:8px 0 12px;background:#090d18;border:1px solid rgba(0,255,163,0.35);border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span class="dot live" style="width:8px;height:8px;background:#00ffa3;"></span>
+            <span style="font-size:11px;font-weight:900;color:#00ffa3;letter-spacing:0.5px;">LIVE TICKER LIGHTS:</span>
+            <div id="tickerChips" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:4px;">
+            <button type="button" id="btnTicks5" class="btn ghost" style="padding:2px 8px;font-size:10px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);cursor:pointer;">5 Ticks</button>
+            <button type="button" id="btnTicks10" class="btn" style="padding:2px 8px;font-size:10px;border-radius:4px;background:#00ffa3;color:#04101c;font-weight:800;border:0;cursor:pointer;">10 Ticks</button>
+          </div>
+        </div>
+
         <div class="d-grid" id="dGrid"></div>
 
         <div class="scanbar">
@@ -74,6 +88,19 @@ TW.digitPage = function (cfg) {
           <div class="ctrl"><button data-for="dur" data-step="-1">−</button><input id="dur" type="number" min="1" max="10" step="1" value="${dur}"><button data-for="dur" data-step="1">+</button><span class="u" id="durUnitTxt">ticks</span></div>
           <div class="lbl">STAKE</div>
           <div class="ctrl"><button data-for="stake" data-step="-1">−</button><input id="stake" type="number" min="0.35" step="0.5" value="1.00"><button data-for="stake" data-step="1">+</button><span class="u">USD</span></div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 8px;">
+            <button type="button" class="btn ghost qk-stk" data-v="0.35" style="padding:2px 7px;font-size:10px;border-radius:4px;cursor:pointer;">$0.35</button>
+            <button type="button" class="btn ghost qk-stk" data-v="1" style="padding:2px 7px;font-size:10px;border-radius:4px;cursor:pointer;">$1</button>
+            <button type="button" class="btn ghost qk-stk" data-v="2" style="padding:2px 7px;font-size:10px;border-radius:4px;cursor:pointer;">$2</button>
+            <button type="button" class="btn ghost qk-stk" data-v="5" style="padding:2px 7px;font-size:10px;border-radius:4px;cursor:pointer;">$5</button>
+            <button type="button" class="btn ghost qk-stk" data-v="10" style="padding:2px 7px;font-size:10px;border-radius:4px;cursor:pointer;">$10</button>
+            <button type="button" class="btn ghost qk-stk" data-v="2x" style="padding:2px 7px;font-size:10px;border-radius:4px;color:#00ffa3;border-color:rgba(0,255,163,0.3);cursor:pointer;font-weight:700;">2×</button>
+            <button type="button" class="btn ghost qk-stk" data-v="half" style="padding:2px 7px;font-size:10px;border-radius:4px;cursor:pointer;">½</button>
+          </div>
+          <label class="switch" style="margin:4px 0 10px;display:flex;align-items:center;justify-content:space-between;">
+            <span style="font-size:11px;color:#9fb0cc;">Auto-2x Stake on Loss</span>
+            <input type="checkbox" id="chkManualMart">
+          </label>
           <div class="quote"><span id="qTxt">Payout …</span><span id="qProfit"></span></div>
           <button class="buy" id="buyBtn">Buy<small id="buySub">&nbsp;</small></button>
         </div>
@@ -106,7 +133,7 @@ TW.digitPage = function (cfg) {
         <div class="panel" id="logPanel"></div>
       </aside>
     </div>
-    <div class="foot">Engineered & Owned by Dennis Karanu Muthoni (DKM) · TickWealth is an independent tool and is not affiliated with Deriv.</div>`;
+    <div class="foot">Engineered & Owned by Dennis K.M · TickWealth is an independent tool and is not affiliated with Deriv.</div>`;
 
     let feed = null, busy = false;
     const top = TW.mountTop({ active: cfg.active, symbols: 'digits', defaultSymbol: q.vol || 'R_100', onSymbol: () => restart() });
@@ -139,6 +166,41 @@ TW.digitPage = function (cfg) {
       }
     });
 
+    let streamLen = 10;
+    function renderTickerBar(d) {
+      const box = $('#tickerChips');
+      if (!box) return;
+      if (!d || !d.length) {
+        box.innerHTML = '<span style="font-size:11px;color:#7d8aa5;">Awaiting ticks…</span>';
+        return;
+      }
+      const slice = d.slice(-streamLen);
+      box.innerHTML = slice.map((num, idx) => {
+        const isLatest = idx === slice.length - 1;
+        const isBarrier = pick != null && num === pick;
+        const col = TW.DIGIT_COLORS[num] || { bg: '#131b2e', fg: '#fff' };
+        const blinkClass = isLatest ? 'tick-chip-blink' : '';
+        const borderStyle = isLatest ? 'border:2px solid #00ffa3;box-shadow:0 0 12px #00ffa3;' : isBarrier ? 'border:2px solid #ffd600;' : 'border:1px solid rgba(255,255,255,0.2);';
+        return `<span class="ticker-digit-chip ${blinkClass}" title="Digit ${num}${isLatest ? ' (Latest Tick)' : ''}" style="display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:50%;font-size:12px;font-weight:900;color:#fff;background:${col.bg};${borderStyle}">${num}</span>`;
+      }).join('');
+    }
+
+    const btnT5 = $('#btnTicks5'), btnT10 = $('#btnTicks10');
+    if (btnT5 && btnT10) {
+      btnT5.onclick = () => {
+        streamLen = 5;
+        btnT5.style.background = '#00ffa3'; btnT5.style.color = '#04101c'; btnT5.style.border = '0';
+        btnT10.style.background = ''; btnT10.style.color = ''; btnT10.style.border = '1px solid rgba(255,255,255,0.2)';
+        renderTickerBar(feed ? feed.digits : []);
+      };
+      btnT10.onclick = () => {
+        streamLen = 10;
+        btnT10.style.background = '#00ffa3'; btnT10.style.color = '#04101c'; btnT10.style.border = '0';
+        btnT5.style.background = ''; btnT5.style.color = ''; btnT5.style.border = '1px solid rgba(255,255,255,0.2)';
+        renderTickerBar(feed ? feed.digits : []);
+      };
+    }
+
     function refresh(quote) {
       if (cfg.picker && cfg.picker.off && cfg.picker.off(pick, tab)) pick = cfg.picker.fix(tab, pick);
       document.querySelectorAll('#tabs button').forEach(b => {
@@ -151,6 +213,7 @@ TW.digitPage = function (cfg) {
       if (pb) pb.mark(pick);
       const d = feed ? feed.digits : [];
       TW.renderCircles($('#dGrid'), d, { state: x => cfg.state(x, tab, pick), tag: x => cfg.tag(x, tab, pick) });
+      renderTickerBar(d);
       $('#hdr').textContent = cfg.header(tab, pick) + ' · ' + d.length + ' TICKS';
       if (d.length) $('#liveTxt').textContent = 'LIVE ' + TW.volName(top.symbol); else $('#liveTxt').textContent = '';
       if (quote !== false) refreshQuote();
@@ -181,12 +244,45 @@ TW.digitPage = function (cfg) {
     };
     $('#askAi').onclick = () => TW.ai && TW.ai.ask('Explain what this market is showing right now and what the current signal does and does not mean.');
 
+    let baseManualStake = +$('#stake').value || 1.0;
+    $('#stake').addEventListener('change', () => { baseManualStake = +$('#stake').value || 1.0; });
+
+    document.querySelectorAll('.qk-stk').forEach(btn => {
+      btn.onclick = () => {
+        const stkInput = $('#stake');
+        const v = btn.dataset.v;
+        let cur = parseFloat(stkInput.value) || 1.0;
+        if (v === '2x') cur = +(cur * 2).toFixed(2);
+        else if (v === 'half') cur = Math.max(0.35, +(cur / 2).toFixed(2));
+        else cur = parseFloat(v);
+        stkInput.value = cur.toFixed(2);
+        baseManualStake = cur;
+        refreshQuote();
+      };
+    });
+
     $('#buyBtn').onclick = async () => {
       if (busy) return; busy = true; $('#buyBtn').disabled = true;
       try {
         const p = params(), t = await TW.trade(p);
-        TW.toast('Bought ' + p.label + ' — waiting for result', 'ok');
-        t.done.then(r => TW.toast((r.profit > 0 ? 'WON +' : 'LOST ') + TW.money(r.profit), r.profit > 0 ? 'ok' : 'err'));
+        TW.toast('⚡ Dispatched ' + p.label + ' — waiting for result', 'ok');
+        t.done.then(r => {
+          if (r.profit > 0) { if (TW.fx && TW.fx.win) TW.fx.win(); }
+          else { if (TW.fx && TW.fx.loss) TW.fx.loss(); }
+          TW.toast((r.profit > 0 ? '🎯 WON +' : '⚠️ LOST ') + TW.money(r.profit), r.profit > 0 ? 'ok' : 'err');
+          const chkMart = $('#chkManualMart');
+          if (chkMart && chkMart.checked) {
+            const stkInput = $('#stake');
+            if (r.profit > 0) {
+              stkInput.value = baseManualStake.toFixed(2);
+            } else {
+              const nextStk = Math.min(500, +((parseFloat(stkInput.value) || 1) * 2).toFixed(2));
+              stkInput.value = nextStk.toFixed(2);
+              TW.toast(`⚠️ Auto-Martingale applied: Next stake $${nextStk.toFixed(2)}`, 'ok', 3000);
+            }
+            refreshQuote();
+          }
+        });
       } catch (e) { if (!e.quiet) TW.toast(e.message, 'err', 5000); }
       finally { busy = false; $('#buyBtn').disabled = false; }
     };

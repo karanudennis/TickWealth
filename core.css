@@ -166,6 +166,32 @@ body::after{content:"";position:fixed;inset:0;z-index:-1;pointer-events:none;opa
 .lgd{grid-column:1/-1;font-size:11px;color:#9fb0cc;margin-top:8px;line-height:1.5}
 .dcur{position:absolute;left:0;top:0;border:3px solid #fff;border-radius:50%;box-shadow:0 0 18px #fff,0 0 0 4px rgba(255,255,255,.2);pointer-events:none;transition:transform .35s cubic-bezier(.2,.8,.2,1);z-index:3}
 .dcur::before{content:"";position:absolute;left:50%;top:-17px;margin-left:-8px;border:8px solid transparent;border-top-color:#fff}
+@keyframes tickBlink {
+  0% { transform: scale(1); filter: brightness(1); box-shadow: 0 4px 16px #0006; }
+  25% { transform: scale(1.12); filter: brightness(1.85); box-shadow: 0 0 35px #00ffa3, 0 0 55px rgba(0,255,163,0.7), inset 0 0 18px rgba(255,255,255,0.8); }
+  60% { transform: scale(1.05); filter: brightness(1.35); box-shadow: 0 0 20px #00b2ff, 0 0 35px rgba(0,178,255,0.5); }
+  100% { transform: scale(1); filter: brightness(1); box-shadow: 0 4px 16px #0006; }
+}
+.circle.tick-blink {
+  animation: tickBlink 0.5s cubic-bezier(0.2, 0.9, 0.3, 1) !important;
+  z-index: 10 !important;
+}
+@keyframes curPulse {
+  0% { transform: scale(1); box-shadow: 0 0 18px #fff, 0 0 0 4px rgba(255,255,255,.2); }
+  30% { transform: scale(1.2); box-shadow: 0 0 35px #00ffa3, 0 0 0 8px rgba(0,255,163,0.55); }
+  100% { transform: scale(1); box-shadow: 0 0 18px #fff, 0 0 0 4px rgba(255,255,255,.2); }
+}
+.dcur.cur-blink {
+  animation: curPulse 0.45s ease-out !important;
+}
+@keyframes tickChipBlink {
+  0% { transform: scale(1); filter: brightness(1); box-shadow: 0 0 4px #00ffa3; }
+  35% { transform: scale(1.35); filter: brightness(1.75); box-shadow: 0 0 22px #00ffa3, 0 0 35px rgba(0,255,163,0.85); border-color: #fff !important; }
+  100% { transform: scale(1); filter: brightness(1); box-shadow: 0 0 8px #00ffa3; }
+}
+.tick-chip-blink {
+  animation: tickChipBlink 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) !important;
+}
 
 .brand img{display:block;border-radius:8px}.brand span{color:#fff;font-size:16px;letter-spacing:-.3px}
 

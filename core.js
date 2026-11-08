@@ -321,11 +321,22 @@
     U.lg.textContent = 'Green = most frequent (1st, 2nd, 3rd). Red, orange, amber = least frequent (L1, L2, L3). Muted = within normal random variation. Based on ' + total + ' ticks. Frequency describes the past; it does not predict the next digit.';
     if (total) { U.last = digits[total - 1]; place(el, U.first); U.first = false; }
   };
-  function place(el, instant) { // move the cursor ring to the latest digit's circle
-    const U = el._ui, c = U.cs[U.last].c, cur = U.cur; if (!c.offsetWidth) return;
+  function place(el, instant) { // move the cursor ring to the latest digit's circle & pulse light
+    const U = el._ui, target = U.cs[U.last], c = target && target.c, cur = U.cur; if (!c || !c.offsetWidth) return;
     if (instant) cur.style.transition = 'none';
     cur.style.width = c.offsetWidth + 'px'; cur.style.height = c.offsetHeight + 'px'; cur.style.transform = 'translate(' + c.offsetLeft + 'px,' + c.offsetTop + 'px)';
     if (instant) { void cur.offsetWidth; cur.style.transition = ''; }
+    
+    // Live ticker neon light blink on the active hit digit
+    c.classList.remove('tick-blink');
+    void c.offsetWidth; // trigger reflow for clean re-animation
+    c.classList.add('tick-blink');
+    setTimeout(() => c.classList.remove('tick-blink'), 500);
+
+    cur.classList.remove('cur-blink');
+    void cur.offsetWidth;
+    cur.classList.add('cur-blink');
+    setTimeout(() => cur.classList.remove('cur-blink'), 500);
   }
   TW.digitButtons = function (el, onPick, off) {
     el.innerHTML = '';
@@ -603,10 +614,7 @@
     paperFeeds[sym] = TW.tickFeed(sym, { primary: false, count: 2, max: 10, onTick: (st, tk) => paperTick(sym, tk) });
   }
   function paperCleanup(sym) {
-    if (!paperOpen.some(t => t.symbol === sym && t.status === 'open') && paperFeeds[sym]) {
-      try { paperFeeds[sym].close(); } catch (e) {}
-      delete paperFeeds[sym];
-    }
+    // Keep feeds warm and active for zero-latency execution across consecutive trades
   }
 
   function resolvePaperTrade(t, exitPrice, exitDigit) {
