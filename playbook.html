@@ -74,9 +74,11 @@ function info(sym){let m;
  if(m=sym.match(/^1HZ(\d+)V$/))return{n:'Volatility '+m[1]+' (1s) Index',t:1,fit:'d',w:'Constant '+m[1]+'% volatility with a tick every second. Contracts finish twice as fast as on the 2-second indices, so a run of losses also arrives faster. Keep stakes small.'};
  if(m=sym.match(/^BOOM(\d+)$/))return{n:'Boom '+m[1]+' Index',t:1,fit:'b',w:'Slow downward drift with an upward spike about once every '+m[1]+' ticks on average. Spike timing is random, so a long wait does not make one due. A spike can wipe out a Fall position at once.'};
  if(m=sym.match(/^CRASH(\d+)$/))return{n:'Crash '+m[1]+' Index',t:1,fit:'b',w:'Slow upward drift with a downward spike about once every '+m[1]+' ticks on average. The mirror of Boom: a spike can wipe out a Rise position at once.'};
+ if(sym==='STEPINDEX'||sym==='stpRNG')return{n:'Step Index',t:2,fit:'r',w:'Symmetric fixed-step random walk: each tick moves up or down by exactly 0.1000 with true 50/50 probability and zero jump skewness. Spread and payout margin govern long-run expectancy.'};
+ if(m=sym.match(/^JD(\d+)$/))return{n:'Jump '+m[1]+' Index',t:1,fit:'r',w:'Baseline '+m[1]+'% annualised volatility punctuated by sudden random Poisson jumps (~30x normal tick size roughly every 20 minutes on average). Short-horizon Rise/Fall positions carry sudden jump-risk.'};
  if(sym==='RDBULL')return{n:'Bull Market Index',t:2,fit:'r',w:'Designed with an upward tendency and random variation. A tendency in the design does not decide the next contract. Check Deriv\'s description for its exact behaviour.'};
  if(sym==='RDBEAR')return{n:'Bear Market Index',t:2,fit:'r',w:'Designed with a downward tendency and random variation. A tendency in the design does not decide the next contract. Check Deriv\'s description for its exact behaviour.'};
- return{n:sym,t:2,fit:'r',w:'No special notes. Treat every tick as independent.'}}
+ return{n:sym,t:2,fit:'r',w:'Synthetic random feed. Treat every tick as independent.'}}
 function setNote(sym){const x=info(sym);note.textContent='';note.appendChild(el('div','pb-t','NOTES FOR THIS MARKET'));note.appendChild(el('h3',0,x.n));
  const fit=x.fit==='d'?'The three digit topics (Over/Under, Even/Odd, Matches/Differs) and Rise/Fall all fit.':x.fit==='b'?'The Boom/Crash and Rise/Fall topics fit. Digit contracts are not offered on this market.':'The Rise/Fall topic fits. Digit contracts are not offered on this market.';
  [['What it is: '+x.w],['1000 ticks covers about '+(x.t*1000/60).toFixed(0)+' minutes of this market.'],['Topics that fit: '+fit],['Reminder: these notes describe how the market is built. They do not predict the next tick, and the true odds of every contract stay the same.']].forEach(l=>note.appendChild(el('div','pb-l',l[0])))}
@@ -103,10 +105,23 @@ function draw(){drawNav();det.textContent='';clearInterval(cdT);cd=0;cur=null;co
  if(why)det.appendChild(el('div','pb-warn',why));
  const bt=el('div','pb-l','Test: waiting for ticks...'),rn=el('div','pb-l'),vd=el('div','pb-l pb-v');det.append(bt,rn,vd);
  const live=el('div','pb-s','Status: not armed'),row=el('div','pb-row'),arm=el('input');arm.type='checkbox';arm.id='arm';arm.checked=armed&&!why;arm.disabled=!!why;const lb=el('label',0,'Arm this rule (countdown when it fires)');lb.htmlFor='arm';
- const st=el('input');st.type='number';st.min='0.35';st.step='0.01';st.value='0.35';st.setAttribute('aria-label','Stake');const go=el('button','btn','Trade now');go.disabled=true;row.append(arm,lb,st,go);det.append(live,row,el('div','pb-w','Why: '+t.why));
+ const st=el('input');st.type='number';st.min='0.35';st.step='0.01';st.value='0.35';st.setAttribute('aria-label','Stake');const go=el('button','btn','Trade now');go.disabled=true;
+ const dep=el('button','btn ghost','🤖 Deploy to Bot →');dep.disabled=!!why;
+ row.append(arm,lb,st,go,dep);det.append(live,row,el('div','pb-w','Why: '+t.why));
  if(!why&&arm.checked)live.textContent='Status: armed, waiting for your rule';
  arm.onchange=()=>{armed=arm.checked;live.textContent=armed?'Status: armed, waiting for your rule':'Status: not armed';live.className='pb-s'};
  go.onclick=()=>{if(!cur)return;TW.trade({contract_type:CTYPE[k.c],symbol:SYM,amount:+st.value,duration:k.dur,duration_unit:'t',barrier:hasB(k.c)?String(k.b):undefined,label:'Playbook '+t.name,bot:'Playbook'}).then(()=>TW.toast('Trade placed ('+TW.mode()+')','ok',3000)).catch(e=>TW.toast(e.message||String(e),'err',5000))};
+ dep.onclick=()=>{
+   let rKind='streak',rCond=k.c==='UNDER'?'over':k.c==='OVER'?'under':k.c==='EVEN'?'odd':k.c==='ODD'?'even':k.c==='RISE'?'rise':'fall',rN=2,rCb=hasB(k.c)?k.b:0;
+   if(sel.r==='bench'){rKind='every';rN=10;}
+   else if(t.id==='ou'){rKind='streak';rN=2;rCond=sel.r==='patience'?(k.c==='UNDER'?'over':'under'):(k.c==='UNDER'?'under':'over');rCb=k.c==='UNDER'?(sel.r==='patience'?k.b-1:k.b):(sel.r==='patience'?k.b+1:k.b);}
+   else if(t.id==='eo'){rKind='streak';rN=v.k;rCond=sel.r==='fade'?(k.c==='EVEN'?'odd':'even'):(k.c==='EVEN'?'even':'odd');}
+   else if(t.id==='rf'){rKind='streak';rN=3;rCond=sel.r==='momentum'?(k.c==='RISE'?'rise':'fall'):(k.c==='RISE'?'fall':'rise');}
+   else if(t.id==='md'){rKind='ai_alpha';rN=1;}
+   const q=new URLSearchParams({symbol:SYM,contract:CTYPE[k.c],dur:k.dur,stake:st.value||'0.35',rule_kind:rKind,rule_cond:rCond,rule_cb:rCb,rule_n:rN,name:'Playbook: '+v.l});
+   if(hasB(k.c))q.set('barrier',k.b);
+   location.href='bots-library.html?'+q.toString();
+ };
  det._ui={bt,rn,vd,live,go,k,trig:mkTrig(),why};if(F)test()}
 function test(){const u=det._ui;if(!u)return;if(u.why){u.bt.textContent='Test: not available on this market.';return}const P=F.prices,D=F.digits,n=P.length,k=u.k,p=pc(k.c,k.b),pay=payEst(p);
  if(n<300){u.bt.textContent='Test: need 300+ ticks, loaded '+n;return}
@@ -123,6 +138,56 @@ let TC=0;
 function liveTick(f){TC++;const u=det._ui,i=f.prices.length-1;if(!u||u.why||!armed||cd>0||i<110)return;if(u.trig(f.prices,f.digits,i,TC))fire()}
 function setSym(sym){SYM=sym;setNote(sym);if(F)F.close();draw();F=TW.tickFeed(sym,{primary:false,count:1000,onHistory:()=>test(),onTick:f=>liveTick(f)})}
 setSym(top.symbol||'R_100');
+
+/* Persistent Trader Quant Notebook */
+const nbCard=el('div','pb-c');
+nbCard.innerHTML=`
+  <div class="pb-t">TRADER QUANT NOTEBOOK &amp; SESSION NOTES</div>
+  <h3 style="margin:0 0 6px;">Personal Strategy Notes (Saved Locally)</h3>
+  <div class="pb-l" style="margin-bottom:8px;">Record observations on volatility regimes, barrier backtests, stake caps, and discipline rules. Export anytime as Markdown.</div>
+  <textarea id="pbNotebook" rows="5" placeholder="Write your market observations, bot parameters, or session plan here…" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.4);color:#e2e8f0;font:inherit;font-size:13px;line-height:1.5;resize:vertical;"></textarea>
+  <div class="pb-row" style="margin-top:8px;">
+    <button type="button" class="btn ghost" id="nbTagMarket">+ Insert Market &amp; Spot</button>
+    <button type="button" class="btn ghost" id="nbTagRule">+ Insert Active Rule</button>
+    <button type="button" class="btn" id="nbExport">📥 Export Notes (.md)</button>
+    <button type="button" class="btn ghost" id="nbClear">Clear</button>
+    <span id="nbStatus" style="font-size:11.5px;color:#00ffa3;margin-left:auto;">Saved in browser</span>
+  </div>
+`;
+pb.appendChild(nbCard);
+const nbArea=document.getElementById('pbNotebook'), nbStatus=document.getElementById('nbStatus');
+const NB_KEY='tw_trader_notes';
+try{ nbArea.value=localStorage.getItem(NB_KEY)||''; }catch(e){}
+const saveNb=()=>{try{localStorage.setItem(NB_KEY,nbArea.value);if(nbStatus)nbStatus.textContent='Saved '+new Date().toLocaleTimeString();}catch(e){}};
+nbArea.addEventListener('input',saveNb);
+document.getElementById('nbTagMarket').onclick=()=>{
+  const spot=F&&F.prices&&F.prices.length?F.prices[F.prices.length-1]:'--';
+  const dig=F&&F.digits&&F.digits.length?F.digits[F.digits.length-1]:'-';
+  const stamp=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  const line=`[${stamp}] ${SYM} (${TW.volName(SYM)}) · Spot: ${spot} · Last Digit: ${dig}`;
+  nbArea.value=(nbArea.value?nbArea.value.trimEnd()+'\n':'')+line+'\n';
+  saveNb();
+  TW.toast('Inserted live market snapshot into notes.','ok',2000);
+};
+document.getElementById('nbTagRule').onclick=()=>{
+  const t=T(),s=S(),v=V(),k=contract();
+  const line=`- Playbook Rule: ${t.name} › ${s.name} › ${v.l} (${k.c}${hasB(k.c)?' '+k.b:''}, ${k.dur}t)`;
+  nbArea.value=(nbArea.value?nbArea.value.trimEnd()+'\n':'')+line+'\n';
+  saveNb();
+  TW.toast('Inserted active Playbook rule into notes.','ok',2000);
+};
+document.getElementById('nbExport').onclick=()=>{
+  const md=`# TickWealth Quant Notebook\nExported: ${new Date().toISOString()}\n\n${nbArea.value||'(empty)'}\n`;
+  const u=URL.createObjectURL(new Blob([md],{type:'text/markdown'})),a=document.createElement('a');
+  a.href=u;a.download='tickwealth-notes.md';document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(u),1500);
+  TW.toast('Exported notes to tickwealth-notes.md','ok',2500);
+};
+document.getElementById('nbClear').onclick=async()=>{
+  if(!nbArea.value.trim())return;
+  const ok=await TW.modal({title:'Clear Notebook?',html:'<div class="sub">Delete all saved notes in your Quant Notebook?</div>',buttons:[{label:'Cancel',cls:'ghost',value:false},{label:'Clear Notes',cls:'red',value:true}]});
+  if(ok){nbArea.value='';saveNb();TW.toast('Notebook cleared.','mut',2000);}
+};
 });
 </script>
 <script src="advisor.js"></script>

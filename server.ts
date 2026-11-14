@@ -1,5 +1,5 @@
 import express, { Request, Response } from 'express';
-import { GoogleGenAI } from '@google/genai';
+import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
@@ -63,7 +63,7 @@ Provide a structured, institutional intelligence report with:
 Keep tone strictly analytical, institutional, emotion-free, and under 240 words.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-4-hydrogen',
       contents: prompt,
       config: {
         systemInstruction:
@@ -84,7 +84,7 @@ Keep tone strictly analytical, institutional, emotion-free, and under 240 words.
     const top = Array.isArray(scanResults) && scanResults.length > 0 ? scanResults[0] : null;
     const fallbackBrief = top
       ? `[QUANTUM EXECUTIVE BRIEFING - QUANTITATIVE REGIME SYNTHESIS]
-1. MARKET REGIME OVERVIEW: Multi-horizon analysis of 11 synthetic volatility indices reveals mixed entropy states. High-speed indices (1HZ series) show short-term digit clustering, while continuous standard series maintain stationary distributions.
+1. MARKET REGIME OVERVIEW: Multi-horizon analysis of 17 synthetic volatility indices reveals mixed entropy states. High-speed indices (1HZ series) show short-term digit clustering, while continuous standard series maintain stationary distributions.
 2. TOP TACTICAL SETUPS:
    - Rank #1: ${top.name || 'Primary Market'} (${top.symbol || 'R_100'}) | Setup: ${top.bestPlace || 'Optimal Barrier'} | Edge: +${top.edgePts || 12.5}% | Statistical Grade: ${top.grade || 'A+'} (Confidence: ${top.confidence || 85}%)
    - Suggested Contract: Digit Over/Under (Barrier ${top.suggestedBarrier || 4}) with estimated win rate ~${(top.pOver ? top.pOver * 100 : 64).toFixed(0)}%.
@@ -108,39 +108,65 @@ Keep tone strictly analytical, institutional, emotion-free, and under 240 words.
  * to calculate loss minimization factors and provide trade confidence validation.
  */
 app.post('/api/ai/analyze-asset', async (req: Request, res: Response) => {
+  const { symbol, recentTicks, indicators, digitDistribution, proposedContract, barrier } = req.body || {};
+
+  const buildQuantFallback = () => {
+    const ticks = Array.isArray(recentTicks) ? recentTicks.map(Number).filter(n => !Number.isNaN(n)) : [];
+    const dist = Array.isArray(digitDistribution) && digitDistribution.length === 10 ? digitDistribution.map(Number) : null;
+    const last = ticks.length ? ticks[ticks.length - 1] : 0;
+    const prev = ticks.length > 1 ? ticks[ticks.length - 2] : last;
+    const upMoves = ticks.slice(1).filter((p, idx) => p > ticks[idx]).length;
+    const movePct = ticks.length > 1 ? Math.round((upMoves / (ticks.length - 1)) * 100) : 50;
+    const maxShare = dist ? Math.max(...dist) : 10;
+    const hotDigit = dist ? dist.indexOf(maxShare) : '-';
+    const skewScore = dist ? Math.min(20, Math.round((maxShare - 10) * 1.4)) : 0;
+    const baseConf = Math.max(48, Math.min(91, 58 + Math.round(Math.abs(movePct - 50) * 0.6) + skewScore));
+    const verdict = baseConf >= 72 ? '[APPROVE]' : '[VETO]';
+    const risk = skewScore < 4 && Math.abs(movePct - 50) < 12
+      ? 'Uniform random drift / elevated chop entropy near mean'
+      : (last === prev ? 'Flat micro-tick stall; watch spread latency' : 'Mean-reversion pullback risk after short streak');
+    return {
+      success: true,
+      source: 'quant-engine',
+      fallback: true,
+      analysis: `1. Confidence Rating: ${baseConf}% (${symbol || 'R_100'} · ${proposedContract || 'CALL'}${barrier != null ? ' ' + barrier : ''})\n2. Primary Risk Factor: ${risk} (Recent Up-Moves: ${movePct}%, Hottest Digit: ${hotDigit} at ${maxShare}%)\n3. Verdict: ${verdict} — Keep stake ≤2% of balance and enforce stop-loss limits.`,
+    };
+  };
+
   try {
     if (!ai) {
-      return res.status(503).json({
-        error: 'Gemini AI API key not configured in environment.',
-      });
+      return res.json(buildQuantFallback());
     }
 
-    const { symbol, recentTicks, indicators, digitDistribution, proposedContract } = req.body;
-
-    const prompt = `Evaluate the trade confidence and loss probability for ${symbol}:
-- Proposed Contract: ${proposedContract || 'CALL'}
+    const prompt = `Evaluate the trade confidence and loss risk for ${symbol || 'R_100'}:
+- Proposed Contract: ${proposedContract || 'CALL'}${barrier != null ? ` (Barrier ${barrier})` : ''}
 - Recent Prices (last 15): ${JSON.stringify(recentTicks?.slice(-15) || [])}
-- Indicators: Short-EMA=${indicators?.shortEma}, LinearTrendSlope=${indicators?.slowLinearSlope}, Velocity=${indicators?.velocity1Tick}
-- Digit Distribution (0-9): ${JSON.stringify(digitDistribution || [])}
+- Indicators: Short-EMA=${indicators?.shortEma ?? 'n/a'}, LinearTrendSlope=${indicators?.slowLinearSlope ?? 'n/a'}, Velocity=${indicators?.velocity1Tick ?? 'n/a'}
+- Digit Shares % (0-9): ${JSON.stringify(digitDistribution || [])}
 
 Provide:
-1. Confidence Rating: (e.g. 84%)
-2. Primary Risk Factor: (e.g. False breakout, high digit entropy, boundary friction)
-3. Verdict: [APPROVE] or [VETO] to minimize loss.
-Be concise (under 80 words).`;
+1. Confidence Rating: (e.g. 76%)
+2. Primary Risk Factor: (e.g. Mean-reversion stall, high digit entropy, payout margin)
+3. Verdict: [APPROVE] or [VETO] with a 1-sentence capital protection note.
+Keep strictly analytical, honest about random tick independence, and under 80 words.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-4-hydrogen',
       contents: prompt,
+      config: {
+        systemInstruction:
+          'You are the Tickwealth Quantitative Risk Validator. Evaluate empirical stats concisely and never claim guaranteed wins or certain predictions.',
+      },
     });
 
     return res.json({
       success: true,
-      analysis: response.text || '',
+      source: 'gemini',
+      analysis: response.text || buildQuantFallback().analysis,
     });
   } catch (err: any) {
     console.error('Asset analysis error:', err);
-    return res.status(500).json({ error: err?.message || 'AI asset analysis failed' });
+    return res.json(buildQuantFallback());
   }
 });
 
@@ -228,7 +254,7 @@ Provide an institutional, forward-looking predictive market intelligence project
 Keep tone strictly analytical, quantitative, crisp, and under 250 words.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-4-hydrogen',
       contents: prompt,
       config: {
         systemInstruction:
@@ -300,7 +326,7 @@ function generateFallbackCrossMarketBriefing(markets: any[], th: number = 80): s
 /**
  * POST /api/ai/cross-market-analysis
  * Institutional Cross-Market AI Analysis & Relative Value Matrix.
- * Synthesizes all 11 synthetic volatility indices collectively.
+ * Synthesizes all 17 synthetic volatility indices collectively.
  */
 app.post('/api/ai/cross-market-analysis', async (req: Request, res: Response) => {
   try {
@@ -318,7 +344,7 @@ app.post('/api/ai/cross-market-analysis', async (req: Request, res: Response) =>
 
     const prompt = `You are the Lead Quantitative Strategist at Tickwealth Vanguard Nexus specializing in multi-asset cross-market algorithmic derivatives.
 
-Below is real-time cross-market scan, regime clustering, Over/Under decisions, and entropy data across all 11 synthetic volatility markets:
+Below is real-time cross-market scan, regime clustering, Over/Under decisions, and entropy data across all 17 synthetic volatility markets:
 ${JSON.stringify(markets || [], null, 2)}
 
 Active Asset Selected by Operator: ${activeAsset || 'R_100'}
@@ -335,7 +361,7 @@ Provide an institutional Cross-Market AI Intelligence Briefing covering:
 Keep tone strictly institutional, quantitative, objective, and under 260 words.`;
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-4-hydrogen',
       contents: prompt,
       config: {
         systemInstruction:
@@ -405,7 +431,7 @@ Keep answers under 130 words, plain language, institutional and caring.`;
     }
 
     const response = await ai.models.generateContent({
-      model: 'gemini-3.8-flash',
+      model: 'gemini-4-hydrogen',
       contents: contents.length > 0 ? contents : 'Hello, how can you help me with risk management?',
       config: {
         systemInstruction,
@@ -413,13 +439,258 @@ Keep answers under 130 words, plain language, institutional and caring.`;
     });
 
     return res.json({
+      source: 'gemini',
       reply: response.text || '',
     });
   } catch (err: any) {
     console.error('AI chat error:', err);
     return res.json({
-      reply: '✦ AI Coach: In synthetic index algorithmic trading, consecutive loss protection is paramount. Always ensure your AI Confidence Gate is calibrated to ≥80% and that your stake size is kept under 2% of total wallet capital. The 3-factor concurrence engine filters noise by verifying Short EMA, Linear Trend slope, and 1-tick velocity before authorizing order execution.',
+      source: 'quant-engine',
+      reply: '✦ Quant Coach: Maintain strict risk bounds — cap single stake under 2% of session equity, keep AI Confidence Gate calibrated to your contract baseline, and use paper mode before live capital.',
     });
+  }
+});
+
+/**
+ * POST /api/ai/bot-architect
+ * Translates natural language strategy descriptions into schema-validated TickWealth Bot JSON.
+ */
+app.post('/api/ai/bot-architect', async (req: Request, res: Response) => {
+  const { goal, activeSymbol, defaultStake } = req.body || {};
+  const promptText = String(goal || 'Balanced Under 7 sniper with loss protection').trim().slice(0, 400);
+
+  const buildFallbackBot = () => {
+    const q = promptText.toLowerCase();
+    const symMatch = q.match(/\b(1hz100v|1hz75v|1hz50v|1hz25v|1hz10v|r_100|r_75|r_50|r_25|r_10)\b/i);
+    let symbol = symMatch ? symMatch[1].toUpperCase() : (activeSymbol || 'R_100');
+    if (!symMatch) {
+      if (q.includes('75')) symbol = q.includes('1s') || q.includes('1hz') ? '1HZ75V' : 'R_75';
+      else if (q.includes('50')) symbol = q.includes('1s') || q.includes('1hz') ? '1HZ50V' : 'R_50';
+      else if (q.includes('25')) symbol = q.includes('1s') || q.includes('1hz') ? '1HZ25V' : 'R_25';
+      else if (q.includes('10 ') || q.endsWith('10')) symbol = 'R_10';
+    }
+
+    let contract = 'DIGITUNDER';
+    let barrier = 7;
+    let rule = { kind: 'streak', cond: 'over', cb: 6, n: 1 };
+    let aiGate = 68;
+    if (q.includes('over')) {
+      const m = q.match(/over\s*([0-8])/);
+      barrier = m ? +m[1] : 2;
+      contract = 'DIGITOVER';
+      rule = { kind: 'streak', cond: 'under', cb: Math.min(8, barrier + 1), n: 1 };
+      aiGate = barrier <= 2 ? 66 : 52;
+    } else if (q.includes('under')) {
+      const m = q.match(/under\s*([1-9])/);
+      barrier = m ? +m[1] : 7;
+      contract = 'DIGITUNDER';
+      rule = { kind: 'streak', cond: 'over', cb: Math.max(1, barrier - 1), n: 1 };
+      aiGate = barrier >= 7 ? 68 : 52;
+    } else if (q.includes('differ')) {
+      const m = q.match(/differ[s]?\s*([0-9])/);
+      barrier = m ? +m[1] : 0;
+      contract = 'DIGITDIFF';
+      rule = { kind: 'every', cond: 'even', cb: 0, n: 1 };
+      aiGate = 82;
+    } else if (q.includes('match')) {
+      const m = q.match(/match(?:es)?\s*([0-9])/);
+      barrier = m ? +m[1] : 7;
+      contract = 'DIGITMATCH';
+      rule = { kind: 'streak', cond: 'over', cb: 6, n: 1 };
+      aiGate = 14;
+    } else if (q.includes('even') || q.includes('odd') || q.includes('parity')) {
+      contract = q.includes('odd') ? 'DIGITODD' : 'DIGITEVEN';
+      barrier = 0;
+      rule = { kind: 'streak', cond: q.includes('odd') ? 'even' : 'odd', cb: 0, n: 2 };
+      aiGate = 52;
+    } else if (q.includes('rise') || q.includes('call') || q.includes('momentum') || q.includes('fall') || q.includes('put')) {
+      contract = (q.includes('fall') || q.includes('put')) ? 'PUT' : 'CALL';
+      barrier = 0;
+      rule = { kind: 'ai_alpha', cond: 'rise', cb: 0, n: 1 };
+      aiGate = 54;
+    }
+
+    const isAgg = q.includes('aggress') || q.includes('mart') || q.includes('double') || q.includes('fast');
+    const isUltraSafe = q.includes('safe') || q.includes('low risk') || q.includes('conserv') || q.includes('shield');
+    const martOn = isAgg && !isUltraSafe;
+    const baseStake = Math.max(0.35, Math.min(25, Number(defaultStake) || (isUltraSafe ? 0.35 : 0.5)));
+
+    return {
+      success: true,
+      source: 'quant-engine',
+      fallback: true,
+      bot: {
+        name: `✨ AI ${contract.replace('DIGIT', '')}${/OVER|UNDER|MATCH|DIFF/.test(contract) ? ' ' + barrier : ''} Architect`,
+        symbol,
+        contract,
+        barrier,
+        duration: (contract === 'CALL' || contract === 'PUT') ? 5 : 1,
+        stake: baseStake,
+        aiGate,
+        aiMode: isUltraSafe ? 'active' : 'turbo',
+        lossShield: true,
+        coolSecs: isUltraSafe ? 8 : 4,
+        rule,
+        mart: { on: martOn, mult: martOn ? 2.1 : 2.0, steps: martOn ? 3 : 2 },
+        sl: +(baseStake * (isUltraSafe ? 10 : 18)).toFixed(2),
+        tp: +(baseStake * (isUltraSafe ? 12 : 25)).toFixed(2),
+        rationale: `Calibrated ${contract}${/OVER|UNDER|MATCH|DIFF/.test(contract) ? ' (' + barrier + ')' : ''} on ${symbol} with ${aiGate}% AI Confidence Gate, Adaptive Loss Shield, and ${isUltraSafe ? 'strict' : 'balanced'} SL/TP caps.`,
+        riskNote: 'Every tick is independent. Validate this blueprint in Paper Mode and with the 500-tick backtest before running live.',
+      },
+    };
+  };
+
+  try {
+    if (!ai) {
+      return res.json(buildFallbackBot());
+    }
+
+    const botSchema = {
+      type: Type.OBJECT,
+      properties: {
+        name: { type: Type.STRING },
+        symbol: { type: Type.STRING, description: 'One of R_10, R_25, R_50, R_75, R_100, 1HZ10V, 1HZ25V, 1HZ50V, 1HZ75V, 1HZ100V' },
+        contract: { type: Type.STRING, description: 'One of CALL, PUT, DIGITOVER, DIGITUNDER, DIGITEVEN, DIGITODD, DIGITMATCH, DIGITDIFF' },
+        barrier: { type: Type.INTEGER, description: '0 to 9 integer barrier (0 if not digit barrier)' },
+        duration: { type: Type.INTEGER, description: 'Ticks duration 1 to 10' },
+        stake: { type: Type.NUMBER, description: 'Stake in USD between 0.35 and 10' },
+        aiGate: { type: Type.INTEGER, description: 'Confidence gate 15 to 90 calibrated to true contract probability' },
+        aiMode: { type: Type.STRING, description: 'active or turbo' },
+        lossShield: { type: Type.BOOLEAN },
+        coolSecs: { type: Type.INTEGER, description: 'Cooldown seconds after 2 losses (0 to 15)' },
+        ruleKind: { type: Type.STRING, description: 'instant, every, streak, or ai_alpha' },
+        ruleCond: { type: Type.STRING, description: 'even, odd, over, under, rise, or fall' },
+        ruleCb: { type: Type.INTEGER, description: 'Condition barrier 0 to 9' },
+        ruleN: { type: Type.INTEGER, description: 'Streak or cadence N (1 to 5)' },
+        martOn: { type: Type.BOOLEAN },
+        martMult: { type: Type.NUMBER },
+        martSteps: { type: Type.INTEGER },
+        sl: { type: Type.NUMBER },
+        tp: { type: Type.NUMBER },
+        rationale: { type: Type.STRING },
+        riskNote: { type: Type.STRING },
+      },
+      required: ['name', 'symbol', 'contract', 'barrier', 'duration', 'stake', 'aiGate', 'aiMode', 'lossShield', 'coolSecs', 'ruleKind', 'ruleCond', 'ruleCb', 'ruleN', 'martOn', 'martMult', 'martSteps', 'sl', 'tp', 'rationale', 'riskNote'],
+    };
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: `Design a safe, well-calibrated algorithmic trading bot JSON configuration for this trader goal: "${promptText}".
+Context: Active default symbol=${activeSymbol || 'R_100'}, preferred base stake=$${defaultStake || 0.5}.
+Remember calibration rules:
+- DIGITOVER 2 or DIGITUNDER 7 have ~70% baseline prob -> calibrate aiGate around 65-72%.
+- DIGITEVEN/DIGITODD/CALL/PUT have ~50% baseline -> calibrate aiGate around 50-58%.
+- DIGITDIFF has ~90% baseline -> calibrate aiGate around 82-88%.
+- DIGITMATCH has ~10% baseline -> calibrate aiGate around 12-18%.
+- Keep martingale OFF unless requested, and cap martSteps <= 3. Never promise profit in rationale.`,
+      config: {
+        systemInstruction: 'You are the Tickwealth AI Bot Architect. Output strict JSON matching the schema with honest risk parameters.',
+        responseMimeType: 'application/json',
+        responseSchema: botSchema,
+      },
+    });
+
+    const parsed = JSON.parse((response.text || '{}').trim());
+    const validContracts = ['CALL', 'PUT', 'DIGITOVER', 'DIGITUNDER', 'DIGITEVEN', 'DIGITODD', 'DIGITMATCH', 'DIGITDIFF'];
+    const contract = validContracts.includes(parsed.contract) ? parsed.contract : 'DIGITUNDER';
+    const validSyms = ['R_10', 'R_25', 'R_50', 'R_75', 'R_100', '1HZ10V', '1HZ25V', '1HZ50V', '1HZ75V', '1HZ100V'];
+    const symbol = validSyms.includes(parsed.symbol) ? parsed.symbol : (activeSymbol || 'R_100');
+
+    return res.json({
+      success: true,
+      source: 'gemini',
+      bot: {
+        name: String(parsed.name || '✨ AI Architect Bot').slice(0, 48),
+        symbol,
+        contract,
+        barrier: Math.max(0, Math.min(9, Math.round(Number(parsed.barrier ?? 7)))),
+        duration: Math.max(1, Math.min(10, Math.round(Number(parsed.duration ?? 1)))),
+        stake: Math.max(0.35, Math.min(50, +Number(parsed.stake ?? 0.5).toFixed(2))),
+        aiGate: Math.max(10, Math.min(92, Math.round(Number(parsed.aiGate ?? 68)))),
+        aiMode: parsed.aiMode === 'turbo' ? 'turbo' : 'active',
+        lossShield: parsed.lossShield !== false,
+        coolSecs: Math.max(0, Math.min(30, Math.round(Number(parsed.coolSecs ?? 5)))),
+        rule: {
+          kind: ['instant', 'every', 'streak', 'ai_alpha'].includes(parsed.ruleKind) ? parsed.ruleKind : 'streak',
+          cond: ['even', 'odd', 'over', 'under', 'rise', 'fall'].includes(parsed.ruleCond) ? parsed.ruleCond : 'over',
+          cb: Math.max(0, Math.min(9, Math.round(Number(parsed.ruleCb ?? 6)))),
+          n: Math.max(1, Math.min(8, Math.round(Number(parsed.ruleN ?? 1)))),
+        },
+        mart: {
+          on: !!parsed.martOn,
+          mult: Math.max(1.1, Math.min(3.0, +Number(parsed.martMult ?? 2.0).toFixed(2))),
+          steps: Math.max(1, Math.min(5, Math.round(Number(parsed.martSteps ?? 3)))),
+        },
+        sl: Math.max(1, Math.min(500, +Number(parsed.sl ?? 10).toFixed(2))),
+        tp: Math.max(1, Math.min(500, +Number(parsed.tp ?? 15).toFixed(2))),
+        rationale: String(parsed.rationale || '').slice(0, 260),
+        riskNote: String(parsed.riskNote || 'Validate in Paper Mode before live capital.').slice(0, 220),
+      },
+    });
+  } catch (err: any) {
+    console.error('Bot architect AI error:', err);
+    return res.json(buildFallbackBot());
+  }
+});
+
+/**
+ * POST /api/ai/session-audit
+ * Audits live session or D-Bot execution telemetry for drawdown risk, profit factor, and sizing discipline.
+ */
+app.post('/api/ai/session-audit', async (req: Request, res: Response) => {
+  const { trades = 0, wins = 0, pnl = 0, totalStake = 0, grossWin = 0, grossLoss = 0, maxDrawdown = 0, peakPnl = 0, balance = 1000, recent = [] } = req.body || {};
+  const wr = trades > 0 ? +((wins / trades) * 100).toFixed(1) : 0;
+  const pf = grossLoss > 0 ? +(grossWin / grossLoss).toFixed(2) : (grossWin > 0 ? 9.99 : 0);
+  const ddPct = balance > 0 ? +((maxDrawdown / balance) * 100).toFixed(2) : 0;
+
+  const buildFallbackAudit = () => {
+    const grade = trades < 5 ? 'CALIBRATING' : (pf >= 1.25 && ddPct < 3 ? 'A (DISCIPLINED)' : (pf >= 1.0 && ddPct < 8 ? 'B (STABLE)' : 'C (ELEVATED RISK)'));
+    const ruinRisk = ddPct >= 10 ? 'HIGH' : ddPct >= 4 ? 'MODERATE' : 'LOW';
+    const advice = trades === 0
+      ? 'No completed trades recorded yet. Run 10–20 paper trades or a 500-tick backtest before sizing up.'
+      : (pnl < 0 && ddPct >= 4
+        ? `Drawdown reached $${Number(maxDrawdown).toFixed(2)} (${ddPct}% of balance). Enable Loss Cooldown (5–10s) and set a hard Trailing Profit Lock / Stop-Loss.`
+        : (pf >= 1.2
+          ? `Healthy Profit Factor (${pf}) across ${trades} trades (${wr}% win rate). Consider locking gains with Trailing Profit Lock set to ~$${Math.max(1, +(peakPnl * 0.35).toFixed(1))}.`
+          : `Win rate is ${wr}% with Profit Factor ${pf}. Keep stake flat (≤1.5% of equity) and avoid increasing Martingale steps.`));
+    return {
+      success: true,
+      source: 'quant-engine',
+      fallback: true,
+      audit: `[AI SESSION RISK AUDIT · ${grade}]\n• Performance: ${trades} trades · ${wr}% Win Rate · Profit Factor ${pf} · Net ${pnl >= 0 ? '+' : ''}$${Number(pnl).toFixed(2)}\n• Risk Exposure: Peak +$${Number(peakPnl).toFixed(2)} · Max Drawdown -$${Number(maxDrawdown).toFixed(2)} (${ddPct}% equity) · Ruin Hazard: ${ruinRisk}\n• Directive: ${advice}`,
+    };
+  };
+
+  try {
+    if (!ai) {
+      return res.json(buildFallbackAudit());
+    }
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-4-hydrogen',
+      contents: `Audit this live algorithmic trading session telemetry:
+- Balance: $${balance}, Trades: ${trades}, Win Rate: ${wr}%, Net PnL: $${pnl}, Profit Factor: ${pf}
+- Peak PnL: $${peakPnl}, Max Drawdown: $${maxDrawdown} (${ddPct}% of balance), Total Staked: $${totalStake}
+- Recent Outcomes: ${JSON.stringify(Array.isArray(recent) ? recent.slice(-10) : [])}
+
+Deliver a crisp 3-bullet executive risk & execution audit:
+1. GRADE & EDGE HEALTH
+2. DRAWDOWN / STREAK HAZARD
+3. IMMEDIATE NEXT ACTION (e.g. Trailing Profit Lock level, stake cap, or cooldown).
+Under 130 words, analytical and honest.`,
+      config: {
+        systemInstruction: 'You are the Tickwealth Portfolio Risk Auditor. Focus on capital preservation, drawdown control, and honest expectancy math.',
+      },
+    });
+
+    return res.json({
+      success: true,
+      source: 'gemini',
+      audit: response.text || buildFallbackAudit().audit,
+    });
+  } catch (err: any) {
+    console.error('Session audit error:', err);
+    return res.json(buildFallbackAudit());
   }
 });
 

@@ -28,6 +28,44 @@
       </div>
     </div>
 
+    <!-- INLINE CHART-ATTACHED MANUAL EXECUTION BAR (STICKY WHILE SCROLLING) -->
+    <div id="chartQuickTrade" class="quick-trade-bar" aria-label="Quick manual trade">
+      <div class="qt-meta">
+        <div class="qt-controls">
+          <span style="font-weight:900;color:#00ffa3;letter-spacing:0.4px;">⚡ QUICK MANUAL</span>
+          <span id="qtLiveSpot" style="font-weight:800;color:#fff;background:rgba(255,255,255,0.06);padding:3px 7px;border-radius:6px;">Spot: --</span>
+          <label class="qt-field">Stake $<input id="qtStake" type="number" min="0.35" step="0.5" value="1.00"></label>
+          <button type="button" id="qtHalfBtn" class="qt-stk-btn" title="Halve stake">½</button>
+          <button type="button" id="qtDoubleBtn" class="qt-stk-btn" title="Double stake">2×</button>
+          <label class="qt-field">Dur <input id="qtDur" type="number" min="1" max="10" step="1" value="5" style="width:42px;">
+            <select id="qtUnit" aria-label="Quick duration unit"><option value="t">Ticks</option><option value="s">Sec</option><option value="m">Min</option><option value="h">Hr</option></select>
+          </label>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span id="qtTradeState" class="qt-trade-state">Ready</span>
+          <span id="qtQuoteTxt" style="font-weight:800;color:#cbd5e1;">Payout …</span>
+          <button type="button" id="qtPinBtn" class="qt-pin-btn on" title="Toggle sticky position while scrolling">📌 Pinned</button>
+        </div>
+      </div>
+      <div id="qtAiStrip" class="qt-ai-strip">
+        <span id="qtAiText">🧠 <b>AI Projection:</b> Scanning live market &amp; cross-market momentum…</span>
+        <div class="qt-ai-actions">
+          <button type="button" id="qtVerdictBtn" class="qt-mini-btn" title="Get Gemini / Quant AI Approve or Veto verdict for this setup">🧠 AI Verdict</button>
+          <button type="button" id="qtBetAiBtn" class="qt-mini-btn bet" style="display:none;" title="Match AI #1 and place trade immediately">⚡ Bet AI</button>
+          <button type="button" id="qtMatchAiBtn" class="qt-mini-btn" style="display:none;" title="Apply best AI projection to panel">🎯 Match AI</button>
+          <button type="button" id="qtScanAiBtn" class="qt-mini-btn scan" title="Refresh AI Scan">⚡ Scan</button>
+        </div>
+      </div>
+      <div class="qt-actions">
+        <button type="button" id="qtRiseBtn" class="qt-btn primary">▲ BUY RISE <span id="qtRiseSub" style="font-size:11px;opacity:0.9;"></span></button>
+        <button type="button" id="qtFallBtn" class="qt-btn neg">▼ BUY FALL <span id="qtFallSub" style="font-size:11px;opacity:0.92;"></span></button>
+      </div>
+      <div class="qt-hk-hint" style="font-size:10px;color:#7d8aa5;display:flex;justify-content:space-between;gap:8px;padding-top:1px;">
+        <span>Hotkeys: <b>R</b> Buy Rise · <b>F</b> Buy Fall · <b>M</b> Match AI · <b>B</b> Bet AI · <b>S</b> Scan</span>
+        <span>Stays docked above as you inspect scanners below</span>
+      </div>
+    </div>
+
     <div class="scanbar" id="scanBar">
       <div class="t" id="scanTxt">Waiting for live ticks…</div>
       <button class="btn" id="scanBtn">✦ MOMENTUM SCAN</button><button class="btn ghost" id="askAi">✦ Ask AI</button>
@@ -41,7 +79,7 @@
             ⚡ ADVANCE AI MOMENTUM SUGGESTION · RISE / FALL
           </div>
           <div style="font-size:11px;color:#9fb0cc;margin-top:2px;">
-            Scans all 11 volatilities for highest directional momentum. Minimum 85% confidence required to trade.
+            Scans all 17 digit volatilities for highest directional momentum. Minimum 85% confidence recommended before trading.
           </div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
@@ -220,14 +258,100 @@ TW.ready(function(){
     const x=(s7>s21?12:-12)+(up/20-.5)*60, strength=Math.max(50,Math.min(95,Math.round(50+Math.abs(x))));
     return {dir:x>=0?'CALL':'PUT',strength,up,s7,s21};
   }
+  let lastRfQuotePayout = null;
+  function updateQtSpotAndProjection(){
+    const sp=$('#qtLiveSpot');
+    if(sp && feed && feed.prices && feed.prices.length){
+      const p=feed.prices[feed.prices.length-1], prev=feed.prices[feed.prices.length-2]||p;
+      const up=p>=prev;
+      sp.innerHTML=`Spot: <b style="color:${up?'#00ffa3':'#ff3b69'};">${Number(p).toFixed(feed.pip||2)} ${up?'▲':'▼'}</b>`;
+    }
+    const aiTxt=$('#qtAiText'), matchBtn=$('#qtMatchAiBtn'), betBtn=$('#qtBetAiBtn');
+    if(!aiTxt) return;
+    const parts=[];
+    if(scan){
+      const sRise=scan.dir==='CALL';
+      parts.push(`📊 <b>Current:</b> <b style="color:${sRise?'#00ffa3':'#ff3b69'};">${sRise?'RISE':'FALL'}</b> (${scan.strength}% · ${scan.up}/20 up)`);
+    }
+    if(typeof currentBestRfResult!=='undefined' && currentBestRfResult){
+      const b=currentBestRfResult, isC=b.action==='CALL';
+      const secs=(typeof rfTimerCountdown==='number')?rfTimerCountdown:0;
+      const tTag=secs>10?`<span style="color:#00ffa3;font-weight:900;">🟢 ${secs}s</span>`:secs>0?`<span style="color:#ffd600;font-weight:900;">🟡 ${secs}s</span>`:`<span style="color:#ff3b69;font-weight:900;">🔴 Exp</span>`;
+      parts.push(`👑 <b>AI #1:</b> ${TW.esc(b.v.name)} ➔ <b style="color:${isC?'#00ffa3':'#ff3b69'};">${isC?'RISE':'FALL'}</b> (${b.strength}% · ${tTag})`);
+      if(matchBtn) matchBtn.style.display='';
+      if(betBtn) betBtn.style.display='';
+    } else if(scan){
+      if(matchBtn) matchBtn.style.display='';
+      if(betBtn) betBtn.style.display='';
+    }
+    if(parts.length) aiTxt.innerHTML=parts.join(' &nbsp;|&nbsp; ');
+  }
+
+  function updateQtTradeState(){
+    const el=$('#qtTradeState');
+    if(!el) return;
+    const open=(TW.trades||[]).find(t=>t.status==='open');
+    if(open){
+      const prog=open.unit==='t'?`${open.ticksElapsed||open.count||0}/${open.duration}t`:`${open.duration}${open.unit}`;
+      el.className='qt-trade-state live';
+      el.innerHTML=`<span class="dot live" style="width:6px;height:6px;background:#00ffa3;"></span> ⏳ ${TW.esc(open.label||open.type)} ${prog} · $${Number(open.stake||0).toFixed(2)}`;
+      return;
+    }
+    el.className='qt-trade-state';
+    const sess=TW.session||{trades:0,wins:0,pnl:0};
+    if(sess.trades>0){
+      const pCol=sess.pnl>=0?'#00ffa3':'#ff3b69';
+      const pSign=sess.pnl>=0?'+':'-';
+      el.innerHTML=`Session ${sess.wins}W/${Math.max(0,sess.trades-sess.wins)}L · <b style="color:${pCol};">${pSign}$${Math.abs(sess.pnl).toFixed(2)}</b>`;
+    } else {
+      el.textContent='Ready';
+    }
+  }
+  TW.on('trade', updateQtTradeState);
+  TW.on('account', updateQtTradeState);
+  updateQtTradeState();
+
   function doScan(silent){
     scan=calcScan(); if(!scan){ if(!silent)TW.toast('Need at least 30 ticks first.'); return; }
     const rise=scan.dir==='CALL';
-    $('#scanTxt').innerHTML=`Momentum: <b>${rise?'RISE':'FALL'}</b> ${TW.sigHtml(scan.strength)} · SMA7 ${rise?'above':'below'} SMA21 · ${scan.up}/20 recent ticks up <span class="dim">(statistical drift)</span>`;
+    const rf=(window.TWS&&TWS.regimeFingerprint&&feed)?TWS.regimeFingerprint(feed.prices,feed.digits):null;
+    const rfTxt=rf?` · ${rf.regimeLabel} (H=${rf.hurst}, Cap=${rf.kellyPct}%)`:'';
+    $('#scanTxt').innerHTML=`Momentum: <b>${rise?'RISE':'FALL'}</b> ${TW.sigHtml(scan.strength)} · SMA7 ${rise?'above':'below'} SMA21 · ${scan.up}/20 up${rfTxt} <span class="dim">(statistical drift)</span>`;
     if(!silent) setType(scan.dir);
+    updateQtSpotAndProjection();
   }
   $('#scanBtn').onclick=()=>doScan(false);
   $('#askAi').onclick=()=>TW.ai&&TW.ai.ask('Explain the current momentum read on this chart and what it does not tell me.');
+  const verdictBtn = $('#qtVerdictBtn');
+  if (verdictBtn) {
+    verdictBtn.onclick = async () => {
+      if (!feed || feed.prices.length < 15) { TW.toast('Need at least 15 ticks first.', 'mut', 2500); return; }
+      verdictBtn.disabled = true; verdictBtn.textContent = '🧠 Auditing…';
+      try {
+        const P = feed.prices, D = feed.digits || [];
+        const c10 = Array(10).fill(0); D.forEach(d => { if (d >= 0 && d <= 9) c10[d]++; });
+        const dist = D.length ? c10.map(v => +((v / D.length) * 100).toFixed(1)) : [];
+        const s = calcScan();
+        const vel = P.length > 1 ? +(P[P.length - 1] - P[P.length - 2]).toFixed(4) : 0;
+        const data = await TW.aiRequest('/api/ai/analyze-asset', {
+          symbol: top.symbol,
+          proposedContract: type,
+          recentTicks: P.slice(-15),
+          indicators: { shortEma: s ? +s.s7.toFixed(3) : null, slowLinearSlope: s ? +(s.s7 - s.s21).toFixed(4) : null, velocity1Tick: vel },
+          digitDistribution: dist
+        });
+        await TW.modal({
+          title: (data.source === 'gemini' ? '✦ Gemini AI Asset Verdict: ' : '⚡ Quant AI Verdict: ') + TW.volName(top.symbol),
+          html: `<pre style="margin:0;white-space:pre-wrap;font:12.5px/1.6 system-ui,sans-serif;color:#d7e0f2;background:rgba(0,0,0,0.35);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);">${TW.esc(data.analysis || '')}</pre>`,
+          buttons: [{ label: 'Close', value: true }]
+        });
+      } catch (err) {
+        TW.toast('AI Verdict failed: ' + (err.message || err), 'err', 3500);
+      } finally {
+        verdictBtn.disabled = false; verdictBtn.textContent = '🧠 AI Verdict';
+      }
+    };
+  }
 
   function setType(t){
     type=t; $('#tRise').classList.toggle('active',t==='CALL'); $('#tFall').classList.toggle('active',t==='PUT'); $('#tFall').classList.toggle('neg',t==='PUT');
@@ -237,20 +361,45 @@ TW.ready(function(){
   $('#tRise').onclick=()=>setType('CALL'); $('#tFall').onclick=()=>setType('PUT');
 
   const UNITS={t:{min:1,max:10,def:5,l:'ticks'},s:{min:15,max:3600,def:30,l:'seconds'},m:{min:1,max:1440,def:1,l:'minutes'},h:{min:1,max:24,def:1,l:'hours'}};
-  $('#unit').onchange=()=>{const u=UNITS[$('#unit').value],d=$('#dur'); d.min=u.min; d.max=u.max; d.value=u.def; $('#durU').textContent=u.l; refreshQuote();};
+  function syncQuickTradeControls(){
+    const qs=$('#qtStake'), qd=$('#qtDur'), qu=$('#qtUnit');
+    const stNum=Math.max(0.35, +$('#stake').value || 1);
+    const stVal=stNum.toFixed(2);
+    if(qs && document.activeElement !== qs) qs.value = stVal;
+    if(qd){
+      qd.min = $('#dur').min;
+      qd.max = $('#dur').max;
+      if(document.activeElement !== qd) qd.value = $('#dur').value;
+    }
+    if(qu) qu.value = $('#unit').value;
+    const estPay=(lastRfQuotePayout && Math.abs((lastRfQuotePayout.stake||0)-stNum)<0.01) ? lastRfQuotePayout.payout : (TW.estimatePayout ? TW.estimatePayout('CALL', null, stNum) : +(stNum*1.95).toFixed(2));
+    const prof=Math.max(0, +(estPay-stNum).toFixed(2)).toFixed(2);
+    const rs=$('#qtRiseSub'), fs=$('#qtFallSub');
+    if(rs) rs.textContent=`($${stVal} ➔ +$${prof})`;
+    if(fs) fs.textContent=`($${stVal} ➔ +$${prof})`;
+  }
+  $('#unit').onchange=()=>{const u=UNITS[$('#unit').value],d=$('#dur'); d.min=u.min; d.max=u.max; d.value=u.def; $('#durU').textContent=u.l; syncQuickTradeControls(); refreshQuote();};
   const params=()=>({contract_type:type,symbol:top.symbol,amount:+$('#stake').value||1,duration:+$('#dur').value,duration_unit:$('#unit').value});
   const refreshQuote=TW.watchQuote(params,(q,msg)=>{
-    if(q){const st=+$('#stake').value||1; $('#qTxt').innerHTML='Payout <b>'+TW.money(q.payout)+'</b>'; $('#qProfit').innerHTML='Profit <b>'+TW.money(q.payout-st)+'</b>'; $('#buySub').textContent='Payout '+TW.money(q.payout);}
-    else {$('#qTxt').textContent=msg==='loading'?'Getting price…':msg; $('#qProfit').textContent=''; if(msg!=='loading')$('#buySub').innerHTML='&nbsp;';}
+    if(q){const st=+$('#stake').value||1; lastRfQuotePayout={stake:st,payout:+q.payout}; $('#qTxt').innerHTML='Payout <b>'+TW.money(q.payout)+'</b>'; $('#qProfit').innerHTML='Profit <b>'+TW.money(q.payout-st)+'</b>'; $('#buySub').textContent='Payout '+TW.money(q.payout); const qtQ=$('#qtQuoteTxt'); if(qtQ) qtQ.innerHTML='Payout <b style="color:#00ffa3;">'+TW.money(q.payout)+'</b> · Profit <b>'+TW.money(q.payout-st)+'</b>';}
+    else {lastRfQuotePayout=null; $('#qTxt').textContent=msg==='loading'?'Getting price…':msg; $('#qProfit').textContent=''; if(msg!=='loading')$('#buySub').innerHTML='&nbsp;'; const qtQ=$('#qtQuoteTxt'); if(qtQ) qtQ.textContent=msg==='loading'?'Getting price…':msg;}
+    syncQuickTradeControls();
   });
-  ['stake','dur'].forEach(i=>$('#'+i).addEventListener('input',refreshQuote));
+  ['stake','dur'].forEach(i=>$('#'+i).addEventListener('input',()=>{syncQuickTradeControls();refreshQuote();}));
+  if($('#qtStake')) $('#qtStake').addEventListener('input',e=>{ $('#stake').value=e.target.value; baseManualStake=+e.target.value||1; syncQuickTradeControls(); refreshQuote(); });
+  if($('#qtDur')) $('#qtDur').addEventListener('input',e=>{ $('#dur').value=e.target.value; syncQuickTradeControls(); refreshQuote(); });
+  if($('#qtUnit')) $('#qtUnit').addEventListener('change',e=>{ $('#unit').value=e.target.value; $('#unit').onchange(); });
+  if($('#qtHalfBtn')) $('#qtHalfBtn').onclick=()=>{ const cur=Math.max(0.35,+($('#stake').value||1)); const nv=Math.max(0.35,+(cur/2).toFixed(2)); $('#stake').value=nv.toFixed(2); baseManualStake=nv; syncQuickTradeControls(); refreshQuote(); };
+  if($('#qtDoubleBtn')) $('#qtDoubleBtn').onclick=()=>{ const maxStk=(TW.settings&&TW.settings.maxStake)?+TW.settings.maxStake:500; const cur=Math.max(0.35,+($('#stake').value||1)); const nv=Math.min(maxStk,+(cur*2).toFixed(2)); $('#stake').value=nv.toFixed(2); baseManualStake=nv; syncQuickTradeControls(); refreshQuote(); };
+  if($('#qtPinBtn')) $('#qtPinBtn').onclick=()=>{ const bar=$('#chartQuickTrade'), btn=$('#qtPinBtn'); if(!bar||!btn) return; const pinned=!bar.classList.toggle('unpinned'); btn.classList.toggle('on',pinned); btn.textContent=pinned?'📌 Pinned':'📍 Docked'; };
   if(q.type) setType(q.type==='PUT'||q.type==='FALL'?'PUT':'CALL');
   if(q.dur) { $('#dur').value = q.dur; }
   if(q.unit && UNITS[q.unit]) { const u=UNITS[q.unit]; $('#unit').value=q.unit; $('#dur').min=u.min; $('#dur').max=u.max; $('#durU').textContent=u.l; }
+  syncQuickTradeControls();
   refreshQuote();
 
   let baseManualStake = +$('#stake').value || 1.0;
-  $('#stake').addEventListener('change', () => { baseManualStake = +$('#stake').value || 1.0; });
+  $('#stake').addEventListener('change', () => { baseManualStake = +$('#stake').value || 1.0; syncQuickTradeControls(); });
 
   document.querySelectorAll('.qk-stk').forEach(btn => {
     btn.onclick = () => {
@@ -262,38 +411,50 @@ TW.ready(function(){
       else cur = parseFloat(v);
       stkInput.value = cur.toFixed(2);
       baseManualStake = cur;
+      syncQuickTradeControls();
       refreshQuote();
     };
   });
 
+  function setBusyBtns(on){
+    busy=on;
+    $('#buyBtn').disabled=on;
+    if($('#qtRiseBtn')) $('#qtRiseBtn').disabled=on;
+    if($('#qtFallBtn')) $('#qtFallBtn').disabled=on;
+    if($('#qtBetAiBtn')) $('#qtBetAiBtn').disabled=on;
+  }
+
   async function buy(opts){
-    if(busy)return; busy=true; $('#buyBtn').disabled=true;
+    if(busy)return; setBusyBtns(true);
     try{
       const t=await TW.trade(Object.assign(params(),{label:type==='CALL'?'Rise':'Fall'}),opts);
       TW.toast('⚡ Dispatched '+(type==='CALL'?'Rise':'Fall')+' — waiting for result','ok');
+      updateQtTradeState();
       t.done.then(r=>{
-        if (r.profit > 0) { if (TW.fx && TW.fx.win) TW.fx.win(); }
-        else { if (TW.fx && TW.fx.loss) TW.fx.loss(); }
-        TW.toast((r.profit>0?'🎯 WON +':'⚠️ LOST ')+TW.money(r.profit),r.profit>0?'ok':'err');
+        updateQtTradeState();
         const chkMart = $('#chkManualMart');
         if (chkMart && chkMart.checked) {
           const stkInput = $('#stake');
+          const maxStk = (TW.settings && TW.settings.maxStake) ? +TW.settings.maxStake : 500;
           if (r.profit > 0) {
             stkInput.value = baseManualStake.toFixed(2);
           } else {
-            const nextStk = Math.min(500, +((parseFloat(stkInput.value) || 1) * 2).toFixed(2));
+            const nextStk = Math.min(maxStk, +((parseFloat(stkInput.value) || 1) * 2).toFixed(2));
             stkInput.value = nextStk.toFixed(2);
             TW.toast(`⚠️ Auto-Martingale applied: Next stake $${nextStk.toFixed(2)}`, 'ok', 3000);
           }
+          syncQuickTradeControls();
           refreshQuote();
         }
       });
       return t;
     }
     catch(e){ if(!e.quiet)TW.toast(e.message,'err',5000); }
-    finally{ busy=false; $('#buyBtn').disabled=false; }
+    finally{ setBusyBtns(false); updateQtTradeState(); }
   }
   $('#buyBtn').onclick=()=>buy();
+  if($('#qtRiseBtn')) $('#qtRiseBtn').onclick=()=>{ setType('CALL'); buy(); };
+  if($('#qtFallBtn')) $('#qtFallBtn').onclick=()=>{ setType('PUT'); buy(); };
 
   /* =========================================================================
    * ADVANCED AI AUTO-TRADER WITH ADAPTIVE LOSS SHIELD
@@ -426,6 +587,7 @@ TW.ready(function(){
    * NEAT SINGLE-CARD ADVANCE AI MOMENTUM SUGGESTION WITH DECAY TIMER
    * ========================================================================= */
   let currentBestRfResult=null;
+  let latestRfCandidates=[];
   let rfTimerCountdown=30;
   let rfTimerInterval=null;
 
@@ -442,22 +604,32 @@ TW.ready(function(){
     if(btnRfDeepScan) btnRfDeepScan.disabled=true;
     clearInterval(rfTimerInterval);
 
-    rfAiSuggestionBox.innerHTML=`
-      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 8px;gap:8px;">
-        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#00ffa3;font-weight:700;">
-          <span class="dot live" style="width:10px;height:10px;background:#00ffa3;"></span>
-          <span>${isDeep?'⚛ QUANTUM DEEP SCANNING 11 MARKETS (1000t)…':'⚡ LIGHTNING RAPID SCAN ACROSS 11 MARKETS (50t)…'}</span>
-        </div>
-        <div style="font-size:11px;color:#9fb0cc;">
-          Ingesting live tick streams across all 11 volatilities. Analyzing EMA(3) vs SMA(21) crossover, velocity, and linear regression slope…
-        </div>
-      </div>`;
-
     const syms=TW.VOLS.filter(v=>v.digits);
     let rawResults=[];
     let received=0;
     let isDone=false;
     let idleTimer=null;
+
+    syms.forEach(v=>{
+      if(TW.tickPool && TW.tickPool[v.id] && TW.tickPool[v.id].prices && TW.tickPool[v.id].prices.length>=20){
+        rawResults.push({v,prices:TW.tickPool[v.id].prices});
+      }
+    });
+
+    if(rawResults.length>=3){
+      processAndRenderBestRfCard(rawResults,isDeep);
+    } else {
+      rfAiSuggestionBox.innerHTML=`
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 8px;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#00ffa3;font-weight:700;">
+            <span class="dot live" style="width:10px;height:10px;background:#00ffa3;"></span>
+            <span>${isDeep?`⚛ QUANTUM DEEP SCANNING ${syms.length} MARKETS (1000t)…`:`⚡ LIGHTNING RAPID SCAN ACROSS ${syms.length} MARKETS (${tickCount}t)…`}</span>
+          </div>
+          <div style="font-size:11px;color:#9fb0cc;">
+            Ingesting live tick streams across all ${syms.length} volatilities. Analyzing EMA(3) vs SMA(21) crossover, velocity, and linear regression slope…
+          </div>
+        </div>`;
+    }
 
     const sock=new TW.Socket({
       url:TW.tickUrl(),
@@ -472,12 +644,17 @@ TW.ready(function(){
 
         if(d.history&&d.history.prices){
           const prices=d.history.prices;
-          rawResults.push({v,prices});
+          const pip=v.pip||d.pip_size||TW.volPip(v.id)||2;
+          const dg=prices.map(p=>TW.digitOf(p,pip));
+          const exIdx=rawResults.findIndex(x=>x.v.id===v.id);
+          if(exIdx>=0) rawResults[exIdx]={v,prices};
+          else rawResults.push({v,prices});
+          if(TW.tickPool) TW.tickPool[v.id]={pip,prices,digits:dg,epochs:d.history.times||[],lastUpdated:Date.now()};
         }
 
         clearTimeout(idleTimer);
-        if(received>=6 && rawResults.length>=4){
-          idleTimer=setTimeout(finish, 320);
+        if(received>=Math.min(syms.length, 12) && rawResults.length>=10){
+          idleTimer=setTimeout(finish, 480);
         }
         if(received>=syms.length) finish();
       }
@@ -560,6 +737,7 @@ TW.ready(function(){
     latestRfCandidates=candidates;
     const topBest=candidates[0];
     currentBestRfResult=topBest;
+    updateQtSpotAndProjection();
 
     const isHighConfidence=topBest.strength>=85;
     rfTimerCountdown=isDeep?45:30;
@@ -639,19 +817,27 @@ TW.ready(function(){
 
         <!-- Real Working Action Buttons with on-card Rescan -->
         <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-          <button type="button" id="btnPlaceSuggestedRfBet" class="btn" style="flex:1.4;min-width:180px;padding:11px 14px;font-size:12px;font-weight:900;background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;border:0;border-radius:8px;cursor:pointer;box-shadow:0 0 16px rgba(0,255,163,0.3);">
+          <button type="button" id="btnPlaceSuggestedRfBet" class="btn" style="flex:1.4;min-width:min(100%,155px);padding:11px 14px;font-size:12px;font-weight:900;background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;border:0;border-radius:8px;cursor:pointer;box-shadow:0 0 16px rgba(0,255,163,0.3);">
             ⚡ 1-CLICK BET (${topBest.action==='CALL'?'RISE':'FALL'})
           </button>
-          <button type="button" id="btnApplySuggestedRfControls" class="btn" style="flex:1.1;min-width:150px;padding:11px 12px;font-size:11.5px;font-weight:800;background:#141e33;border:1px solid rgba(0,255,163,0.4);color:#00ffa3;border-radius:8px;cursor:pointer;">
+          <button type="button" id="btnApplySuggestedRfControls" class="btn" style="flex:1;min-width:min(100%,130px);padding:11px 12px;font-size:11.5px;font-weight:800;background:#141e33;border:1px solid rgba(0,255,163,0.4);color:#00ffa3;border-radius:8px;cursor:pointer;">
             🎯 APPLY TO PANEL
           </button>
-          <button type="button" id="btnRfRescanCard" class="btn" style="flex:0.9;min-width:110px;padding:11px 12px;font-size:11px;font-weight:800;background:#1e293b;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;cursor:pointer;">
+          <a href="bots-library.html?symbol=${topBest.v.id}&contract=${topBest.action}&name=${encodeURIComponent('AI Momentum '+topBest.v.name+' ('+topBest.action+')')}&dur=5&rule_kind=ai_alpha&mart=0&gate=${Math.max(48,Math.min(85,topBest.strength))}" class="btn" style="flex:1;min-width:min(100%,135px);padding:11px 12px;font-size:11.5px;font-weight:800;background:#0b1730;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;text-align:center;text-decoration:none;">
+            🤖 LAUNCH IN BOT →
+          </a>
+          <button type="button" id="btnRfRescanCard" class="btn" style="flex:0.8;min-width:100px;padding:11px 12px;font-size:11px;font-weight:800;background:#1e293b;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;cursor:pointer;">
             ⚡ RESCAN (50t)
           </button>
-          <button type="button" id="btnRfDeepScanCard" class="btn" style="flex:1;min-width:140px;padding:11px 12px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.2);color:#cbd5e1;border-radius:8px;cursor:pointer;">
-            ⚛ DEEP SCAN (1000t)
+          <button type="button" id="btnRfDeepScanCard" class="btn" style="flex:0.9;min-width:115px;padding:11px 12px;font-size:11px;font-weight:800;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.2);color:#cbd5e1;border-radius:8px;cursor:pointer;">
+            ⚛ DEEP (1000t)
           </button>
         </div>
+        ${candidates.length>1?`
+        <div style="margin-top:10px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);">
+          <span style="font-size:10px;font-weight:800;color:#7d8aa5;">RUNNER-UPS:</span>
+          ${candidates.slice(1,3).map((ru,idx)=>`<button type="button" class="btn ghost rf-ru-pick" data-sym="${ru.v.id}" data-act="${ru.action}" style="padding:3px 9px;font-size:10.5px;border-radius:6px;cursor:pointer;color:#cbd5e1;">#${idx+2} ${TW.esc(ru.v.name)}: <b>${ru.label}</b> (${ru.strength}%)</button>`).join('')}
+        </div>`:''}
       </div>`;
 
     function updateTimerBadge(secs) {
@@ -684,6 +870,7 @@ TW.ready(function(){
     rfTimerInterval=setInterval(()=>{
       rfTimerCountdown--;
       updateTimerBadge(rfTimerCountdown);
+      updateQtSpotAndProjection();
       if(rfTimerCountdown<=0){
         clearInterval(rfTimerInterval);
       }
@@ -707,57 +894,88 @@ TW.ready(function(){
     });
 
     $('#btnPlaceSuggestedRfBet').onclick=async()=>{
-      applyRfSuggestionToState(topBest.v.id,topBest.action,selectedDur,selectedUnit);
-      const stake=+$('#stake').value||1;
-      const p={
-        contract_type:topBest.action,
-        symbol:top.symbol,
-        amount:stake,
-        duration:selectedDur,
-        duration_unit:selectedUnit,
-        label:topBest.action==='CALL'?'Rise':'Fall'
-      };
-      try{
-        TW.toast(`Placing 1-Click Bet: ${p.label} (${selectedDur}${selectedUnit}) on ${TW.volName(p.symbol)}…`,'ok');
-        const t=await TW.trade(p);
-        t.done.then(r=>{
-          TW.toast((r.profit>0?'WON +':'LOST ')+TW.money(r.profit),r.profit>0?'ok':'err');
-        });
-      }catch(err){
-        if(!err.quiet) TW.toast(err.message,'err',5000);
-      }
+      applyRfSuggestionToState(topBest.v.id,topBest.action,selectedDur,selectedUnit,false);
+      await buy();
     };
 
     $('#btnApplySuggestedRfControls').onclick=()=>{
-      applyRfSuggestionToState(topBest.v.id,topBest.action,selectedDur,selectedUnit);
+      applyRfSuggestionToState(topBest.v.id,topBest.action,selectedDur,selectedUnit,true);
       TW.toast(`Applied ${topBest.label} on ${TW.volName(topBest.v.id)} to panel!`,'ok');
     };
 
-    // On-card Rescan & Deep Scan
+    // On-card Rescan & Deep Scan & Runner-up quick apply
     $('#btnRfRescanCard').onclick = () => runRfAiScan(50, false);
     $('#btnRfDeepScanCard').onclick = () => runRfAiScan(1000, true);
     const btnNoticeDeep = $('#btnNoticeDeepRf');
     if (btnNoticeDeep) btnNoticeDeep.onclick = () => runRfAiScan(1000, true);
+    rfAiSuggestionBox.querySelectorAll('.rf-ru-pick').forEach(btn => {
+      btn.onclick = () => {
+        applyRfSuggestionToState(btn.dataset.sym, btn.dataset.act, selectedDur, selectedUnit, true);
+        TW.toast(`Switched panel to runner-up ${TW.volName(btn.dataset.sym)} (${btn.dataset.act})`, 'ok', 2500);
+      };
+    });
   }
 
-  function applyRfSuggestionToState(symbol,action,durationVal,durationUnitVal){
+  function applyRfSuggestionToState(symbol,action,durationVal,durationUnitVal,shouldScroll){
+    const symChanged = top.symbol !== symbol;
     top.symbol=symbol;
     const sel=$('#twSym');
     if(sel) sel.value=symbol;
-    setType(action);
 
+    if(durationUnitVal && UNITS[durationUnitVal]){
+      $('#unit').value=durationUnitVal;
+      const u=UNITS[durationUnitVal];
+      $('#dur').min=u.min;
+      $('#dur').max=u.max;
+      $('#durU').textContent=u.l;
+    }
     if(durationVal){
       $('#dur').value=durationVal;
     }
-    if(durationUnitVal){
-      $('#unit').value=durationUnitVal;
-      const u=UNITS[durationUnitVal];
-      if(u) $('#durU').textContent=u.l;
-    }
 
-    restart();
-    window.scrollTo({top:0,behavior:'smooth'});
+    setType(action);
+    syncQuickTradeControls();
+    if(symChanged) restart();
+    else refreshQuote();
+    if(shouldScroll !== false) window.scrollTo({top:0,behavior:'smooth'});
   }
+
+  function matchCurrentAiSelection(){
+    if(currentBestRfResult){
+      applyRfSuggestionToState(currentBestRfResult.v.id, currentBestRfResult.action, 5, 't', false);
+      return `${currentBestRfResult.label} on ${TW.volName(currentBestRfResult.v.id)} (5 ticks)`;
+    }
+    if(scan){
+      setType(scan.dir);
+      return `${scan.dir==='CALL'?'Rise':'Fall'} on ${TW.volName(top.symbol)}`;
+    }
+    return '';
+  }
+
+  // Wire Quick-Bar AI Match, Bet AI & Scan buttons without scrolling
+  if($('#qtScanAiBtn')) $('#qtScanAiBtn').onclick = () => runRfAiScan(50, false);
+  if($('#qtMatchAiBtn')) $('#qtMatchAiBtn').onclick = () => {
+    const desc = matchCurrentAiSelection();
+    if(desc) TW.toast(`Matched AI: ${desc}`, 'ok', 2800);
+  };
+  if($('#qtBetAiBtn')) $('#qtBetAiBtn').onclick = async () => {
+    const desc = matchCurrentAiSelection();
+    if(!desc){ TW.toast('Scanning AI projection first…', 'mut', 2000); runRfAiScan(50, false); return; }
+    await buy();
+  };
+
+  document.addEventListener('keydown', e => {
+    if(e.metaKey || e.ctrlKey || e.altKey) return;
+    const tag = document.activeElement && document.activeElement.tagName;
+    if(tag === 'INPUT' || tag === 'SELECT' || tag === 'TEXTAREA' || (document.activeElement && document.activeElement.isContentEditable)) return;
+    if(document.querySelector('.ov')) return;
+    const k = e.key.toLowerCase();
+    if(k === 'r'){ e.preventDefault(); setType('CALL'); buy(); }
+    else if(k === 'f'){ e.preventDefault(); setType('PUT'); buy(); }
+    else if(k === 'm'){ e.preventDefault(); if($('#qtMatchAiBtn')) $('#qtMatchAiBtn').click(); }
+    else if(k === 'b'){ e.preventDefault(); if($('#qtBetAiBtn')) $('#qtBetAiBtn').click(); }
+    else if(k === 's'){ e.preventDefault(); runRfAiScan(50, false); }
+  });
 
   setType(q.type==='PUT'?'PUT':'CALL');
   restart();

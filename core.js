@@ -32,7 +32,9 @@
   TW.settings = Object.assign({}, DEF, saved);
   TW.settings.oauthAppId = '34OhVj79ZLhfAq3EeoraT';
   if (!TW.settings.appId || TW.settings.appId === '1089') TW.settings.appId = DEF.appId; // old saved test ID
-  TW.settings.endpoint = DEF.endpoint; // old saved endpoints (ws.binaryws.com) must not override the new one
+  if (!TW.settings.endpoint || !/^wss:\/\//.test(TW.settings.endpoint) || /binaryws\.com/.test(TW.settings.endpoint)) {
+    TW.settings.endpoint = DEF.endpoint; // migrate only legacy or invalid endpoints
+  }
   TW.DEFAULTS = DEF;
   TW.saveSettings = () => store.set('tw_settings', JSON.stringify(TW.settings));
   
@@ -300,25 +302,48 @@
   TW.DISCLAIMER = 'Synthetic-index digits are random. Signals only describe recent frequency — they are not predictions and do not guarantee profit. Trading can lose all of your stake.';
   TW.renderCircles = function (el, digits, opt) {
     opt = opt || {};
-    const total = digits.length, cnt = Array(10).fill(0); digits.forEach(d => cnt[d]++);
+    const total = digits.length, cnt = Array(10).fill(0), lastSeen = Array(10).fill(-1);
+    digits.forEach((d, idx) => { cnt[d]++; lastSeen[d] = idx; });
     const order = [...Array(10).keys()].sort((a, b) => cnt[b] - cnt[a] || a - b), rank = {};
-    if (total >= 30) { order.slice(0, 3).forEach((d, i) => rank[d] = ['r1', 'r2', 'r3'][i]); order.slice(-3).reverse().forEach((d, i) => { if (!rank[d]) rank[d] = ['l1', 'l2', 'l3'][i]; }); }
-    const LB = { r1: '1st', r2: '2nd', r3: '3rd', l1: 'L1', l2: 'L2', l3: 'L3' }, se = Math.sqrt(0.09 / (total || 1));
+    if (total >= 10) {
+      order.slice(0, 3).forEach((d, i) => { rank[d] = ['r1', 'r2', 'r3'][i]; });
+      order.slice(-3).reverse().forEach((d, i) => { if (!rank[d]) rank[d] = ['l1', 'l2', 'l3'][i]; });
+    }
+    const LB = { r1: '1ST ▲', r2: '2ND ▲', r3: '3RD ▲', l1: '1ST ▼', l2: '2ND ▼', l3: '3RD ▼' }, se = Math.sqrt(0.09 / (total || 1));
+    el._onPick = typeof opt.onPick === 'function' ? opt.onPick : null;
     if (!el._ui) { // build once, then only update: no flicker, and the cursor can glide
       el.textContent = ''; const cs = [];
-      for (let d = 0; d < 10; d++) { const c = document.createElement('div'), n = document.createElement('div'), p = document.createElement('div'), h = document.createElement('div'), r = document.createElement('div');
-        c.className = 'circle'; n.className = 'num'; p.className = 'pct'; h.className = 'hits'; r.className = 'rk'; n.textContent = d; c.append(n, p, h, r); el.appendChild(c); cs.push({ c, p, h, r }); }
-      const lg = document.createElement('div'), cur = document.createElement('div'); lg.className = 'lgd'; cur.className = 'dcur'; cur.style.transition = 'none'; el.append(lg, cur);
-      el._ui = { cs, lg, cur, last: null, first: true };
+      for (let d = 0; d < 10; d++) {
+        const c = document.createElement('div'), n = document.createElement('div'), p = document.createElement('div'), h = document.createElement('div'), g = document.createElement('div'), r = document.createElement('div');
+        c.className = 'circle'; n.className = 'num'; p.className = 'pct'; h.className = 'hits'; g.className = 'gap'; r.className = 'rk';
+        n.textContent = d; c.append(n, p, h, g, r);
+        c.onclick = () => { if (el._onPick) el._onPick(d); };
+        c.onkeydown = e => { if (el._onPick && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); el._onPick(d); } };
+        el.appendChild(c); cs.push({ c, p, h, g, r });
+      }
+      const lg = document.createElement('div'), cur = document.createElement('div');
+      lg.className = 'lgd';
+      lg.innerHTML = `<div class="lgd-row"><div class="lgd-grp"><span style="color:#00ffa3;font-weight:900;">Most Appearing:</span><span class="lgd-sw"><span class="lgd-dot" style="background:linear-gradient(135deg,#00ffa3,#059669)"></span>1st</span><span class="lgd-sw"><span class="lgd-dot" style="background:linear-gradient(135deg,#00d4ff,#0f766e)"></span>2nd</span><span class="lgd-sw"><span class="lgd-dot" style="background:linear-gradient(135deg,#3b82f6,#0e7490)"></span>3rd</span></div><div class="lgd-grp"><span style="color:#ff3b69;font-weight:900;">Least Appearing:</span><span class="lgd-sw"><span class="lgd-dot" style="background:linear-gradient(135deg,#ff3b69,#9f1239)"></span>1st</span><span class="lgd-sw"><span class="lgd-dot" style="background:linear-gradient(135deg,#ff7a3d,#c2410c)"></span>2nd</span><span class="lgd-sw"><span class="lgd-dot" style="background:linear-gradient(135deg,#ffd600,#b45309)"></span>3rd</span></div><span class="lgd-sw"><span class="lgd-dot" style="background:linear-gradient(135deg,#2a334b,#181f31)"></span>Mid</span></div><div class="lgd-note" style="font-size:10.5px;color:#7d8aa5;"></div>`;
+      cur.className = 'dcur'; cur.style.transition = 'none'; el.append(lg, cur);
+      el._ui = { cs, lg, note: lg.querySelector('.lgd-note'), cur, last: null, first: true };
       if (window.ResizeObserver) new ResizeObserver(() => { if (el._ui.last != null) place(el, true); }).observe(el);
     }
     const U = el._ui;
     for (let d = 0; d < 10; d++) {
       const rk = rank[d] || '', sig = total >= 100 && Math.abs(cnt[d] / total - 0.1) / se >= 2, st = opt.state ? opt.state(d) : '', tag = opt.tag ? opt.tag(d) : '', o = U.cs[d];
-      o.c.className = 'circle rk-' + (rk || 'n') + (rk && !sig ? ' ns' : '') + (st ? ' ' + st : ''); if (tag) o.c.setAttribute('data-tag', tag); else o.c.removeAttribute('data-tag');
-      o.p.textContent = (total ? (cnt[d] / total * 100).toFixed(1) : '0.0') + '%'; o.h.textContent = cnt[d] + ' hits'; o.r.textContent = LB[rk] || ''; o.r.style.display = rk ? '' : 'none';
+      const pickCls = el._onPick ? ' pickable' : '';
+      o.c.className = 'circle rk-' + (rk || 'n') + (rk && !sig ? ' ns' : '') + (st ? ' ' + st : '') + pickCls;
+      if (el._onPick) { o.c.setAttribute('role', 'button'); o.c.tabIndex = 0; }
+      else { o.c.removeAttribute('role'); o.c.removeAttribute('tabindex'); }
+      if (tag) o.c.setAttribute('data-tag', tag); else o.c.removeAttribute('data-tag');
+      o.p.textContent = (total ? (cnt[d] / total * 100).toFixed(1) : '0.0') + '%';
+      o.h.textContent = cnt[d] + ' hits';
+      const gap = lastSeen[d] >= 0 ? (total - 1 - lastSeen[d]) : -1;
+      o.g.textContent = gap === 0 ? 'NOW' : gap > 0 ? gap + 't ago' : '--';
+      o.g.className = 'gap' + (gap === 0 ? ' now' : '');
+      o.r.textContent = LB[rk] || ''; o.r.style.display = rk ? '' : 'none';
     }
-    U.lg.textContent = 'Green = most frequent (1st, 2nd, 3rd). Red, orange, amber = least frequent (L1, L2, L3). Muted = within normal random variation. Based on ' + total + ' ticks. Frequency describes the past; it does not predict the next digit.';
+    if (U.note) U.note.textContent = 'Based on ' + total + ' ticks (' + (el._onPick ? 'tap any circle to set barrier · ' : '') + 'NOW/ago shows ticks since last hit). Frequency describes the past; it does not predict the next digit.';
     if (total) { U.last = digits[total - 1]; place(el, U.first); U.first = false; }
   };
   function place(el, instant) { // move the cursor ring to the latest digit's circle & pulse light
@@ -359,10 +384,12 @@
     return new Promise(res => {
       const ov = document.createElement('div'); ov.className = 'ov';
       const m = document.createElement('div'); m.className = 'modal'; m.setAttribute('role', 'dialog');
-      m.innerHTML = `<h3>${o.title || ''}</h3>${o.html || ''}<div class="row"></div>`;
+      const contentHtml = o.html != null ? o.html : (o.body || '');
+      const btns = o.buttons !== undefined ? o.buttons : [{ label: o.okText || 'OK', value: true }];
+      m.innerHTML = `<h3>${o.title || ''}</h3>${contentHtml}<div class="row"></div>`;
       const close = v => { ov.remove(); res(v); };
       const row = $('.row', m);
-      (o.buttons === undefined ? [{ label: 'OK', value: true }] : o.buttons).forEach(b => {
+      btns.forEach(b => {
         const x = document.createElement('button'); x.className = 'btn ' + (b.cls || ''); x.textContent = b.label; x.onclick = () => close(b.value); row.appendChild(x);
       });
       ov.addEventListener('click', e => { if (e.target === ov) close(null); });
@@ -372,7 +399,8 @@
   };
 
   TW.account = { authed: false, loginid: '', virtual: false, balance: 0, currency: 'USD', name: '' };
-  TW.paper = { balance: +store.get('tw_paper') || TW.settings.paperStart };
+  const savedPaperBal = store.get('tw_paper');
+  TW.paper = { balance: (savedPaperBal !== null && savedPaperBal !== '' && isFinite(+savedPaperBal)) ? +savedPaperBal : TW.settings.paperStart };
   const savePaper = () => store.set('tw_paper', String(TW.paper.balance));
   TW.resetPaper = () => { TW.paper.balance = +TW.settings.paperStart || 10000; savePaper(); emit('account'); };
   TW.session = { trades: 0, wins: 0, pnl: 0 };
@@ -384,13 +412,20 @@
   const getToken = () => store.sget('tw_token') || store.get('tw_token_saved') || '';
 
   let tsock = null, rid = 1, wantAuth = false;
-  const pend = {}, watch = {};
+  const pend = {}, watch = {}, sendQ = [];
+  function flushSendQ() {
+    while (sendQ.length && tsock && tsock.ws && tsock.ws.readyState === 1) {
+      const fn = sendQ.shift();
+      fn && fn();
+    }
+  }
   function tconnect() {
     if (tsock) return;
     tsock = new Socket({
       onOpen: () => {
         if (store.sget('tw_ws_url')) { tsock && tsock.send({ balance: 1, subscribe: 1 }); } else if (wantAuth && getToken()) authorize(getToken()).catch(() => {});
         Object.keys(watch).forEach(id => tsock.send({ proposal_open_contract: 1, contract_id: +id, subscribe: 1 }));
+        flushSendQ();
       },
       onMessage: onT
     });
@@ -401,8 +436,10 @@
       const id = rid++;
       const timer = setTimeout(() => { delete pend[id]; rej(new Error('Request timed out — check your connection.')); }, ms || 15000);
       pend[id] = { res: v => { clearTimeout(timer); res(v); }, rej: e => { clearTimeout(timer); rej(e); } };
-      const go = () => { if (!pend[id]) return; if (!tsock.send(Object.assign({}, obj, { req_id: id }))) setTimeout(go, 250); };
-      go();
+      const payload = Object.assign({}, obj, { req_id: id });
+      if (!tsock.send(payload)) {
+        sendQ.push(() => { if (pend[id] && !tsock.send(payload)) setTimeout(() => { if (pend[id]) tsock.send(payload); }, 60); });
+      }
     });
   }
   TW.req = req;
@@ -570,12 +607,14 @@
     t.profit = +profit.toFixed(2); t.status = t.profit > 0 ? 'won' : 'lost';
     TW.session.trades++; if (t.profit > 0) TW.session.wins++; TW.session.pnl = +(TW.session.pnl + t.profit).toFixed(2); TW.saveSession();
     if (t.mode === 'paper') { TW.paper.balance = +(TW.paper.balance + t.profit).toFixed(2); savePaper(); emit('account'); }
-    if (t.profit > 0) {
-      TW.fx.win();
-      TW.toast(`🎯 WON +${TW.money(t.profit)} (${t.label || t.type})`, 'ok', 3500);
-    } else if (t.profit < 0) {
-      TW.fx.loss();
-      TW.toast(`⚠️ LOST -${TW.money(t.stake)} · Adaptive Shield Active`, 'err', 3500);
+    if (!t.silent) {
+      if (t.profit > 0) {
+        TW.fx.win();
+        TW.toast(`🎯 WON +${TW.money(t.profit)} (${t.label || t.type})`, 'ok', 3500);
+      } else if (t.profit < 0) {
+        TW.fx.loss();
+        TW.toast(`⚠️ LOST -${TW.money(t.stake)} (${t.label || t.type})`, 'err', 3500);
+      }
     }
     // Target profit protection check
     if (TW.settings.targetProfit > 0 && TW.session.pnl >= TW.settings.targetProfit) {
@@ -590,8 +629,10 @@
     TW.fx.alert();
     while (paperOpen.length) {
       const t = paperOpen.pop();
+      if (t._watchdog) { clearTimeout(t._watchdog); t._watchdog = null; }
       t.status = 'lost';
       t.profit = 0;
+      t._done && t._done(t);
     }
     emit('kill');
     TW.toast('🚨 EMERGENCY KILL SWITCH: All active bots & trades stopped.', 'err', 5000);
@@ -607,14 +648,22 @@
   }
 
   const paperOpen = [], paperFeeds = {};
-  TW.onGlobalTick = (sym, tk) => paperTick(sym, tk);
 
   function paperEnsureFeed(sym) {
     if (paperFeeds[sym]) return;
-    paperFeeds[sym] = TW.tickFeed(sym, { primary: false, count: 2, max: 10, onTick: (st, tk) => paperTick(sym, tk) });
+    if (TW.lastFeed && TW.lastFeed.symbol === sym && TW.lastFeed.sock && !TW.lastFeed.sock.closed) return;
+    paperFeeds[sym] = TW.tickFeed(sym, { primary: false, count: 2, max: 10 });
   }
   function paperCleanup(sym) {
-    // Keep feeds warm and active for zero-latency execution across consecutive trades
+    // Keep feeds warm only if needed; idle paper feeds auto-close after 30s of no open paper trades
+    if (paperFeeds[sym] && !paperOpen.some(t => t.symbol === sym && t.status === 'open')) {
+      setTimeout(() => {
+        if (paperFeeds[sym] && !paperOpen.some(t => t.symbol === sym && t.status === 'open')) {
+          try { paperFeeds[sym].close(); } catch (e) {}
+          delete paperFeeds[sym];
+        }
+      }, 30000);
+    }
   }
 
   function resolvePaperTrade(t, exitPrice, exitDigit) {
@@ -644,7 +693,10 @@
   function paperTick(sym, tk) {
     const list = paperOpen.filter(t => t.symbol === sym && t.status === 'open');
     if (!list.length) return;
+    const tickSig = `${tk.epoch || ''}:${tk.price}`;
     list.forEach(t => {
+      if (t._lastTickSig === tickSig) return; // deduplicate identical ticks across multiple open sockets
+      t._lastTickSig = tickSig;
       // If entry was not populated at trade creation time, establish it on tick 0
       if (t.entry == null) {
         t.entry = tk.price;
@@ -673,13 +725,14 @@
     if (type === 'DIGITOVER') return +(stake / (Math.max(1, 9 - b) / 10) * 0.95).toFixed(2);
     if (type === 'DIGITUNDER') return +(stake / (Math.max(1, b) / 10) * 0.95).toFixed(2);
     if (type === 'DIGITMATCH') return +(stake * 9.5).toFixed(2);
-    if (type === 'DIGITDIFF') return +(stake * 1.05).toFixed(2);
+    if (type === 'DIGITDIFF') return +(stake * 1.09).toFixed(2);
     return +(stake * 1.95).toFixed(2);
   }
+  TW.estimatePayout = estimatePayout;
 
   TW.trade = async function (p, o) {
     o = o || {};
-    TW.fx.click();
+    if (!o.silent) TW.fx.click();
     const s = TW.settings, mode = TW.mode(), amount = +(+p.amount).toFixed(2);
     if (!(amount >= 0.35)) throw err('Minimum stake is 0.35.');
     if (amount > s.maxStake) throw err(`Stake ${amount} is above your max-stake limit (${s.maxStake}). Raise it in Settings if you really want this.`);
@@ -703,7 +756,8 @@
       if (params.barrier != null && params.barrier !== '') par.barrier = String(params.barrier);
       // Direct buy request without extra proposal roundtrip for instant execution speed
       const r = await req({ buy: 1, price: amount, parameters: par }, 20000);
-      const b = r.buy, t = newTrade(p, 'live', { id: b.contract_id, payout: b.payout, stake: b.buy_price, longcode: b.longcode });
+      if (!r || !r.buy) throw err((r && r.error && r.error.message) || 'Deriv rejected or failed to confirm contract.');
+      const b = r.buy, t = newTrade(p, 'live', { id: b.contract_id, payout: b.payout, stake: b.buy_price, longcode: b.longcode, silent: !!o.silent });
       watch[b.contract_id] = { trade: t };
       tsock.send({ proposal_open_contract: 1, contract_id: b.contract_id, subscribe: 1 });
       emit('trade', t); return t;
@@ -723,7 +777,8 @@
       entry: curPrice,
       entryDigit: curDigit,
       entryEpoch: Math.floor(Date.now() / 1000),
-      longcode: p.label || p.contract_type
+      longcode: p.label || p.contract_type,
+      silent: !!o.silent
     });
 
     paperOpen.push(t);
@@ -756,9 +811,12 @@
       const s = TW.session, wr = s.trades ? Math.round(s.wins / s.trades * 100) + '%' : '—';
       el.innerHTML = `<div class="h">SESSION · ${TW.mode() === 'live' ? (TW.account.virtual ? 'DEMO ACCOUNT' : 'REAL ACCOUNT') : 'PAPER (GHOST) TRADING'}</div>
       <div class="stats"><div><b>${s.trades}</b>Trades</div><div><b>${wr}</b>Win rate</div><div><b style="color:${s.pnl >= 0 ? 'var(--green)' : 'var(--red)'}">${TW.money(s.pnl)}</b>P/L</div></div>
-      <button class="btn ghost" data-ai="review" style="margin-top:8px;padding:7px 10px">✦ Ask AI to review my session</button><div class="tl">${TW.trades.length ? TW.trades.slice(0, 12).map(t => `<div class="row ${t.status}"><span>${TW.esc(t.bot ? t.bot + ' · ' : '')}${TW.esc(t.label)}${t.barrier != null && t.barrier !== '' && !/\\d$/.test(t.label) ? ' ' + t.barrier : ''} · ${TW.money(t.stake)}</span><span class="p ${t.profit > 0 ? 'w' : t.profit < 0 ? 'l' : ''}">${t.status === 'open' ? 'open' + (t.mode === 'paper' && t.unit === 't' ? ` ${t.count || 0}/${t.duration}` : '…') : (t.profit > 0 ? '+' : '') + TW.money(t.profit)}</span></div>`).join('') : '<div class="sub">No trades yet this session.</div>'}</div>`;
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button class="btn ghost" data-ai="review" style="padding:7px 10px">✦ Ask AI to review</button><button class="btn ghost" data-clr="1" style="padding:7px 10px">Reset session</button></div><div class="tl">${TW.trades.length ? TW.trades.slice(0, 12).map(t => `<div class="row ${t.status}"><span>${TW.esc(t.bot ? t.bot + ' · ' : '')}${TW.esc(t.label)}${t.barrier != null && t.barrier !== '' && !/\d$/.test(t.label) ? ' ' + t.barrier : ''} · ${TW.money(t.stake)}</span><span class="p ${t.profit > 0 ? 'w' : t.profit < 0 ? 'l' : ''}">${t.status === 'open' ? 'open' + (t.mode === 'paper' && t.unit === 't' ? ` ${t.count || 0}/${t.duration}` : '…') : (t.profit > 0 ? '+' : '') + TW.money(t.profit)}</span></div>`).join('') : '<div class="sub">No trades yet this session.</div>'}</div>`;
     };
-    el.addEventListener('click', e => { if (e.target.closest('[data-ai]') && TW.ai) TW.ai.ask('Review my session so far and tell me what stands out about my risk.'); });
+    el.addEventListener('click', e => {
+      if (e.target.closest('[data-ai]') && TW.ai) TW.ai.ask('Review my session so far and tell me what stands out about my risk.');
+      if (e.target.closest('[data-clr]')) { TW.trades.length = 0; TW.resetSession(); TW.toast('Session stats & log reset.', 'ok', 2500); }
+    });
     TW.on('trade', draw); TW.on('account', draw); draw();
   };
 
@@ -766,14 +824,17 @@
   // LIVE TRADE PROGRESS HUD (Real-time visual tick progression & beginner feedback)
   // =========================================================================
   function renderTradeHud(t) {
-    if (!t) return;
+    if (!t || t.silent) return;
     let hud = document.getElementById('twTradeHud');
     if (!hud) {
       hud = document.createElement('div');
       hud.id = 'twTradeHud';
-      hud.style.cssText = 'position:fixed;bottom:20px;right:20px;z-index:99999;max-width:350px;width:calc(100vw - 40px);background:linear-gradient(135deg,rgba(11,16,27,0.98),rgba(17,24,39,0.98));border:1.5px solid #00ffa3;border-radius:14px;padding:14px 16px;box-shadow:0 12px 36px rgba(0,0,0,0.8),0 0 24px rgba(0,255,163,0.25);font-family:system-ui,-apple-system,sans-serif;color:#fff;transition:all 0.25s ease;';
+      hud.style.cssText = 'position:fixed;bottom:68px;right:14px;z-index:99999;max-width:340px;width:calc(100vw - 28px);background:linear-gradient(135deg,rgba(11,16,27,0.98),rgba(17,24,39,0.98));border:1.5px solid #00ffa3;border-radius:14px;padding:14px 16px;box-shadow:0 12px 36px rgba(0,0,0,0.8),0 0 24px rgba(0,255,163,0.25);font-family:system-ui,-apple-system,sans-serif;color:#fff;transition:opacity 0.25s ease;';
       document.body.appendChild(hud);
     }
+    if (hud._hideTimer) { clearTimeout(hud._hideTimer); hud._hideTimer = null; }
+    if (hud._fadeTimer) { clearTimeout(hud._fadeTimer); hud._fadeTimer = null; }
+
     const isOpen = t.status === 'open';
     const isWon = t.status === 'won';
     const dur = t.duration || 1;
@@ -794,12 +855,12 @@
     let tickTrack = '';
     if (t.unit === 't') {
       const dots = [];
-      for (let i = 1; i <= dur; i++) {
+      for (let i = 1; i <= Math.min(10, dur); i++) {
         const active = i <= count;
         const current = i === count;
         dots.push(`<span style="width:10px;height:10px;border-radius:50%;background:${active ? (isOpen ? '#00ffa3' : (isWon ? '#00ffa3' : '#ff3b69')) : 'rgba(255,255,255,0.15)'};display:inline-block;${current ? 'box-shadow:0 0 8px #00ffa3;' : ''}"></span>`);
       }
-      tickTrack = `<div style="display:flex;align-items:center;gap:6px;margin:8px 0;">${dots.join('')} <span style="font-size:11px;color:#9fb0cc;margin-left:4px;">Tick ${Math.min(count, dur)} of ${dur}</span></div>`;
+      tickTrack = `<div style="display:flex;align-items:center;gap:6px;margin:8px 0;flex-wrap:wrap;">${dots.join('')} <span style="font-size:11px;color:#9fb0cc;margin-left:4px;">Tick ${Math.min(count, dur)} of ${dur}</span></div>`;
     }
 
     if (isOpen) {
@@ -829,21 +890,24 @@
       hud.innerHTML = `
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <b style="font-size:12px;color:${col};">${isWon ? '🎯 CONTRACT WON' : '⚠️ CONTRACT LOST'}</b>
-          <b style="font-size:13px;color:${col};">${isWon ? '+' : ''}${TW.money(t.profit)}</b>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <b style="font-size:13px;color:${col};">${isWon ? '+' : ''}${TW.money(t.profit)}</b>
+            <button type="button" onclick="this.closest('#twTradeHud')?.remove()" aria-label="Dismiss" style="background:none;border:0;color:#8e9ab3;font-size:15px;line-height:1;padding:0;cursor:pointer;">×</button>
+          </div>
         </div>
         <div style="font-size:13px;font-weight:800;color:#fff;margin-top:4px;">
-          ${TW.esc(t.label || t.type)} (${t.symbol})
+          ${TW.esc(t.label || t.type)} (${TW.esc(t.symbol)})
         </div>
         <div style="font-size:11px;color:#cbd5e1;margin-top:6px;background:rgba(0,0,0,0.4);padding:6px 10px;border-radius:6px;">
           Exit Digit: <b style="color:${col};">${t.exitDigit != null ? t.exitDigit : '--'}</b> · ${condDesc}
         </div>
       `;
-      setTimeout(() => {
+      hud._hideTimer = setTimeout(() => {
         if (hud && hud.parentNode) {
           hud.style.opacity = '0';
-          setTimeout(() => hud.remove(), 400);
+          hud._fadeTimer = setTimeout(() => hud.parentNode && hud.remove(), 400);
         }
-      }, 4500);
+      }, 4200);
     }
   }
   TW.on('trade', renderTradeHud);
@@ -920,6 +984,11 @@
     TW.mountAI && TW.mountAI();
     // Pre-warm trading socket for zero-latency execution
     setTimeout(tconnect, 100);
+    const syncTopH = () => { if (el) document.documentElement.style.setProperty('--tw-top-h', el.offsetHeight + 'px'); };
+    syncTopH();
+    setTimeout(syncTopH, 120);
+    if (window.ResizeObserver) new ResizeObserver(syncTopH).observe(el);
+    window.addEventListener('resize', syncTopH);
     return out;
   };
 
@@ -1006,5 +1075,23 @@
       setIndicators(o) { IND = Object.assign({}, o); draw(); }, message(m) { msg = m; draw(); },
       clear() { data = []; draw(); }, setPip(p) { pip = p; }, get length() { return data.length; }
     };
+  };
+
+  TW.aiRequest = async function (endpoint, payload, timeoutMs) {
+    const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const t = ctl ? setTimeout(() => ctl.abort(), timeoutMs || 18000) : null;
+    try {
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload || {}),
+        signal: ctl ? ctl.signal : undefined
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json.error || `HTTP ${res.status}`);
+      return json;
+    } finally {
+      if (t) clearTimeout(t);
+    }
   };
 })();

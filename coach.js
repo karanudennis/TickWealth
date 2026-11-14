@@ -19,10 +19,28 @@
   box.append(log, qs, form); document.body.append(btn, box);
   const hist = [];
   const add = (cls, t) => { const m = document.createElement('div'); m.className = 'tc-m ' + cls; m.textContent = t; log.appendChild(m); log.scrollTop = log.scrollHeight; };
-  function ctx() { const f = TW.lastFeed, o = { page: location.pathname.split('/').pop() || 'index.html', mode: TW.mode ? TW.mode() : 'paper' };
-    if (f && f.digits && f.digits.length) { const c = Array(10).fill(0); f.digits.forEach(d => c[d]++); o.market = f.symbol; o.ticks = f.digits.length; o.digitSharesPct = c.map(v => +(v / f.digits.length * 100).toFixed(1)); o.lastDigit = f.digits[f.digits.length - 1]; } return o; }
+  function ctx() {
+    const f = TW.lastFeed, l = TW.ledger ? TW.ledger() : [];
+    const bal = TW.mode && TW.mode() === 'live' ? +(TW.account && TW.account.balance || 0) : +(TW.paper && TW.paper.balance || 1000);
+    const pnl = +l.reduce((s, t) => s + (+t.profit || 0), 0).toFixed(2);
+    const o = { page: location.pathname.split('/').pop() || 'index.html', mode: TW.mode ? TW.mode() : 'paper', balance: bal, pnl, trades: l.length };
+    if (f && f.digits && f.digits.length) {
+      const c = Array(10).fill(0); f.digits.forEach(d => c[d]++);
+      o.market = f.symbol; o.ticks = f.digits.length;
+      o.digitSharesPct = c.map(v => +(v / f.digits.length * 100).toFixed(1));
+      o.lastDigit = f.digits[f.digits.length - 1];
+      if (window.TWS && TWS.regimeFingerprint) o.regime = TWS.regimeFingerprint(f.prices, f.digits);
+    }
+    return o;
+  }
   function local(q) {
     q = q.toLowerCase(); const c = ctx(), has = (...w) => w.some(x => q.includes(x)), tail = '\n\nThese numbers describe the past. They do not predict the next tick.';
+    if (has('audit', 'session', 'drawdown', 'ledger')) {
+      const l = TW.ledger ? TW.ledger() : [];
+      const wins = l.filter(t => t.profit > 0).length;
+      const wr = l.length ? ((wins / l.length) * 100).toFixed(1) : '0.0';
+      return `Session Audit (${c.mode.toUpperCase()}): ${l.length} trade(s), ${wr}% win rate, Net ${c.pnl >= 0 ? '+' : ''}$${c.pnl.toFixed(2)}, Balance $${c.balance.toFixed(2)}. Keep single stake ≤1.5% of balance and stop when your daily loss limit hits.`;
+    }
     if (has('predict', 'next tick', 'will it', 'guarantee', 'sure win', 'profit')) return 'No tool can predict the next tick on Deriv synthetic indices. Each tick is random and independent, and payouts include a margin, so trading is expected to lose money over time. Use paper mode, keep stakes small and set a stop-loss.';
     if (has('martingale', 'double')) return 'Martingale multiplies the stake after each loss. A short losing run can use up the balance, and the Risk simulator in Insight Lab shows how often that happens. If you use it, cap the steps and test on paper first.';
     if (has('lose', 'loss', 'chasing', 'recover', 'stressed', 'gambl')) return 'Losses are part of this, and chasing them makes things worse. This is a good moment to stop for today and keep your daily loss cap. If trading is affecting your money or mood, talk to someone you trust. Kenya Red Cross counselling (1199) is free if you need to talk.';
@@ -30,15 +48,40 @@
     if (has('even', 'odd')) return 'Even/Odd wins when the last digit is even (0,2,4,6,8) or odd (1,3,5,7,9). The true chance is 50% after any streak, because digits have no memory.' + tail;
     if (has('match', 'differ')) return 'Matches wins if the last digit equals your digit (10% chance, big payout). Differs wins if it does not (90% chance, small payout, so one loss erases about 10 wins).' + tail;
     if (has('rise', 'fall', 'momentum', 'chart', 'rsi', 'macd', 'average', 'bollinger')) return 'Rise/Fall wins if the exit price is above (Rise) or below (Fall) the entry. Indicators such as MA, RSI and MACD summarise past prices. On a random walk they do not change the 50/50 chance of the next move.' + tail;
-    if (c.ticks) { const s = c.digitSharesPct, hot = s.indexOf(Math.max(...s)), cold = s.indexOf(Math.min(...s)); return 'On ' + c.market + ', over the last ' + c.ticks + ' ticks the most frequent digit is ' + hot + ' (' + s[hot] + '%) and the rarest is ' + cold + ' (' + s[cold] + '%). The true chance of every digit is 10%, so gaps like this are normal random variation.' + tail; }
+    if (c.ticks) { const s = c.digitSharesPct, hot = s.indexOf(Math.max(...s)), cold = s.indexOf(Math.min(...s)); return `On ${c.market}, over the last ${c.ticks} ticks the most frequent digit is ${hot} (${s[hot]}%) and rarest is ${cold} (${s[cold]}%).${c.regime ? ' Regime: ' + c.regime.summary + '.' : ''}` + tail; }
     return 'Open a market first and I can explain its numbers. I can also explain contract types, risk, Martingale and what statistics can and cannot tell you.';
   }
-  async function answer(q) { const ep = (TW.settings && TW.settings.aiEndpoint) || (window.TW_CONFIG && window.TW_CONFIG.aiEndpoint) || '/api/ai/chat';
-    if (ep) { try { const r = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: hist.slice(-8), context: ctx() }) }); const j = await r.json(); if (r.ok && j.reply) return j.reply; } catch (e) { /* fall back */ } }
-    return local(q); }
+  async function answer(q) {
+    const ep = (TW.settings && TW.settings.aiEndpoint) || (window.TW_CONFIG && window.TW_CONFIG.aiEndpoint) || '/api/ai/chat';
+    const c = ctx();
+    if (/audit my session/i.test(q)) {
+      try {
+        const l = TW.ledger ? TW.ledger() : [];
+        const wins = l.filter(t => t.profit > 0).length;
+        const grossWin = l.filter(t => t.profit > 0).reduce((s, t) => s + t.profit, 0);
+        const grossLoss = Math.abs(l.filter(t => t.profit <= 0).reduce((s, t) => s + t.profit, 0));
+        let run = 0, peak = 0, maxDd = 0;
+        l.slice().reverse().forEach(t => { run += t.profit; if (run > peak) peak = run; const dd = peak - run; if (dd > maxDd) maxDd = dd; });
+        const r = await fetch('/api/ai/session-audit', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ trades: l.length, wins, pnl: c.pnl, balance: c.balance, grossWin, grossLoss, maxDrawdown: maxDd, peakPnl: peak, recent: l.slice(0, 10).map(t => (t.profit > 0 ? 'W' : 'L')) })
+        });
+        const j = await r.json();
+        if (r.ok && j.audit) return (j.source === 'gemini' ? '✦ Gemini AI Audit\n' : '⚡ Quant Engine Audit\n') + j.audit;
+      } catch (e) { /* fall back */ }
+    }
+    if (ep) {
+      try {
+        const r = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: hist.slice(-8), context: c }) });
+        const j = await r.json();
+        if (r.ok && j.reply) return (j.source === 'gemini' ? '✦ Gemini AI\n' : '') + j.reply;
+      } catch (e) { /* fall back */ }
+    }
+    return local(q);
+  }
   async function send(q) { q = (q || '').trim(); if (!q) return; add('tc-u', q); hist.push({ role: 'user', content: q }); inp.value = ''; const a = await answer(q); hist.push({ role: 'assistant', content: a }); add('tc-a', a); }
-  ['Explain these numbers', 'What is Under 7?', 'Why can nothing predict ticks?', 'Is Martingale safe?'].forEach(t => { const b = document.createElement('button'); b.textContent = t; b.onclick = () => send(t); qs.appendChild(b); });
-  const open = () => { document.dispatchEvent(new CustomEvent('tw-panel', { detail: 'coach' })); box.hidden = false; btn.setAttribute('aria-expanded', 'true'); if (!log.children.length) add('tc-a', 'Hi, I am the TickWealth coach. I explain the numbers on your screen, the contract types and the risks. I cannot predict ticks or place trades.'); inp.focus(); };
+  ['Audit my session', 'Explain these numbers', 'What is Under 7?', 'Is Martingale safe?'].forEach(t => { const b = document.createElement('button'); b.textContent = t; b.onclick = () => send(t); qs.appendChild(b); });
+  const open = () => { document.dispatchEvent(new CustomEvent('tw-panel', { detail: 'coach' })); box.hidden = false; btn.setAttribute('aria-expanded', 'true'); if (!log.children.length) add('tc-a', 'Hi, I am the TickWealth AI coach. I analyze live digit regimes, audit your session risk, and explain contract math without predicting ticks.'); inp.focus(); };
   btn.onclick = () => { if (box.hidden) open(); else { box.hidden = true; btn.setAttribute('aria-expanded', 'false'); } };
   go.onclick = () => send(inp.value); inp.onkeydown = e => { if (e.key === 'Enter') send(inp.value); };
   document.addEventListener('tw-panel', e => { if (e.detail !== 'coach') { box.hidden = true; btn.setAttribute('aria-expanded', 'false'); } });

@@ -41,37 +41,48 @@
   function render() {
     const out = $('#twaOut'); out.textContent = ''; $('#twaBw').style.display = ['OVER', 'UNDER', 'MATCH', 'DIFF'].includes(ct()) ? '' : 'none';
     if (!F || F.prices.length < 30) { out.appendChild(line('Waiting for ticks...')); return; }
-    const P = F.prices, D = F.digits, n = Math.min(200, P.length - 1), p = prob(), pay = num('#twaP') / 100, be = 1 / (1 + pay), ev = p * pay - (1 - p);
+    const P = F.prices, D = F.digits, n = Math.min(200, P.length - 1), p = prob(), pay = Math.max(0.01, num('#twaP') || 92) / 100, be = 1 / (1 + pay), ev = p * pay - (1 - p);
     let k = 0; for (let i = P.length - n; i < P.length; i++) if (cond(ct(), b(), P[i], P[i - 1], D[i])) k++;
     const o = k / n, [lo, hi] = wilson(k, n), z = (o - p) / Math.sqrt(p * (1 - p) / n);
     out.appendChild(line(`True chance of a win: ${(p * 100).toFixed(1)}%. Break-even needs: ${(be * 100).toFixed(1)}%.`));
     out.appendChild(line(`Expected result per 1 staked: ${ev >= 0 ? '+' : ''}${ev.toFixed(3)}${ev < 0 ? ' (a loss on average)' : ''}`));
     out.appendChild(line(`Last ${n} ticks: ${(o * 100).toFixed(1)}% matched (95% range ${(lo * 100).toFixed(0)} to ${(hi * 100).toFixed(0)}%).`));
     out.appendChild(line(Math.abs(z) < 2.5 ? 'Verdict: no measurable edge. Recent ticks are within normal random variation.' : 'Verdict: recent ticks are unusual, but ticks are independent, so this does not change the next result. Checking many contracts produces such deviations by chance.'));
-    let K = 0, W = 0, s = 0, d = Math.max(1, num('#twaD')), N = num('#twaN'); // how your rule would have done on the loaded history
+    let K = 0, W = 0, s = 0, d = Math.max(1, num('#twaD') || 5), N = Math.max(1, num('#twaN') || 3);
     for (let i = 1; i < P.length - d; i++) { s = cond(ct(), b(), P[i], P[i - 1], D[i]) ? s + 1 : 0; if (s === N) { K++; if (winV(ct(), b(), P[i], P[i + d], D[i + d])) W++; } }
     out.appendChild(line(K ? `Your rule on the last ${P.length} ticks: fired ${K} times, won ${(W / K * 100).toFixed(0)}% (break-even ${(be * 100).toFixed(0)}%)${K < 30 ? '. Too few to judge.' : '.'}` : `Your rule never fired in the last ${P.length} ticks.`));
   }
   function onTick(f, t) {
     const P = f.prices, i = P.length - 1; streak = cond(ct(), b(), P[i], P[i - 1], f.digits[i]) ? streak + 1 : 0;
-    if (track && --track.left <= 0) { const w = winV(track.c, track.b, track.p0, t.price, t.digit), pay = num('#twaP') / 100; tally.n++; if (w) tally.w++; tally.net += w ? pay : -1;
-      $('#twaTally').textContent = `Tracked paper trades: ${tally.n}, won ${tally.w}, net ${tally.net.toFixed(2)} units. Last: ${w ? 'win' : 'loss'}.`; track = null; }
-    if ($('#twaArm').checked && streak === num('#twaN') && !cd) fire();
+    if (track) {
+      if (--track.left <= 0) {
+        const w = winV(track.c, track.b, track.p0, t.price, t.digit), pay = Math.max(0.01, num('#twaP') || 92) / 100;
+        tally.n++; if (w) tally.w++; tally.net += w ? pay : -1;
+        $('#twaTally').textContent = `Tracked paper trades: ${tally.n}, won ${tally.w}, net ${tally.net.toFixed(2)} units. Last: ${w ? 'win' : 'loss'}.`;
+        track = null;
+      } else {
+        $('#twaTally').textContent = `Tracking ${track.c}${track.b != null && ['OVER','UNDER','MATCH','DIFF'].includes(track.c) ? ' ' + track.b : ''} — ${track.left} tick(s) remaining…`;
+      }
+    }
+    if ($('#twaArm').checked && streak === Math.max(1, num('#twaN') || 3) && !cd) fire();
     render();
   }
   function fire() {
-    const lbl = `${CT[ct()][0]}${['OVER', 'UNDER', 'MATCH', 'DIFF'].includes(ct()) ? ' ' + b() : ''} for ${num('#twaD')} tick(s)`, el = $('#twaCd'); cd = 10; el.style.display = 'block';
+    const d = Math.max(1, num('#twaD') || 5);
+    const lbl = `${CT[ct()][0]}${['OVER', 'UNDER', 'MATCH', 'DIFF'].includes(ct()) ? ' ' + b() : ''} for ${d} tick(s)`, el = $('#twaCd'); cd = 10; el.style.display = 'block';
     const tick = () => { el.textContent = cd > 0 ? `Your rule fired: ${lbl}. This prompt stays valid for ${cd}s. Chance of a win is still ${(prob() * 100).toFixed(1)}%.` : 'Prompt expired.'; if (cd-- <= 0) { clearInterval(cdT); cd = 0; setTimeout(() => el.style.display = 'none', 1500); } };
     clearInterval(cdT); tick(); cdT = setInterval(tick, 1000);
   }
   function start() {
+    const activeSym = TW.lastFeed && TW.lastFeed.symbol;
+    if (activeSym && TW.VOLS.some(v => v.id === activeSym && v.digits) && (!F || M.dataset.userPicked !== '1')) M.value = activeSym;
     if (F && F.symbol === M.value) return; if (F) F.close(); streak = 0;
     F = TW.tickFeed(M.value, { primary: false, count: 500, onHistory: render, onTick });
   }
-  ['change', 'input'].forEach(e => box.addEventListener(e, ev => { if (ev.target === M) start(); else if (ev.target.id !== 'twaArm') { streak = 0; render(); } }));
-  $('#twaTrack').onclick = () => { if (!F || !F.prices.length) return; track = { c: ct(), b: b(), p0: F.prices[F.prices.length - 1], left: Math.max(1, num('#twaD')) }; TW.toast && TW.toast('Tracking a paper trade for ' + track.left + ' tick(s)', 'ok', 3000); };
+  ['change', 'input'].forEach(e => box.addEventListener(e, ev => { if (ev.target === M) { M.dataset.userPicked = '1'; start(); } else if (ev.target.id !== 'twaArm') { streak = 0; render(); } }));
+  $('#twaTrack').onclick = () => { if (!F || !F.prices.length) return; track = { c: ct(), b: b(), p0: F.prices[F.prices.length - 1], left: Math.max(1, num('#twaD') || 5) }; $('#twaTally').textContent = `Tracking ${track.c} — ${track.left} tick(s) remaining…`; TW.toast && TW.toast('Tracking a paper trade for ' + track.left + ' tick(s)', 'ok', 3000); };
   $('#twaLive').onclick = () => {
-    const x = CT[ct()][1], hasB = ['OVER', 'UNDER', 'MATCH', 'DIFF'].includes(ct()), q = { proposal: 1, basis: 'stake', amount: 1, currency: TW.account.currency || 'USD', contract_type: x, duration: num('#twaD'), duration_unit: 't', [TW.symKey()]: M.value };
+    const x = CT[ct()][1], hasB = ['OVER', 'UNDER', 'MATCH', 'DIFF'].includes(ct()), q = { proposal: 1, basis: 'stake', amount: 1, currency: TW.account.currency || 'USD', contract_type: x, duration: Math.max(1, num('#twaD') || 5), duration_unit: 't', [TW.symKey()]: M.value };
     if (hasB) q.barrier = String(b());
     TW.req(q).then(r => { $('#twaP').value = ((r.proposal.payout / r.proposal.ask_price - 1) * 100).toFixed(1); render(); }).catch(e => TW.toast && TW.toast('Live payout unavailable: ' + e.message, 'err', 5000));
   };

@@ -24,7 +24,7 @@
 
 /* Pillar Room Styles */
 .room-header{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:14px 18px}
-.strat-list-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:14px}
+.strat-list-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(min(100%,300px),1fr));gap:14px}
 .item-card{background:linear-gradient(135deg,rgba(11,16,27,0.95),rgba(17,24,39,0.95));border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:16px;display:flex;flex-direction:column;justify-content:space-between;transition:transform 0.2s,border-color 0.2s}
 .item-card:hover{transform:translateY(-2px);border-color:rgba(0,178,255,0.5)}
 .item-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:rgba(0,0,0,0.35);padding:8px;border-radius:8px;margin:10px 0;text-align:center}
@@ -36,6 +36,7 @@
 .detail-nav-bar{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.08);padding-bottom:12px}
 .detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin:16px 0}
 @media(max-width:768px){.detail-grid{grid-template-columns:1fr}}
+@media(max-width:560px){.sw{padding:12px 10px 32px}.detail-box{padding:14px}.portal-card{padding:16px}}
 .playbook-card{background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px}
 </style>
 </head>
@@ -316,19 +317,56 @@ TW.ready(function(){
     window.scrollTo({top:0,behavior:'smooth'});
   };
 
-  window.runStratBacktest = function(pillarKey, stratId){
+  async function fetchStratTicks(sym, count) {
+    const existing = TW.tickPool[sym];
+    if (existing && Array.isArray(existing.prices) && existing.prices.length >= count) {
+      return { prices: existing.prices, digits: existing.digits };
+    }
+    return new Promise(resolve => {
+      let settled = false;
+      const pip = TW.volPip(sym) || 2;
+      const sock = new TW.Socket({
+        url: TW.tickUrl(),
+        onOpen: s => s.send({ ticks_history: sym, end: 'latest', count, style: 'ticks', req_id: 1 }),
+        onMessage: d => {
+          if (settled) return;
+          if (d.history && d.history.prices) {
+            settled = true; clearTimeout(timer); sock.close();
+            const prices = d.history.prices;
+            const p = d.pip_size || pip;
+            const digits = prices.map(x => TW.digitOf(x, p));
+            TW.tickPool[sym] = { pip: p, prices, digits, epochs: d.history.times || [], lastUpdated: Date.now() };
+            resolve({ prices, digits });
+          }
+        },
+        onError: () => { if (!settled) { settled = true; clearTimeout(timer); sock.close(); resolve(null); } }
+      });
+      const timer = setTimeout(() => { if (!settled) { settled = true; sock.close(); resolve(null); } }, 3500);
+    });
+  }
+
+  window.runStratBacktest = async function(pillarKey, stratId){
     const list = STRATEGIES[pillarKey] || [];
     const s = list.find(x => x.id === stratId);
     if(!s) return;
-    const sym = volSel.value;
+    const sym = s.symbol || volSel.value;
+    TW.toast(`Fetching 500 live ticks for ${TW.volName(sym)}…`, 'mut', 2000);
+    const live = await fetchStratTicks(sym, 500);
     const res = TWS.quickBacktest({
       symbol: sym,
       contract: s.contract,
       barrier: s.barrier != null ? s.barrier : s.digit,
-      rule: { kind: 'streak', cond: s.triggerCond || 'under', n: s.triggerN || 2 },
+      rule: {
+        kind: s.triggerCond ? 'streak' : 'every',
+        cond: s.triggerCond || 'under',
+        cb: s.triggerCb != null ? s.triggerCb : s.barrier,
+        n: s.triggerN || 1
+      },
       duration: s.dur || 1,
       ticksCount: 500,
-      stake: 1
+      stake: 1,
+      prices: live ? live.prices : undefined,
+      digits: live ? live.digits : undefined
     }) || {};
     const netPnL = Number(res.netPnL != null ? res.netPnL : (res.netPnl != null ? res.netPnl : 0));
     const winRate = Number(res.winRate != null ? res.winRate : 0);
@@ -337,39 +375,44 @@ TW.ready(function(){
     const maxLossStreak = Number(res.maxLossStreak != null ? res.maxLossStreak : (res.maxConsecLoss != null ? res.maxConsecLoss : 0));
     const wins = Number(res.wins != null ? res.wins : 0);
     const losses = Number(res.losses != null ? res.losses : 0);
-    const pnlClass = netPnL >= 0 ? 'text-emerald-400' : 'text-rose-400';
-    const winClass = winRate >= (s.winPct - 5) ? 'text-emerald-400' : winRate >= 50 ? 'text-amber-400' : 'text-rose-400';
+    const isLive = res.source === 'live_pool';
+    const pnlCol = netPnL >= 0 ? '#00ffa3' : '#ff3b69';
+    const winCol = winRate >= (s.winPct - 5) ? '#00ffa3' : winRate >= 50 ? '#ffd600' : '#ff3b69';
     TW.modal({
       title: `🧪 500-Tick Historical Simulation: ${s.name}`,
-      body: `<div class="space-y-4 text-xs font-mono">
-        <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <div class="p-3 rounded-lg bg-white/[0.03] border border-white/5">
-            <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Historical Ticks</div>
-            <div class="text-lg font-bold text-white mt-1">${totalTicks}</div>
-            <div class="text-[10px] text-zinc-400">Market: ${sym}</div>
+      html: `<div style="display:grid;gap:12px;font-size:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#8e9ab3;">
+          <span>Market: <b style="color:#fff;">${TW.volName(sym)}</b> (${sym})</span>
+          <span style="padding:2px 8px;border-radius:4px;font-weight:800;font-size:10px;background:${isLive?'rgba(0,255,163,0.12)':'rgba(255,214,0,0.12)'};color:${isLive?'#00ffa3':'#ffd600'};">${isLive?'● LIVE DERIV TICKS':'◐ SYNTHETIC FALLBACK'}</span>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+          <div style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+            <div style="font-size:10px;color:#8e9ab3;text-transform:uppercase;">Historical Ticks</div>
+            <div style="font-size:18px;font-weight:800;color:#fff;margin-top:2px;">${totalTicks}</div>
+            <div style="font-size:10.5px;color:#8e9ab3;">Contract: ${s.contract}</div>
           </div>
-          <div class="p-3 rounded-lg bg-white/[0.03] border border-white/5">
-            <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Triggers Fired</div>
-            <div class="text-lg font-bold text-white mt-1">${trades}</div>
-            <div class="text-[10px] text-zinc-400">Wins: ${wins} | Losses: ${losses}</div>
+          <div style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+            <div style="font-size:10px;color:#8e9ab3;text-transform:uppercase;">Triggers Fired</div>
+            <div style="font-size:18px;font-weight:800;color:#fff;margin-top:2px;">${trades}</div>
+            <div style="font-size:10.5px;color:#8e9ab3;">Wins: <b style="color:#00ffa3;">${wins}</b> | Losses: <b style="color:#ff3b69;">${losses}</b></div>
           </div>
-          <div class="p-3 rounded-lg bg-white/[0.03] border border-white/5">
-            <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Empirical Win Rate</div>
-            <div class="text-lg font-bold ${winClass} mt-1">${winRate.toFixed(1)}%</div>
-            <div class="text-[10px] text-zinc-400">Target: ${s.winPct}%</div>
+          <div style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+            <div style="font-size:10px;color:#8e9ab3;text-transform:uppercase;">Empirical Win Rate</div>
+            <div style="font-size:18px;font-weight:800;color:${winCol};margin-top:2px;">${winRate.toFixed(1)}%</div>
+            <div style="font-size:10.5px;color:#8e9ab3;">Baseline: ${s.winPct}%</div>
           </div>
-          <div class="p-3 rounded-lg bg-white/[0.03] border border-white/5">
-            <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Simulated PnL ($1 stake)</div>
-            <div class="text-lg font-bold ${pnlClass} mt-1">${netPnL >= 0 ? '+' : ''}$${netPnL.toFixed(2)}</div>
-            <div class="text-[10px] text-zinc-400">Max Drawdown Streak: ${maxLossStreak}</div>
+          <div style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+            <div style="font-size:10px;color:#8e9ab3;text-transform:uppercase;">Simulated PnL ($1 stake)</div>
+            <div style="font-size:18px;font-weight:800;color:${pnlCol};margin-top:2px;">${netPnL >= 0 ? '+' : ''}$${netPnL.toFixed(2)}</div>
+            <div style="font-size:10.5px;color:#8e9ab3;">Max Loss Streak: ${maxLossStreak}</div>
           </div>
         </div>
-        <div class="p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 leading-relaxed text-[11px]">
-          <strong>💡 Quant Analysis:</strong> Tested across ${totalTicks} historical ticks on ${sym}. ${netPnL >= 0 ? '✅ Positive expected value confirmed over historical sample.' : '⚠️ Downward drift detected in current regime. Consider pairing with AI Confidence ≥ 75% filter.'}
-          <div class="mt-2 text-zinc-400">Rule simulated: <i>${s.manualRule}</i></div>
+        <div style="padding:10px 12px;border-radius:8px;background:rgba(0,178,255,0.08);border:1px solid rgba(0,178,255,0.22);color:#cbd5e1;font-size:11.5px;line-height:1.5;">
+          <strong>Quant Analysis:</strong> Tested across ${totalTicks} ticks on ${sym}. ${netPnL >= 0 ? 'Positive sample variance over this window. Remember past ticks are independent — verify on Paper before live trading.' : 'Negative variance over this sample window. Adjust barrier or skip Martingale multipliers.'}
+          <div style="margin-top:6px;color:#9fb0cc;"><i>Rule: ${TW.esc(s.manualRule)}</i></div>
         </div>
       </div>`,
-      okText: 'Close Simulation'
+      buttons: [{ label: 'Close Simulation', value: true }]
     });
   };
 
@@ -423,9 +466,13 @@ TW.ready(function(){
       else if(state.subFilter === 'under') list = list.filter(s=>s.type === 'UNDER');
     }
 
+    let stratNotesMap={};
+    try{ stratNotesMap=JSON.parse(localStorage.getItem('tw_strat_notes')||'{}'); }catch(e){}
+
     grid.innerHTML = list.map(s => {
       const riskCol = s.risk==='Low'?'#00ffa3':s.risk==='Medium'?'#00b2ff':s.risk==='Medium-High'?'#ffd600':'#ff3b69';
       const typeCol = s.type==='OVER'?'#00ffa3':s.type==='UNDER'?'#00b2ff':s.type==='MATCHES'?'#ffd600':s.type==='DIFFERS'?'#06b6d4':s.type==='CALL'?'#00ffa3':'#ff3b69';
+      const hasNote = !!(stratNotesMap[s.id] && stratNotesMap[s.id].trim());
 
       let tradeUrl = '#';
       const targetSym = s.symbol || sym;
@@ -438,17 +485,21 @@ TW.ready(function(){
       } else {
         tradeUrl = `rise-fall.html?vol=${targetSym}&type=${s.type}&dur=${s.dur||5}`;
       }
-      const botUrl = `bots-library.html?symbol=${targetSym}&contract=${s.contract}${s.barrier!=null?'&barrier='+s.barrier:''}${s.digit!=null?'&barrier='+s.digit:''}&name=${encodeURIComponent(s.name)}&dur=${s.dur||1}&rule_cond=${s.triggerCond||'under'}&rule_n=${s.triggerN||2}&mart=${s.martMult>1?1:0}&mart_mult=${s.martMult||2}&mart_steps=${s.martSteps||3}&gate=80`;
+      const botGate = Math.max(20, Math.min(85, Math.round((s.winPct || 50) * 0.85)));
+      const botUrl = `bots-library.html?symbol=${targetSym}&contract=${s.contract}${s.barrier!=null?'&barrier='+s.barrier:''}${s.digit!=null?'&barrier='+s.digit:''}&name=${encodeURIComponent(s.name)}&dur=${s.dur||1}&rule_kind=${s.triggerCond?'streak':'every'}&rule_cond=${s.triggerCond||'under'}${s.triggerCb!=null?'&rule_cb='+s.triggerCb:''}&rule_n=${s.triggerN||2}&mart=${s.martMult>1?1:0}&mart_mult=${s.martMult||2}&mart_steps=${s.martSteps||3}&gate=${botGate}&shield=1`;
 
       return `
         <div class="item-card">
           <div>
-            <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:4px;flex-wrap:wrap;">
               <span style="font-size:10px;font-weight:900;padding:2px 7px;border-radius:4px;background:${typeCol};color:#04101c;">
                 ${s.type} ${s.barrier!=null?s.barrier:s.digit!=null?s.digit:''}
               </span>
-              <span style="font-size:10px;font-weight:800;color:${riskCol};background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;">
-                ${s.risk.toUpperCase()} RISK
+              <span style="display:flex;gap:4px;align-items:center;">
+                ${hasNote?'<span style="font-size:9.5px;font-weight:800;color:#ffd600;background:rgba(255,214,0,0.12);padding:2px 6px;border-radius:4px;">📝 Note Saved</span>':''}
+                <span style="font-size:10px;font-weight:800;color:${riskCol};background:rgba(255,255,255,0.06);padding:2px 6px;border-radius:4px;">
+                  ${s.risk.toUpperCase()} RISK
+                </span>
               </span>
             </div>
 
@@ -518,14 +569,16 @@ TW.ready(function(){
     } else {
       tradeUrl = `rise-fall.html?vol=${sym}&type=${s.type}&dur=${s.dur||5}`;
     }
-    const botUrl = `bots-library.html?symbol=${sym}&contract=${s.contract}${s.barrier!=null?'&barrier='+s.barrier:''}${s.digit!=null?'&barrier='+s.digit:''}&name=${encodeURIComponent(s.name)}&dur=${s.dur||1}&rule_cond=${s.triggerCond||'under'}&rule_n=${s.triggerN||2}&mart=${s.martMult>1?1:0}&mart_mult=${s.martMult||2}&mart_steps=${s.martSteps||3}&gate=80`;
+    const botGate = Math.max(20, Math.min(85, Math.round((s.winPct || 50) * 0.85)));
+    const targetSym = s.symbol || sym;
+    const botUrl = `bots-library.html?symbol=${targetSym}&contract=${s.contract}${s.barrier!=null?'&barrier='+s.barrier:''}${s.digit!=null?'&barrier='+s.digit:''}&name=${encodeURIComponent(s.name)}&dur=${s.dur||1}&rule_kind=${s.triggerCond?'streak':'every'}&rule_cond=${s.triggerCond||'under'}${s.triggerCb!=null?'&rule_cb='+s.triggerCb:''}&rule_n=${s.triggerN||2}&mart=${s.martMult>1?1:0}&mart_mult=${s.martMult||2}&mart_steps=${s.martSteps||3}&gate=${botGate}&shield=1`;
 
     container.innerHTML = `
       <!-- Top Navigation & Next/Previous Switchers -->
       <div class="detail-nav-bar">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
           <button type="button" class="btn ghost" onclick="openPillarRoom('${state.pillar}')" style="font-size:11.5px;padding:6px 12px;border-radius:6px;cursor:pointer;">
-            ← Return to ${(state.pillar==='overunder'?'Over / Under':state.pillar==='matchesdiffers'?'Matches / Differs':state.pillar==='evenodd'?'Even / Odd':'Rise / Fall')} Room
+            ← Return to ${(state.pillar==='overunder'?'Over / Under':state.pillar==='matchesdiffers'?'Matches / Differs':state.pillar==='evenodd'?'Even / Odd':state.pillar==='synthetics'?'Synthetics & Jump':'Rise / Fall')} Room
           </button>
           <button type="button" class="btn ghost" onclick="showHub()" style="font-size:11.5px;padding:6px 10px;border-radius:6px;cursor:pointer;">
             All Strategies Hub
@@ -648,6 +701,18 @@ ${s.realSample || 'Real execution sequence: Enter on validated signal, execute c
             <span>⚖️ <strong>Risk Management:</strong> Recommended 1% to 2% capital per trade</span>
           </div>
         </div>
+        <!-- Personal Strategy Notes & Edge Log -->
+        <div class="playbook-card" style="border-left:3px solid #a78bfa;grid-column:1/-1;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+            <h3 style="margin:0;font-size:14px;font-weight:900;color:#a78bfa;">📝 PERSONAL STRATEGY NOTES &amp; EDGE LOG</h3>
+            <span id="stratNoteStatus" style="font-size:11px;color:#00ffa3;">Saved locally per strategy</span>
+          </div>
+          <textarea id="stratNoteArea" rows="3" placeholder="Document backtest findings, optimal market sessions, or custom recovery tweaks for ${TW.esc(s.name)}…" style="width:100%;box-sizing:border-box;padding:10px 12px;border-radius:8px;border:1px solid rgba(255,255,255,0.14);background:rgba(0,0,0,0.4);color:#e2e8f0;font:inherit;font-size:12.5px;line-height:1.5;resize:vertical;"></textarea>
+          <div style="display:flex;gap:8px;align-items:center;margin-top:8px;">
+            <button type="button" id="btnSaveStratNote" class="btn" style="padding:7px 14px;font-size:11.5px;font-weight:800;background:#a78bfa;color:#04101c;border:0;border-radius:6px;cursor:pointer;">Save Note</button>
+            <button type="button" id="btnClearStratNote" class="btn ghost" style="padding:7px 12px;font-size:11.5px;border-radius:6px;cursor:pointer;">Clear</button>
+          </div>
+        </div>
       </div>
 
       <!-- Bottom Navigation Footer -->
@@ -661,6 +726,27 @@ ${s.realSample || 'Real execution sequence: Enter on validated signal, execute c
         </div>
       </div>
     `;
+
+    const noteArea = document.getElementById('stratNoteArea');
+    const noteSt = document.getElementById('stratNoteStatus');
+    const btnSaveN = document.getElementById('btnSaveStratNote');
+    const btnClrN = document.getElementById('btnClearStratNote');
+    const loadNotesMap = () => { try { return JSON.parse(localStorage.getItem('tw_strat_notes') || '{}'); } catch(e) { return {}; } };
+    const persistStratNote = (msg) => {
+      try {
+        const m = loadNotesMap();
+        if (noteArea.value.trim()) m[s.id] = noteArea.value;
+        else delete m[s.id];
+        localStorage.setItem('tw_strat_notes', JSON.stringify(m));
+        if (noteSt) noteSt.textContent = msg || ('Saved ' + new Date().toLocaleTimeString());
+      } catch(e) {}
+    };
+    if (noteArea) {
+      noteArea.value = loadNotesMap()[s.id] || '';
+      noteArea.addEventListener('input', () => persistStratNote('Auto-saved ' + new Date().toLocaleTimeString()));
+    }
+    if (btnSaveN) btnSaveN.onclick = () => { persistStratNote('Saved!'); TW.toast('Strategy note saved.', 'ok', 2000); };
+    if (btnClrN) btnClrN.onclick = () => { noteArea.value = ''; persistStratNote('Cleared'); TW.toast('Strategy note cleared.', 'mut', 2000); };
   }
 
   // Listen to hash changes for browser back/forward buttons

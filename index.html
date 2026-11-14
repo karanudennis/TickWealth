@@ -26,8 +26,9 @@
 @keyframes spin{to{--a:360deg}}
 .live>div{border-radius:16px;background:rgba(8,12,24,.92);padding:18px;backdrop-filter:blur(14px)}
 .lv-h{display:flex;justify-content:space-between;font-size:12px;color:#8e9ab3}
-#lpSpot{font:700 40px ui-monospace,Consolas,monospace;margin:6px 0}#lpSpot.up{color:#00ffa3}#lpSpot.dn{color:#ff3b69}
+#lpSpot{font:700 clamp(26px,7vw,40px) ui-monospace,Consolas,monospace;margin:6px 0}#lpSpot.up{color:#00ffa3}#lpSpot.dn{color:#ff3b69}
 .dg{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin-top:10px}
+@media(max-width:480px){.dg{grid-template-columns:repeat(5,1fr);gap:6px}.lp{padding:0 12px 44px}}
 .dg i{font-style:normal;text-align:center;padding:6px 0;border-radius:8px;border:1px solid rgba(255,255,255,.12);font:12px ui-monospace,monospace;transition:.8s}
 .dg i.h{background:rgba(0,255,163,.25);border-color:#00ffa3;box-shadow:0 0 14px #00ffa3;transition:none}
 .grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(240px,1fr))}
@@ -68,7 +69,7 @@ footer.lpf{text-align:center;color:#7d8aa5;font-size:12px;padding:30px 18px}
       <div>
         <div style="font-size:10.5px;font-weight:800;color:#00ffa3;letter-spacing:0.4px;">QUANTUM ALPHA RADAR · LIVE DERIV STREAM</div>
         <div id="lpAlphaTxt" style="font-size:13px;color:#fff;font-weight:800;margin-top:2px;">
-          Evaluating 13 Volatility Indices with Markov AI…
+          Evaluating 17 Volatility Indices with Markov AI…
         </div>
       </div>
     </div>
@@ -142,7 +143,10 @@ function draw(f){
     const opt = proj.optimalContract;
     const txt = $('lpAlphaTxt');
     if(txt && opt){
-      txt.innerHTML = `Active: <b style="color:#00ffa3;">Volatility 100 Index</b> · Setup: <b style="color:#00b2ff;">${opt.name}</b> (${opt.winRate}% forward odds · +${opt.edge} pts edge) · Markov Conviction: <b style="color:#00ffa3;">86%</b> · ⏱️ 5 Ticks`;
+      const prob = opt.projectedProb != null ? opt.projectedProb : (opt.winRate != null ? opt.winRate : 50);
+      const edge = opt.edge != null ? opt.edge : 0;
+      const conf = TWS.calcConfidence ? TWS.calcConfidence({ contract: opt.type, barrier: opt.barrier, prices: f.prices, digits: f.digits }).score : 50;
+      txt.innerHTML = `Active: <b style="color:#00ffa3;">Volatility 100 Index</b> · Setup: <b style="color:#00b2ff;">${TW.esc(opt.name)}</b> (${prob}% forward odds · ${edge>=0?'+':''}${edge} pts edge) · Markov Conviction: <b style="color:#00ffa3;">${conf}%</b> · ⏱️ 5 Ticks`;
     }
   }
 }

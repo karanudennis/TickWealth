@@ -10,13 +10,14 @@
 <style>
 .bw{max-width:1100px;margin:0 auto;padding:14px;display:grid;gap:14px}
 .bt{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.bt .btn{width:auto}
-.bl{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(330px,1fr))}
+.bl{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(min(100%,310px),1fr))}
 .bc{border:1px solid rgba(255,255,255,.12);border-radius:14px;padding:14px;background:rgba(255,255,255,.04)}
 .bh{display:flex;gap:8px;align-items:center}.bh input{flex:1;font-weight:700}.bs{font-size:12px;color:#8e9ab3}.bs.on{color:#00ffa3}
 .bg{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 0}.bg label{font-size:11px;color:#8e9ab3;display:block}
 .bg input,.bg select,.bh input{width:100%;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.35);color:#d7e0f2;font:inherit}
 .bg .w{grid-column:1/-1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;color:#c9d3e8;font-size:12px}.bg .w input[type=checkbox]{width:auto;margin:0}.bg .w input[type=number]{width:72px}.br{display:flex;gap:8px;flex-wrap:wrap}.br button{width:auto;padding:8px 12px}
 .bi{font-size:12.5px;margin-top:8px;color:#c9d3e8}.wn{border-left:3px solid #ff3b69;padding:10px 14px;border-radius:8px;background:rgba(255,59,105,.07);font-size:13px}
+@media(max-width:520px){.bw{padding:10px;gap:10px}.bc{padding:12px}.bg{grid-template-columns:1fr}#derivMonitor{padding:12px!important}}
 </style>
 </head>
 <body>
@@ -43,6 +44,27 @@
     <input type="file" id="file" accept=".json,.xml,application/json,text/xml,application/xml" multiple hidden>
   </div>
   <div class="bi" id="dz">Tip: drag and drop bot files (.json or Deriv Bot .xml) anywhere on this page to import them.</div>
+  <!-- ✨ AI BOT ARCHITECT (NATURAL LANGUAGE -> RISK-CALIBRATED BOT) -->
+  <div class="bc" id="aiBotArchitect" style="border-color:rgba(0,178,255,0.35);background:linear-gradient(135deg,rgba(11,16,27,0.98),rgba(17,24,39,0.98));">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px;">
+      <div>
+        <b style="color:#00b2ff;font-size:14px;letter-spacing:0.3px;">✨ AI BOT ARCHITECT · DESIGN A BOT IN PLAIN ENGLISH</b>
+        <div class="bs">Describe your market, contract, stake &amp; risk goal — Gemini + Quant Engine calibrates entry rules, AI gate &amp; safety caps.</div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;">
+        <button type="button" class="btn ghost ai-arch-chip" data-goal="Safe low-risk Under 7 sniper on R_100 with 6s loss cooldown" style="padding:4px 8px;font-size:10.5px;border-radius:6px;cursor:pointer;">🛡️ Safe Under 7</button>
+        <button type="button" class="btn ghost ai-arch-chip" data-goal="Fast Over 2 reversion bot on 1HZ25V with 2x martingale max 3 steps" style="padding:4px 8px;font-size:10.5px;border-radius:6px;cursor:pointer;">⚡ Over 2 Reversion</button>
+        <button type="button" class="btn ghost ai-arch-chip" data-goal="Ultra-safe Differs 90% sniper on R_50 with loss shield" style="padding:4px 8px;font-size:10.5px;border-radius:6px;cursor:pointer;">🎯 90% Differs Shield</button>
+        <button type="button" class="btn ghost ai-arch-chip" data-goal="AI Momentum Rise Fall 5-tick trend rider on R_75" style="padding:4px 8px;font-size:10.5px;border-radius:6px;cursor:pointer;">📈 Rise Momentum</button>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+      <input id="aiBotGoalInp" type="text" placeholder="e.g., Safe Under 7 bot on Volatility 100 with $0.50 stake and 5s cooldown…" style="flex:1;min-width:220px;padding:9px 12px;border-radius:9px;border:1px solid rgba(0,178,255,0.35);background:rgba(0,0,0,0.42);color:#fff;font:inherit;font-size:12.5px;">
+      <button type="button" id="btnAiArchitect" class="btn" style="padding:9px 18px;font-size:12px;font-weight:900;background:linear-gradient(90deg,#00b2ff,#00ffa3);color:#04101c;border:0;border-radius:9px;cursor:pointer;">✨ Generate Bot</button>
+    </div>
+    <div id="aiArchPreview" style="display:none;margin-top:10px;padding:12px;border-radius:10px;background:rgba(0,0,0,0.35);border:1px solid rgba(0,255,163,0.35);"></div>
+  </div>
+
   <div class="bc" id="lib"><div class="bh"><b>Bot library: ready-made bots for every market</b></div>
     <div class="bg"><label>Market<select id="lm"></select></label><label>Market scanner<span style="display:flex;gap:6px"><button class="btn ghost" id="qs" type="button">Quick scan</button><button class="btn ghost" id="ds" type="button">Deep scan (10s)</button></span></label></div>
     <div class="bi" id="sc">Pick a market, then scan it. The scanner measures the last 1000 ticks and reports whether anything is unusual. It cannot predict the next tick.</div>
@@ -73,14 +95,26 @@
       <div style="display:flex;align-items:center;gap:10px;">
         <span class="dot live" id="monDot" style="width:10px;height:10px;background:#00ffa3;"></span>
         <div>
-          <div style="font-size:14px;font-weight:900;color:#fff;letter-spacing:0.3px;display:flex;align-items:center;gap:8px;">
+          <div style="font-size:14px;font-weight:900;color:#fff;letter-spacing:0.3px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span>DERIV D-BOT LIVE RUN MONITOR</span>
             <span id="monRunTime" style="font-size:11px;font-weight:700;color:#00ffa3;background:rgba(0,255,163,0.1);padding:2px 8px;border-radius:4px;border:1px solid rgba(0,255,163,0.25);">00:00:00</span>
+            <span id="monActiveBots" style="font-size:10.5px;font-weight:800;color:#9fb0cc;background:rgba(255,255,255,0.06);padding:2px 8px;border-radius:4px;border:1px solid rgba(255,255,255,0.12);">0 Active</span>
           </div>
           <div style="font-size:11px;color:#8e9ab3;margin-top:2px;" id="monSubTitle">Continuous Deriv automated trading engine · All active bots stream here</div>
+          <div id="monStreakBar" style="display:flex;align-items:center;gap:4px;margin-top:5px;flex-wrap:wrap;"></div>
         </div>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <label style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:#00ffa3;background:rgba(0,255,163,0.06);border:1px solid rgba(0,255,163,0.25);padding:3px 7px;border-radius:6px;" title="Auto-stop all bots when total monitor PnL reaches this profit">
+          TP $<input id="monTpInp" type="number" min="0" step="1" value="0" style="width:46px;background:transparent;border:0;color:#fff;font-weight:800;font-size:11px;outline:none;">
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:#ffd600;background:rgba(255,214,0,0.06);border:1px solid rgba(255,214,0,0.25);padding:3px 7px;border-radius:6px;" title="Trailing Profit Lock: auto-stop all bots if profit pulls back by this amount from session peak">
+          Trail $<input id="monTrailInp" type="number" min="0" step="1" value="0" style="width:46px;background:transparent;border:0;color:#fff;font-weight:800;font-size:11px;outline:none;">
+        </label>
+        <label style="display:inline-flex;align-items:center;gap:4px;font-size:10.5px;color:#ff3b69;background:rgba(255,59,105,0.06);border:1px solid rgba(255,59,105,0.25);padding:3px 7px;border-radius:6px;" title="Auto-stop all bots when total monitor loss hits this limit">
+          SL $<input id="monSlInp" type="number" min="0" step="1" value="0" style="width:46px;background:transparent;border:0;color:#fff;font-weight:800;font-size:11px;outline:none;">
+        </label>
+        <button type="button" class="btn ghost" id="btnAiAuditMon" style="padding:5px 12px;font-size:11px;border-radius:6px;cursor:pointer;color:#00b2ff;border-color:rgba(0,178,255,0.4);">🧠 AI Audit</button>
         <button type="button" class="btn ghost" id="btnToggleJournal" style="padding:5px 12px;font-size:11px;border-radius:6px;cursor:pointer;">📋 View Journal (<span id="monJournalCount">0</span>)</button>
         <button type="button" class="btn ghost" id="btnExportCsv" style="padding:5px 12px;font-size:11px;border-radius:6px;cursor:pointer;">📥 Export CSV</button>
         <button type="button" class="btn ghost" id="btnClearMonitor" style="padding:5px 12px;font-size:11px;border-radius:6px;cursor:pointer;">Clear Stats</button>
@@ -129,7 +163,13 @@
     </div>
 
     <!-- EXPANDABLE DERIV DBOT TRANSACTION JOURNAL -->
-    <div id="monJournalBox" style="display:none;margin-top:12px;background:#060a14;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px;max-height:220px;overflow-y:auto;">
+    <div id="monJournalBox" style="display:none;margin-top:12px;background:#060a14;border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:10px;max-height:240px;overflow-y:auto;overflow-x:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
+        <span style="font-size:10.5px;font-weight:800;color:#8e9ab3;letter-spacing:0.4px;">EXECUTION JOURNAL FEED</span>
+        <select id="monJournalFilter" style="padding:3px 8px;border-radius:6px;border:1px solid rgba(255,255,255,0.14);background:rgba(0,0,0,0.45);color:#cbd5e1;font-size:11px;">
+          <option value="">All Bots</option>
+        </select>
+      </div>
       <table style="width:100%;border-collapse:collapse;font-size:11px;text-align:left;">
         <thead>
           <tr style="color:#7d8aa5;border-bottom:1px solid rgba(255,255,255,0.1);">
@@ -146,6 +186,20 @@
           <tr><td colspan="7" style="padding:16px;text-align:center;color:#7d8aa5;">Start any bot to record live trades into the journal…</td></tr>
         </tbody>
       </table>
+    </div>
+  </div>
+
+  <!-- BOT FILTER & SEARCH BAR -->
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:8px 12px;">
+    <div style="display:flex;align-items:center;gap:8px;flex:1;min-width:220px;">
+      <span style="font-size:12px;color:#8e9ab3;font-weight:800;">🔍</span>
+      <input id="botSearchInp" type="search" placeholder="Filter bots by name, market (1HZ25V), contract or note…" style="flex:1;padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.14);background:rgba(0,0,0,0.35);color:#d7e0f2;font:inherit;font-size:12px;">
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <label style="display:inline-flex;align-items:center;gap:6px;font-size:11.5px;color:#cbd5e1;cursor:pointer;">
+        <input id="botActiveOnly" type="checkbox"> Running only
+      </label>
+      <span id="botFilterCount" style="font-size:11px;color:#8e9ab3;font-weight:700;"></span>
     </div>
   </div>
 
@@ -183,13 +237,34 @@ function defaultBotGate(contract, barrier) {
   return 48;
 }
 
+const FIB_SEQ=[1,1,2,3,5,8,13,21];
+function calcNextStake(b,r){
+  const maxStk=(TW.settings&&TW.settings.maxStake)?+TW.settings.maxStake:500;
+  const base=Number(b.stake||0.35);
+  const step=Math.max(0,(r&&r.step)||0);
+  if(!b.mart||!b.mart.on||step===0) return Math.min(maxStk,+base.toFixed(2));
+  const mode=b.mart.mode||'martingale';
+  let raw=base;
+  if(mode==='dalembert'){
+    raw=base*(1+step*Math.max(0.25,(b.mart.mult||2)-1));
+  } else if(mode==='fibonacci'){
+    raw=base*FIB_SEQ[Math.min(FIB_SEQ.length-1,step)];
+  } else {
+    raw=base*Math.pow(b.mart.mult||2.1,step);
+  }
+  return Math.min(maxStk,+raw.toFixed(2));
+}
+
 function clean(b){b=b&&typeof b==='object'?b:{};const r=b.rule||{},m=b.mart||{};
  const contract=CT.includes(b.contract)?b.contract:'DIGITOVER';
  const barrier=num(b.barrier,0,9,contract==='DIGITOVER'?2:contract==='DIGITUNDER'?7:4);
  const defGate=defaultBotGate(contract,barrier);
+ const martMode=['martingale','dalembert','fibonacci','compounding'].includes(m.mode)?m.mode:'martingale';
  return{id:b.id||('b'+Date.now()+Math.floor(Math.random()*1e5)),name:String(b.name||'Deriv Continuous Bot').slice(0,40),symbol:TW.VOLS.some(v=>v.id===b.symbol)?b.symbol:'1HZ25V',contract,barrier,duration:num(b.duration,1,10,1),stake:num(b.stake,0.35,1000,0.35),
  rule:{kind:['instant','every','streak','ai_alpha'].includes(r.kind)?r.kind:'instant',cond:CONDS.includes(r.cond)?r.cond:'under',n:num(r.n,1,50,1),cb:num(r.cb,0,9,contract==='DIGITOVER'?3:7)},
- mart:{on:m.on!==false,mult:num(m.mult,1.1,5,2.1),steps:num(m.steps,1,8,4)},sl:num(b.sl,0,100000,10),tp:num(b.tp,0,100000,20),max:num(b.max,0,10000,0),
+ mart:{on:m.on!==false,mode:martMode,mult:num(m.mult,1.1,5,2.1),steps:num(m.steps,1,8,4)},sl:num(b.sl,0,100000,10),tp:num(b.tp,0,100000,20),max:num(b.max,0,10000,0),
+ coolSecs:num(b.coolSecs,0,60,0),
+ notes:String(b.notes||'').slice(0,280),
  aiMode:['turbo','active','strict'].includes(b.aiMode)?b.aiMode:'turbo',
  aiGate:num(b.aiGate,10,95,defGate),lossShield:b.lossShield===true}}
 const EX=[
@@ -217,7 +292,7 @@ if(qs.symbol&&qs.contract){
     rule: {
       kind: qs.rule_kind || 'instant',
       cond: qs.rule_cond || (qs.contract.includes('EVEN') ? 'odd' : qs.contract.includes('ODD') ? 'even' : qs.contract.includes('UNDER') ? 'over' : 'under'),
-      cb: qs.barrier != null ? +qs.barrier : (qs.contract.includes('UNDER') ? 7 : 3),
+      cb: qs.rule_cb != null && qs.rule_cb !== '' ? +qs.rule_cb : (qs.barrier != null ? +qs.barrier : (qs.contract.includes('UNDER') ? 7 : 3)),
       n: qs.rule_n != null ? +qs.rule_n : 1
     },
     mart: {
@@ -226,12 +301,17 @@ if(qs.symbol&&qs.contract){
       steps: qs.mart_steps != null ? +qs.mart_steps : 3
     },
     aiGate: qs.gate != null ? +qs.gate : defaultG,
-    lossShield: false
+    lossShield: qs.shield === '1' || qs.shield === 'true'
   });
   const existingIdx = bots.findIndex(x=>x.symbol===newBot.symbol && x.contract===newBot.contract && x.barrier===newBot.barrier);
   let targetBot = newBot;
   if(existingIdx >= 0){
-    targetBot = bots.splice(existingIdx, 1)[0];
+    targetBot = Object.assign(bots.splice(existingIdx, 1)[0], {
+      rule: newBot.rule,
+      duration: newBot.duration,
+      aiGate: newBot.aiGate,
+      mart: newBot.mart
+    });
     bots.unshift(targetBot);
   } else {
     bots.unshift(newBot);
@@ -243,7 +323,8 @@ if(qs.symbol&&qs.contract){
   if(qlBanner){
     qlBanner.style.display = 'block';
     $('#qlBotName').textContent = targetBot.name;
-    $('#qlBotDetails').textContent = `${TW.volName(targetBot.symbol)} · ${targetBot.contract} ${targetBot.barrier!=null?targetBot.barrier:''} · ${targetBot.duration} Ticks · Stake: $${targetBot.stake.toFixed(2)} · Entry: ${targetBot.rule.kind==='instant'?'⚡ INSTANT (First valid tick)':'Streak '+targetBot.rule.n} · AI Gate: ${targetBot.aiGate}% · Adaptive Loss Shield: Active`;
+    const ruleTxt = targetBot.rule.kind==='instant' ? '⚡ INSTANT' : targetBot.rule.kind==='ai_alpha' ? '🧠 AI Alpha' : targetBot.rule.kind==='every' ? `Every ${targetBot.rule.n}t` : `Streak ${targetBot.rule.n} (${targetBot.rule.cond})`;
+    $('#qlBotDetails').textContent = `${TW.volName(targetBot.symbol)} · ${targetBot.contract}${/OVER|UNDER|MATCH|DIFF/.test(targetBot.contract) && targetBot.barrier!=null ? ' '+targetBot.barrier : ''} · ${targetBot.duration} Ticks · Stake: $${targetBot.stake.toFixed(2)} · Entry: ${ruleTxt} · AI Gate: ${targetBot.aiGate}% · Loss Shield: ${targetBot.lossShield ? 'Active' : 'Off'}`;
 
     let qlSecs = 30;
     const qlTimerEl = $('#qlTimerBadge');
@@ -267,22 +348,27 @@ if(qs.symbol&&qs.contract){
       }
     }, 1000);
 
+    window._qlTargetId = targetBot.id;
+    window._syncQuickStartBtn = () => {
+      const btn = $('#btnQuickStartBot');
+      if (!btn || !window._qlTargetId) return;
+      const isOn = !!(R[window._qlTargetId] && R[window._qlTargetId].on);
+      btn.textContent = isOn ? '⏸ STOP RUNNING BOT' : '▶ START BOT NOW';
+      btn.style.background = isOn ? '#ff3b69' : 'linear-gradient(90deg,#00ffa3,#00b2ff)';
+      btn.style.color = isOn ? '#fff' : '#04101c';
+    };
+
     const btnStart = $('#btnQuickStartBot');
     if(btnStart){
-      btnStart.onclick = () => {
-        if(targetBot.mart.on && !confirm('Martingale doubles risk after each loss. Start this bot with Martingale on?')) return;
-        if(TW.mode()==='live' && !confirm('LIVE mode: this bot will use real money. Start it?')) return;
-        start(targetBot);
-        btnStart.textContent = '⏸ STOP RUNNING BOT';
-        btnStart.style.background = '#ff3b69';
-        btnStart.style.color = '#fff';
-        btnStart.onclick = () => {
-          stop(targetBot, 'Stopped by you');
-          btnStart.textContent = '▶ START BOT NOW';
-          btnStart.style.background = 'linear-gradient(90deg,#00ffa3,#00b2ff)';
-          btnStart.style.color = '#04101c';
-        };
-        TW.toast(`Started ${targetBot.name}! Live tick rules executing…`, 'ok', 4000);
+      btnStart.onclick = async () => {
+        const liveTarget = get(targetBot.id) || targetBot;
+        if(R[liveTarget.id] && R[liveTarget.id].on){
+          stop(liveTarget, 'Stopped by you');
+          return;
+        }
+        if(!(await confirmStartBot(liveTarget))) return;
+        start(liveTarget);
+        TW.toast(`Started ${liveTarget.name}! Live tick rules executing…`, 'ok', 4000);
       };
     }
   }
@@ -291,15 +377,16 @@ if(qs.symbol&&qs.contract){
 }
 const opts=(l,s)=>l.map(x=>{const v=Array.isArray(x)?x[0]:x,t=Array.isArray(x)?x[1]:x;return`<option value="${TW.esc(v)}"${v==s?' selected':''}>${TW.esc(t)}</option>`}).join('');
 const f=(l,k,v,x='')=>`<label>${l}<input data-k="${k}" type="number" value="${v}" ${x}></label>`;
-function card(b){const defG=defaultBotGate(b.contract,b.barrier);const currentGate=b.aiGate||defG;
+function card(b){const defG=defaultBotGate(b.contract,b.barrier);const currentGate=b.aiGate||defG;const martMode=(b.mart&&b.mart.mode)||'martingale';
 return`<div class="bc" data-id="${b.id}"><div class="bh"><input data-k="name" value="${TW.esc(b.name)}" aria-label="Bot name"><span class="bs" id="st-${b.id}">stopped</span></div>
 <div class="bg"><label>Market<select data-k="symbol">${opts(MK,b.symbol)}</select></label><label>Contract<select data-k="contract">${opts(CT,b.contract)}</select></label>
 ${f('Barrier / digit','barrier',b.barrier,'min="0" max="9"')}${f('Ticks','duration',b.duration,'min="1" max="10"')}${f('Stake (USD)','stake',b.stake,'min="0.35" step="0.01"')}
 <label>Entry rule<select data-k="rule.kind">${opts([['instant','⚡ Instant / Continuous (Deriv D-Bot Maximum Speed)'],['streak','After a streak'],['every','Every N ticks'],['ai_alpha','🧠 Autonomous AI Alpha (Trigger on Markov Conviction ≥ Gate)']],b.rule.kind)}</select></label>
 <label>Condition<select data-k="rule.cond">${opts(CONDS,b.rule.cond)}</select></label>${f('Streak or N','rule.n',b.rule.n,'min="1" max="50"')}${f('Cond. digit (over/under)','rule.cb',b.rule.cb,'min="0" max="9"')}
 <label>Execution Speed & Mode<select data-k="aiMode">${opts([['turbo','🚀 Turbo High-Speed (Deriv D-Bot continuous execution)'],['active','⚡ Smart AI Alpha (Execute on positive statistical edge)'],['strict','🛡️ Strict AI Guard (Conservative high-conviction filter)']],b.aiMode||'turbo')}</select></label>
-${f('Stop-loss (USD, 0 = off)','sl',b.sl,'min="0"')}${f('Take-profit (USD, 0 = off)','tp',b.tp,'min="0"')}${f('Max trades (0 = no limit)','max',b.max,'min="0"')}
-<label class="w"><input type="checkbox" data-k="mart.on"${b.mart.on?' checked':''}> Martingale (risky) &nbsp;multiplier <input data-k="mart.mult" type="number" step="0.1" min="1.1" max="5" value="${b.mart.mult}" style="width:70px"> &nbsp;max steps <input data-k="mart.steps" type="number" min="1" max="8" value="${b.mart.steps}" style="width:60px"></label>
+${f('Stop-loss (USD, 0 = off)','sl',b.sl,'min="0"')}${f('Take-profit (USD, 0 = off)','tp',b.tp,'min="0"')}${f('Max trades (0 = no limit)','max',b.max,'min="0"')}${f('Loss cooldown (sec, after 2L)','coolSecs',b.coolSecs||0,'min="0" max="60"')}
+<label class="w"><input type="checkbox" data-k="mart.on"${b.mart.on?' checked':''}> Stake Recovery &nbsp;<select data-k="mart.mode" style="width:auto;padding:4px 7px;font-size:11.5px;">${opts([['martingale','Martingale (Mult on Loss)'],['dalembert',"D'Alembert (Linear Unit)"],['fibonacci','Fibonacci Sequence'],['compounding','Compounding (Press Wins)']],martMode)}</select> &nbsp;mult <input data-k="mart.mult" type="number" step="0.1" min="1.1" max="5" value="${b.mart.mult}" style="width:66px"> &nbsp;steps <input data-k="mart.steps" type="number" min="1" max="8" value="${b.mart.steps}" style="width:54px"></label>
+<label style="grid-column:1/-1;">Strategy Note / Journal Tag<input data-k="notes" type="text" maxlength="280" placeholder="Add your rules, market hours, or notes (saved & exported with bot)…" value="${TW.esc(b.notes||'')}"></label>
 <div style="grid-column:1/-1;background:rgba(0,178,255,0.06);border:1px solid rgba(0,178,255,0.25);border-radius:10px;padding:10px;margin-top:4px;">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
     <span style="font-weight:700;font-size:12px;color:#00b2ff;">✦ AI CONVICTION GATE &amp; RISK SHIELD</span>
@@ -320,7 +407,23 @@ ${f('Stop-loss (USD, 0 = off)','sl',b.sl,'min="0"')}${f('Take-profit (USD, 0 = o
 </div>
 </div>
 <div class="br"><button class="btn" data-a="run" type="button" style="font-weight:900;">Start</button><button class="btn ghost" data-a="test" type="button" style="color:#00ffa3;border-color:rgba(0,255,163,0.35);font-weight:800;">⚡ Test Fire (Paper)</button><button class="btn ghost" data-a="backtest" type="button" style="color:#ffd600;border-color:rgba(255,214,0,0.35);font-weight:800;">🧪 Backtest (500t)</button><button class="btn ghost" data-a="scan" type="button">Scan market</button><button class="btn ghost" data-a="exp" type="button">Download JSON</button><button class="btn ghost" data-a="xml" type="button">Deriv XML</button><button class="btn ghost" data-a="dup" type="button">Duplicate</button><button class="btn ghost" data-a="rst" type="button">Reset</button><button class="btn ghost" data-a="del" type="button">Delete</button></div><div class="bi" id="in-${b.id}"></div></div>`}
-function draw(){$('#list').innerHTML=bots.map(card).join('')||'<div class="bi">No bots yet. Add one, upload a .json file, or load the examples.</div>';bots.forEach(info);$('#md').textContent='Mode: '+TW.mode().toUpperCase()}
+function applyBotFilter(){
+  const q=(document.getElementById('botSearchInp')?.value||'').trim().toLowerCase();
+  const activeOnly=!!document.getElementById('botActiveOnly')?.checked;
+  let shown=0;
+  document.querySelectorAll('#list .bc').forEach(cardEl=>{
+    const b=get(cardEl.dataset.id);
+    if(!b)return;
+    const isOn=!!(R[b.id]&&R[b.id].on);
+    const hay=`${b.name} ${b.symbol} ${TW.volName(b.symbol)} ${b.contract} ${b.notes||''}`.toLowerCase();
+    const match=(!q||hay.includes(q))&&(!activeOnly||isOn);
+    cardEl.style.display=match?'':'none';
+    if(match) shown++;
+  });
+  const cnt=document.getElementById('botFilterCount');
+  if(cnt) cnt.textContent=`Showing ${shown} / ${bots.length} bots`;
+}
+function draw(){$('#list').innerHTML=bots.map(card).join('')||'<div class="bi">No bots yet. Add one, upload a .json file, or load the examples.</div>';bots.forEach(info);$('#md').textContent='Mode: '+TW.mode().toUpperCase();applyBotFilter();}
 function info(b){const r=R[b.id],i=$('#in-'+b.id),s=$('#st-'+b.id);if(!i)return;const on=r&&r.on;
  s.textContent=on?'● LIVE RUNNING':'stopped';s.className='bs'+(on?' on':'');
  const rb=document.querySelector('.bc[data-id="'+b.id+'"] [data-a=run]');
@@ -329,15 +432,24 @@ function info(b){const r=R[b.id],i=$('#in-'+b.id),s=$('#st-'+b.id);if(!i)return;
  const pnlCol=r.pnl>0?'#00ffa3':r.pnl<0?'#ff3b69':'#cbd5e1';
  const histChips=(r.history||[]).slice(-8).map(x=>`<span style="display:inline-block;padding:1px 5px;border-radius:4px;font-size:9.5px;font-weight:900;background:${x==='W'?'rgba(0,255,163,0.2)':'rgba(255,59,105,0.2)'};color:${x==='W'?'#00ffa3':'#ff3b69'};border:1px solid ${x==='W'?'#00ffa3':'#ff3b69'};">${x==='W'?'✓ WIN':'✗ LOSS'}</span>`).join(' ');
  const wr=r.n>0?Math.round((r.w/r.n)*100)+'%':null;
+ const elapsedMin = r.startTs ? Math.max(0.05, (Date.now() - r.startTs) / 60000) : 0;
+ const tpm = r.n > 0 && elapsedMin > 0 ? (r.n / elapsedMin).toFixed(1) : null;
+ const pf = r.grossLoss > 0 ? (r.grossWin / r.grossLoss).toFixed(2) : (r.grossWin > 0 ? '∞' : null);
+ const tapeDigits=(r.digitsTape||[]).slice(-8);
+ const tapeHtml=tapeDigits.length?`<div style="display:flex;align-items:center;gap:4px;margin-top:4px;flex-wrap:wrap;"><span style="font-size:10px;color:#7d8aa5;font-weight:700;">TICKS:</span>${tapeDigits.map((d,idx)=>`<span style="display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:4px;font-size:10px;font-weight:900;background:${idx===tapeDigits.length-1?'rgba(0,255,163,0.22)':'rgba(255,255,255,0.06)'};color:${idx===tapeDigits.length-1?'#00ffa3':'#cbd5e1'};border:1px solid ${idx===tapeDigits.length-1?'#00ffa3':'rgba(255,255,255,0.1)'};">${d}</span>`).join('')}</div>`:'';
+ const nextStakeEst=calcNextStake(b,r);
+ const coolLeft=r.coolUntil&&r.coolUntil>Date.now()?Math.ceil((r.coolUntil-Date.now())/1000):0;
 
  i.innerHTML=`<div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;margin-top:6px;">
   <div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;flex-wrap:wrap;gap:4px;">
-    <span><b>Trades:</b> ${r.n} (<span style="color:#00ffa3;">${r.w} wins</span>, <span style="color:#ff3b69;">${r.n-r.w} losses</span>${wr?` · <b>${wr} WR</b>`:''})</span>
+    <span><b>Trades:</b> ${r.n} (<span style="color:#00ffa3;">${r.w}W</span> / <span style="color:#ff3b69;">${r.n-r.w}L</span>${wr?` · <b>${wr} WR</b>`:''}${tpm?` · <span style="color:#00b2ff;">${tpm}/min</span>`:''}${pf?` · PF <b>${pf}</b>`:''})</span>
     <span><b>P/L:</b> <b style="color:${pnlCol};">${r.pnl>=0?'+':''}${r.pnl.toFixed(2)} USD</b></span>
   </div>
+  ${tapeHtml}
   ${histChips?`<div style="display:flex;align-items:center;gap:4px;margin-top:4px;"><span style="font-size:10px;color:#7d8aa5;font-weight:700;">STREAK:</span> ${histChips}</div>`:''}
-  ${r.step?`<div style="font-size:10.5px;color:#ffd600;margin-top:2px;">⚠️ Martingale Step: ${r.step} / ${b.mart.steps} (Next stake: $${+(b.stake*Math.pow(b.mart.mult,r.step)).toFixed(2)})</div>`:''}
-  ${r.consecutiveLosses?`<div style="font-size:10.5px;color:#00b2ff;margin-top:2px;">🛡️ Adaptive Shield: ${r.consecutiveLosses} loss (+${r.consecutiveLosses*5}% gate buffer)</div>`:''}
+  ${r.step?`<div style="font-size:10.5px;color:#ffd600;margin-top:2px;">⚡ ${TW.esc((b.mart&&b.mart.mode)||'martingale')} Step: ${r.step} / ${b.mart.steps} (Next stake: $${nextStakeEst.toFixed(2)})</div>`:''}
+  ${coolLeft>0?`<div style="font-size:10.5px;color:#ff9f43;margin-top:2px;">🧊 Cooldown Guard active: ${coolLeft}s left after consecutive losses</div>`:''}
+  ${r.consecutiveLosses?`<div style="font-size:10.5px;color:#00b2ff;margin-top:2px;">🛡️ Adaptive Shield: ${r.consecutiveLosses} loss (+${Math.min(3, r.consecutiveLosses*1)}% gate buffer)</div>`:''}
   ${r.vetos?`<div style="font-size:10.5px;color:#9fb0cc;margin-top:2px;">🛡️ AI Vetoed: ${r.vetos} low-conviction noise trades saved</div>`:''}
   <div style="font-size:11px;color:${on?'#00ffa3':'#9fb0cc'};margin-top:4px;display:flex;align-items:center;gap:6px;">
     ${on?'<span class="dot live" style="width:7px;height:7px;background:#00ffa3;"></span>':'⚪'}
@@ -360,6 +472,18 @@ function formatDuration(sec) {
   return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
 }
 
+function updateActiveBotCount() {
+  const activeCount = bots.filter(b => R[b.id] && R[b.id].on).length;
+  const el = document.getElementById('monActiveBots');
+  if (el) {
+    el.textContent = `${activeCount} Active`;
+    el.style.color = activeCount > 0 ? '#00ffa3' : '#9fb0cc';
+    el.style.background = activeCount > 0 ? 'rgba(0,255,163,0.12)' : 'rgba(255,255,255,0.06)';
+    el.style.borderColor = activeCount > 0 ? 'rgba(0,255,163,0.35)' : 'rgba(255,255,255,0.12)';
+  }
+  if (window._syncQuickStartBtn) window._syncQuickStartBtn();
+}
+
 setInterval(() => {
   const isAnyRunning = bots.some(b => R[b.id] && R[b.id].on);
   const dot = document.getElementById('monDot');
@@ -367,6 +491,7 @@ setInterval(() => {
     dot.style.background = isAnyRunning ? '#00ffa3' : '#7d8aa5';
     dot.className = isAnyRunning ? 'dot live' : 'dot';
   }
+  updateActiveBotCount();
   if (isAnyRunning) {
     if (!monData.startEpoch) monData.startEpoch = Date.now();
     const elapsedSecs = Math.floor((Date.now() - monData.startEpoch) / 1000);
@@ -453,10 +578,12 @@ function recordMonTrade(b, t, stake, profit) {
   monData.pnl = +(monData.pnl + profit).toFixed(2);
   if (profit > 0) {
     monData.wins++;
+    monData.grossWin = +(Number(monData.grossWin || 0) + profit).toFixed(2);
     monData.payout = +(monData.payout + stake + profit).toFixed(2);
     monData.currentStreak++;
     if (monData.currentStreak > monData.bestStreak) monData.bestStreak = monData.currentStreak;
   } else {
+    if (profit < 0) monData.grossLoss = +(Number(monData.grossLoss || 0) + Math.abs(profit)).toFixed(2);
     monData.currentStreak = 0;
   }
   if (monData.pnl > monData.peakPnl) monData.peakPnl = monData.pnl;
@@ -502,31 +629,75 @@ function recordMonTrade(b, t, stake, profit) {
     elPnl.textContent = (monData.pnl >= 0 ? '+' : '') + '$' + monData.pnl.toFixed(2);
     elPnl.style.color = monData.pnl >= 0 ? '#00ffa3' : '#ff3b69';
   }
-  if (elPnlSub) elPnlSub.textContent = monData.pnl >= 0 ? 'Profitable Run' : 'Drawdown Phase';
+  const gw = Number(monData.grossWin || 0), gl = Number(monData.grossLoss || 0);
+  const pfStr = gl > 0 ? (gw / gl).toFixed(2) : (gw > 0 ? '∞' : '—');
+  const roiPct = monData.stake > 0 ? ((monData.pnl / monData.stake) * 100).toFixed(1) : '0.0';
+  if (elPnlSub) elPnlSub.textContent = `${monData.pnl >= 0 ? '+' : ''}${roiPct}% ROI · PF ${pfStr} · Peak +$${Math.max(0, monData.peakPnl).toFixed(2)}`;
   if (elDd) elDd.textContent = '-$' + monData.maxDrawdown.toFixed(2);
   if (elStk) elStk.textContent = `Best Streak: ${monData.bestStreak} Wins`;
   if (elJc) elJc.textContent = monData.journal.length;
 
-  const tbody = document.getElementById('monJournalRows');
-  if (tbody) {
-    tbody.innerHTML = monData.journal.slice(0, 20).map(j => `
-      <tr style="border-bottom:1px solid rgba(255,255,255,0.04);background:${j.won?'rgba(0,255,163,0.02)':'rgba(255,59,105,0.02)'};">
-        <td style="padding:5px 6px;color:#7d8aa5;">#${j.id}</td>
-        <td style="padding:5px 6px;color:#cbd5e1;">${j.time}</td>
-        <td style="padding:5px 6px;font-weight:700;color:#fff;">${TW.esc(j.bot.slice(0,22))} <span style="font-size:9.5px;color:#7d8aa5;">(${j.market})</span></td>
-        <td style="padding:5px 6px;color:#00b2ff;">${j.contract}${j.barrier!=null?' '+j.barrier:''}</td>
-        <td style="padding:5px 6px;color:#cbd5e1;font-family:monospace;">${j.entryExit}</td>
-        <td style="padding:5px 6px;color:#cbd5e1;">$${j.stake}</td>
-        <td style="padding:5px 6px;text-align:right;font-weight:800;color:${j.won?'#00ffa3':'#ff3b69'};">${j.won?'+':''}$${j.profit}</td>
-      </tr>
-    `).join('');
+  renderMonJournal();
+
+  const sb = document.getElementById('monStreakBar');
+  if (sb) {
+    const recent = monData.journal.slice(0, 20).reverse();
+    sb.innerHTML = recent.length
+      ? `<span style="font-size:10px;color:#7d8aa5;font-weight:700;margin-right:2px;">LAST ${recent.length}:</span>` +
+        recent.map(j => `<span title="#${j.id} ${j.contract}: ${j.won?'+':'-'}$${Math.abs(+j.profit).toFixed(2)}" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:4px;font-size:9px;font-weight:900;background:${j.won?'rgba(0,255,163,0.18)':'rgba(255,59,105,0.18)'};color:${j.won?'#00ffa3':'#ff3b69'};border:1px solid ${j.won?'rgba(0,255,163,0.45)':'rgba(255,59,105,0.45)'};">${j.won?'W':'L'}</span>`).join('')
+      : '';
   }
 
   drawEquityCurve();
+
+  const monTP = parseFloat(document.getElementById('monTpInp')?.value || '0') || 0;
+  const monTrail = parseFloat(document.getElementById('monTrailInp')?.value || '0') || 0;
+  const monSL = parseFloat(document.getElementById('monSlInp')?.value || '0') || 0;
+  if (monTP > 0 && monData.pnl >= monTP && bots.some(x => R[x.id] && R[x.id].on)) {
+    bots.forEach(x => { if (R[x.id] && R[x.id].on) stop(x, `🏆 Portfolio TP (+$${monTP}) reached`); });
+    if (TW.fx && TW.fx.win) TW.fx.win();
+    TW.toast(`🏆 Portfolio Take-Profit (+$${monTP.toFixed(2)}) reached! All bots stopped.`, 'ok', 6000);
+  } else if (monTrail > 0 && monData.peakPnl > monTrail && (monData.peakPnl - monData.pnl) >= monTrail && bots.some(x => R[x.id] && R[x.id].on)) {
+    bots.forEach(x => { if (R[x.id] && R[x.id].on) stop(x, `🔒 Trailing Lock (+$${monData.pnl.toFixed(2)} vs peak +$${monData.peakPnl.toFixed(2)})`); });
+    if (TW.fx && TW.fx.win) TW.fx.win();
+    TW.toast(`🔒 Trailing Profit Lock triggered! Secured +$${monData.pnl.toFixed(2)} USD from +$${monData.peakPnl.toFixed(2)} peak.`, 'ok', 6000);
+  } else if (monSL > 0 && monData.pnl <= -monSL && bots.some(x => R[x.id] && R[x.id].on)) {
+    bots.forEach(x => { if (R[x.id] && R[x.id].on) stop(x, `🛑 Portfolio SL (-$${monSL}) hit`); });
+    if (TW.fx && TW.fx.loss) TW.fx.loss();
+    TW.toast(`🛑 Portfolio Stop-Loss (-$${monSL.toFixed(2)}) reached! All bots halted.`, 'err', 6000);
+  }
+}
+
+function renderMonJournal() {
+  const sel = document.getElementById('monJournalFilter');
+  const prevVal = sel ? sel.value : '';
+  if (sel) {
+    const names = [...new Set(monData.journal.map(j => j.bot))];
+    sel.innerHTML = '<option value="">All Bots</option>' + names.map(n => `<option value="${TW.esc(n)}"${n === prevVal ? ' selected' : ''}>${TW.esc(n.slice(0, 32))}</option>`).join('');
+  }
+  const filterVal = sel ? sel.value : '';
+  const rows = (filterVal ? monData.journal.filter(j => j.bot === filterVal) : monData.journal).slice(0, 30);
+  const tbody = document.getElementById('monJournalRows');
+  if (!tbody) return;
+  if (!rows.length) {
+    tbody.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:#7d8aa5;">Start any bot to record live trades into the journal…</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(j => `
+    <tr style="border-bottom:1px solid rgba(255,255,255,0.04);background:${j.won?'rgba(0,255,163,0.02)':'rgba(255,59,105,0.02)'};">
+      <td style="padding:5px 6px;color:#7d8aa5;">#${j.id}</td>
+      <td style="padding:5px 6px;color:#cbd5e1;">${j.time}</td>
+      <td style="padding:5px 6px;font-weight:700;color:#fff;">${TW.esc(j.bot.slice(0,22))} <span style="font-size:9.5px;color:#7d8aa5;">(${j.market})</span></td>
+      <td style="padding:5px 6px;color:#00b2ff;">${j.contract}${j.barrier!=null?' '+j.barrier:''}</td>
+      <td style="padding:5px 6px;color:#cbd5e1;font-family:monospace;">${j.entryExit}</td>
+      <td style="padding:5px 6px;color:#cbd5e1;">$${j.stake}</td>
+      <td style="padding:5px 6px;text-align:right;font-weight:800;color:${j.won?'#00ffa3':'#ff3b69'};">${j.won?'+':''}$${j.profit}</td>
+    </tr>
+  `).join('');
 }
 
 function clearMonStats() {
-  monData.trades = 0; monData.wins = 0; monData.stake = 0; monData.payout = 0;
+  monData.trades = 0; monData.wins = 0; monData.grossWin = 0; monData.grossLoss = 0; monData.stake = 0; monData.payout = 0;
   monData.pnl = 0; monData.peakPnl = 0; monData.maxDrawdown = 0; monData.bestStreak = 0;
   monData.currentStreak = 0; monData.equity = [0]; monData.journal = []; monData.startEpoch = null;
   const elTr = document.getElementById('monTrades'); if (elTr) elTr.textContent = '0';
@@ -534,37 +705,65 @@ function clearMonStats() {
   const elSt = document.getElementById('monStake'); if (elSt) elSt.textContent = '$0.00';
   const elPy = document.getElementById('monPayout'); if (elPy) elPy.textContent = '$0.00';
   const elPnl = document.getElementById('monPnl'); if (elPnl) { elPnl.textContent = '+$0.00'; elPnl.style.color = '#00ffa3'; }
+  const elPnlSub = document.getElementById('monPnlSub'); if (elPnlSub) elPnlSub.textContent = 'Active Session';
   const elDd = document.getElementById('monDd'); if (elDd) elDd.textContent = '-$0.00';
   const elStk = document.getElementById('monStreak'); if (elStk) elStk.textContent = 'Best Streak: 0';
   const elJc = document.getElementById('monJournalCount'); if (elJc) elJc.textContent = '0';
   const elRt = document.getElementById('monRunTime'); if (elRt) elRt.textContent = '00:00:00';
-  const tbody = document.getElementById('monJournalRows');
-  if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:#7d8aa5;">Start any bot to record live trades into the journal…</td></tr>';
+  const sb = document.getElementById('monStreakBar'); if (sb) sb.innerHTML = '';
+  renderMonJournal();
   drawEquityCurve();
   TW.toast('Deriv D-Bot Monitor statistics cleared.', 'ok', 2500);
 }
 window.addEventListener('resize', drawEquityCurve);
 setTimeout(drawEquityCurve, 100);
 
+async function confirmStartBot(botOrList) {
+  const arr = Array.isArray(botOrList) ? botOrList : [botOrList];
+  const isLive = TW.mode() === 'live';
+  const hasMart = arr.some(x => x && x.mart && x.mart.on);
+  if (!isLive && !hasMart) return true;
+  const isAll = Array.isArray(botOrList);
+  const title = isLive
+    ? (isAll ? '⚠ Start ALL bots in LIVE mode?' : `⚠ Start "${arr[0].name}" in LIVE mode?`)
+    : (isAll ? 'Martingale Risk Check (Start All)' : 'Martingale Risk Check');
+  const lines = [];
+  if (isLive) lines.push(`<div class="warn" style="margin-bottom:8px;">LIVE mode is active (${TW.account.virtual ? 'Deriv DEMO' : 'REAL MONEY'}). Automated trades execute automatically until Stop-Loss, Take-Profit, or Stop is clicked.</div>`);
+  if (hasMart) lines.push(`<div style="font-size:12.5px;color:#cbd5e1;line-height:1.5;">Martingale increases stake after each loss (capped by max-steps and your Settings Max Stake). Only run if your balance supports consecutive losses.</div>`);
+  return !!(await TW.modal({
+    title,
+    html: lines.join(''),
+    buttons: [
+      { label: 'Cancel', cls: 'ghost', value: false },
+      { label: isLive ? 'Start Live Trading' : 'Start Bot', cls: isLive ? 'red' : '', value: true }
+    ]
+  }));
+}
+
 function start(b){
  stop(b);
- const r=R[b.id]=Object.assign(R[b.id]||{n:0,w:0,pnl:0,step:0,consecutiveLosses:0,vetos:0,history:[]},{
-   on:true,busy:false,k:0,msg:`⚡ Running continuous execution (${globalBotSpeed}ms)…`,consecutiveLosses:0,vetos:0
+ const r=R[b.id]=Object.assign(R[b.id]||{n:0,w:0,pnl:0,step:0,consecutiveLosses:0,vetos:0,grossWin:0,grossLoss:0,coolUntil:0,digitsTape:[],history:[]},{
+   on:true,busy:false,k:0,startTs:Date.now(),msg:`⚡ Running continuous execution (${globalBotSpeed}ms)…`,consecutiveLosses:0,vetos:0,grossWin:0,grossLoss:0,coolUntil:0,digitsTape:[],history:[]
  });
- r.pnl=0;r.n=0;r.w=0;r.step=0;r.consecutiveLosses=0;r.vetos=0;r.history=r.history||[];
+ r.pnl=0;r.n=0;r.w=0;r.step=0;
  info(b);
+ updateActiveBotCount();
+ applyBotFilter();
 
  r.feed=TW.tickFeed(b.symbol,{
    primary:false,
    count:60,
    onHistory:fd=>{
      if(!r.on)return;
+     r.digitsTape=(fd&&fd.digits)?fd.digits.slice(-8):r.digitsTape;
      r.msg=`⚡ Stream live for ${TW.volName(b.symbol)} · Running at ${globalBotSpeed}ms speed…`;
      info(b);
      if(!r.busy)tick(b,fd);
    },
    onTick:fd=>{
-     if(r.on&&!r.busy&&globalBotSpeed>=1000)tick(b,fd);
+     if(!r.on)return;
+     if(fd&&fd.digits) r.digitsTape=fd.digits.slice(-8);
+     if(!r.busy&&globalBotSpeed>=1000)tick(b,fd);
    }
  });
 
@@ -576,11 +775,28 @@ function start(b){
    }
  },20);
 }
-function stop(b,why){const r=R[b.id];if(!r)return;r.on=false;if(r.feed){r.feed.close();r.feed=null}if(why)r.msg=why;info(b)}
+function stop(b,why){const r=R[b.id];if(!r)return;r.on=false;if(r._coolTm){clearTimeout(r._coolTm);r._coolTm=null;}if(r.feed){r.feed.close();r.feed=null}if(why)r.msg=why;info(b);updateActiveBotCount();applyBotFilter();}
 function tick(b,fd){
  const r=R[b.id];if(!r||!r.on||r.busy)return;r.k++;
  const P=(fd&&fd.prices&&fd.prices.length)?fd.prices:[100,101], D=(fd&&fd.digits&&fd.digits.length)?fd.digits:[0,5], i=P.length-1;
  if(i<0)return;
+ r.digitsTape=D.slice(-8);
+ if(r.coolUntil&&r.coolUntil>Date.now()){
+   const rem=Math.ceil((r.coolUntil-Date.now())/1000);
+   r.msg=`🧊 Loss Cooldown: pausing ${rem}s before next entry…`;
+   info(b);
+   if(!r._coolTm){
+     r._coolTm=setTimeout(()=>{
+       r._coolTm=null;
+       if(r.on&&!r.busy){
+         const pool=TW.tickPool[b.symbol]||r.feed||fd||{prices:[100,101],digits:[0,5]};
+         tick(b,pool);
+       }
+     },500);
+   }
+   return;
+ }
+ r.coolUntil=0;
  let go=false;let s=0;
  const isTurbo=b.aiMode==='turbo'||!b.aiMode;
 
@@ -598,14 +814,24 @@ function tick(b,fd){
    go=true;
  } else if(b.rule.kind==='ai_alpha'){
    go=true;
-   if(window.TWS&&TWS.digitStats&&D.length>=10){
+   if(D.length>=10){
+     const recentD=D.slice(-25);
      if(/OVER|UNDER/.test(b.contract)){
-       const overCount=D.slice(-10).filter(d=>d>2).length;
-       if(overCount>=6){dynContract='DIGITOVER';dynBarrier=2;}
-       else if(overCount<=4){dynContract='DIGITUNDER';dynBarrier=7;}
+       const over2=recentD.filter(d=>d>2).length/recentD.length;
+       const under7=recentD.filter(d=>d<7).length/recentD.length;
+       if(over2>=under7){dynContract='DIGITOVER';dynBarrier=over2>=0.76?3:2;}
+       else{dynContract='DIGITUNDER';dynBarrier=under7>=0.76?6:7;}
      } else if(/EVEN|ODD/.test(b.contract)){
-       const evenCount=D.slice(-10).filter(d=>d%2===0).length;
-       dynContract=evenCount>=5?'DIGITEVEN':'DIGITODD';
+       const evenPct=recentD.filter(d=>d%2===0).length/recentD.length;
+       dynContract=evenPct>=0.5?'DIGITEVEN':'DIGITODD';
+     } else if(b.contract==='DIGITDIFF'||b.contract==='DIGITMATCH'){
+       const counts=Array(10).fill(0); D.slice(-100).forEach(d=>counts[d]++);
+       dynBarrier=b.contract==='DIGITDIFF'?counts.indexOf(Math.min(...counts)):counts.indexOf(Math.max(...counts));
+     } else if(b.contract==='CALL'||b.contract==='PUT'){
+       const win=P.slice(-20);
+       const ema5=win.slice(-5).reduce((a,c)=>a+c,0)/Math.min(5,win.length);
+       const ema15=win.reduce((a,c)=>a+c,0)/win.length;
+       dynContract=ema5>=ema15?'CALL':'PUT';
      }
    }
  } else if(b.rule.kind==='every'){
@@ -646,16 +872,24 @@ function tick(b,fd){
      info(b);
      return;
    }
-   const st=+(b.stake*(b.mart.on?Math.pow(b.mart.mult,r.step):1)).toFixed(2);
+   const st=calcNextStake(b,r);
    r.msg=`⚡ DISPATCHING #${r.n+1}: ${dynContract} ${dynBarrier!=null?dynBarrier:''} $${st} (AI: ${conf.score}%)…`;
    info(b);
    place(b,r,dynContract,dynBarrier);
  }
 }
+let _lastBotFxAt = 0;
+function playBotFx(kind) {
+  const now = Date.now();
+  if (now - _lastBotFxAt < 1200) return;
+  _lastBotFxAt = now;
+  if (TW.fx && TW.fx[kind]) TW.fx[kind]();
+}
 async function place(b,r,optContract,optBarrier){
  const useContract=optContract||b.contract;
  const useBarrier=/OVER|UNDER|MATCH|DIFF/.test(useContract)?(optBarrier!=null?optBarrier:b.barrier):undefined;
- const st=+(b.stake*(b.mart.on?Math.pow(b.mart.mult,r.step):1)).toFixed(2);
+ const maxStk = (TW.settings && TW.settings.maxStake) ? +TW.settings.maxStake : 500;
+ const st=calcNextStake(b,r);
  r.busy=true;r.history=r.history||[];
  try{
   const t=await TW.trade({
@@ -666,28 +900,31 @@ async function place(b,r,optContract,optBarrier){
     duration_unit:'t',
     barrier:useBarrier,
     label:b.name,
-    bot:b.name
-  },{silent:true});
+    bot:b.name,
+    silent:true
+  });
 
   r.msg=`⚡ Dispatched Trade #${r.n+1} (${useContract} $${st}) · Executing…`;
   info(b);
 
   if(t.mode==='paper'&&globalBotSpeed<1000){
-    // High-speed execution resolution
     const fastPromise=new Promise(resolve=>{
       setTimeout(()=>{
         if(t.status==='open'&&typeof TW.resolvePaperTrade==='function'){
           const pool=TW.tickPool[b.symbol]||r.feed||{prices:[100,101],digits:[0,5]};
-          const P=pool.prices||[100,101], D=pool.digits||[0,5];
-          let exitP=P[P.length-1];
-          let exitD=D[D.length-1];
-          if(window.TWS&&TWS.projectMarket){
-            const pr=TWS.projectMarket(P,D);
-            if(pr&&pr.expectedDigit!=null) exitD=pr.expectedDigit;
-            else exitD=(exitD+Math.floor(Math.random()*10))%10;
-          } else {
-            exitD=Math.floor(Math.random()*10);
+          const P=pool.prices||[100,101];
+          const pip=TW.volPip(b.symbol)||2;
+          const entryP=Number(t.entry!=null?t.entry:P[P.length-1]||100);
+          let stepSum=0, stepN=0;
+          for(let k=Math.max(1,P.length-15);k<P.length;k++){
+            const d=Math.abs(P[k]-P[k-1]);
+            if(isFinite(d)&&d>0){stepSum+=d;stepN++;}
           }
+          const avgStep=stepN?stepSum/stepN:Math.max(0.05,Math.pow(10,-pip)*5);
+          const dir=Math.random()<0.5?-1:1;
+          const mag=Math.max(Math.pow(10,-pip), +(Math.random()*avgStep*1.6).toFixed(pip));
+          const exitP=+(entryP+dir*mag).toFixed(pip);
+          const exitD=Math.floor(Math.random()*10);
           TW.resolvePaperTrade(t,exitP,exitD);
         }
         resolve(t);
@@ -695,14 +932,17 @@ async function place(b,r,optContract,optBarrier){
     });
     await Promise.race([t.done,fastPromise]);
   } else {
-    // 1-Tick live market or real money
-    const timeoutMs=Math.max(2000,((b.duration||1)*1100)+800);
+    const timeoutMs = t.mode === 'live' ? Math.max(8000, ((b.duration || 1) * 2500) + 3000) : Math.max(2000, ((b.duration || 1) * 1100) + 800);
     const timeoutPromise=new Promise(resolve=>{
       setTimeout(()=>{
         if(t.status==='open'&&t.mode==='paper'&&typeof TW.resolvePaperTrade==='function'){
           const pool=TW.tickPool[b.symbol]||r.feed;
-          const exitP=(pool&&pool.prices&&pool.prices.length)?pool.prices[pool.prices.length-1]:(t.entry||100);
-          const exitD=(pool&&pool.digits&&pool.digits.length)?pool.digits[pool.digits.length-1]:TW.digitOf(exitP,2);
+          const P=(pool&&pool.prices&&pool.prices.length)?pool.prices:[100,101];
+          const pip=TW.volPip(b.symbol)||2;
+          const baseP=P[P.length-1];
+          const entryP=Number(t.entry!=null?t.entry:baseP);
+          const exitP=(/CALL|PUT/.test(useContract)&&baseP===entryP)?+(entryP+(Math.random()<0.5?-1:1)*Math.pow(10,-pip)*4).toFixed(pip):baseP;
+          const exitD=(pool&&pool.digits&&pool.digits.length)?pool.digits[pool.digits.length-1]:TW.digitOf(exitP,pip);
           TW.resolvePaperTrade(t,exitP,exitD);
         }
         resolve(t);
@@ -713,20 +953,29 @@ async function place(b,r,optContract,optBarrier){
 
   const p=Number(t.profit!=null?t.profit:0);
   r.n++;r.pnl=+(r.pnl+p).toFixed(2);
+  if(p>0) r.grossWin=+(Number(r.grossWin||0)+p).toFixed(2);
+  else if(p<0) r.grossLoss=+(Number(r.grossLoss||0)+Math.abs(p)).toFixed(2);
   recordMonTrade(b,t,st,p);
 
   if(p>0||t.status==='won'){
-    if(TW.fx&&TW.fx.win) TW.fx.win();
-    r.w++;r.step=0;r.consecutiveLosses=0;
+    playBotFx('win');
+    r.w++;r.consecutiveLosses=0;r.coolUntil=0;
+    const isComp = b.mart && b.mart.on && b.mart.mode === 'compounding';
+    r.step = isComp ? (r.step + 1 >= b.mart.steps ? 0 : r.step + 1) : 0;
     const exitStr=t.exitDigit!=null?`Digit ${t.exitDigit}`:(t.exit?`Spot ${t.exit}`:'');
-    r.msg=`🎯 WON +$${p.toFixed(2)} USD ${exitStr?'('+exitStr+')':''} · Next trade firing…`;
+    const nextEst=calcNextStake(b,r);
+    r.msg=`🎯 WON +$${p.toFixed(2)} USD ${exitStr?'('+exitStr+')':''}${isComp&&r.step?` · Compound $${nextEst.toFixed(2)}`:' · Next trade firing…'}`;
     r.history.push('W');
   } else {
-    if(TW.fx&&TW.fx.loss) TW.fx.loss();
-    r.step=b.mart.on?(r.step+1>=b.mart.steps?0:r.step+1):0;
+    playBotFx('loss');
+    const isComp = b.mart && b.mart.on && b.mart.mode === 'compounding';
+    r.step = (!b.mart || !b.mart.on || isComp) ? 0 : (r.step + 1 >= b.mart.steps ? 0 : r.step + 1);
     r.consecutiveLosses=(r.consecutiveLosses||0)+1;
+    if(r.consecutiveLosses>=2 && b.coolSecs>0) r.coolUntil=Date.now()+b.coolSecs*1000;
     const exitStr=t.exitDigit!=null?`Digit ${t.exitDigit}`:(t.exit?`Spot ${t.exit}`:'');
-    r.msg=`⚠️ Lost -$${st.toFixed(2)} USD ${exitStr?'('+exitStr+')':''} · Martingale step ${r.step}/${b.mart.steps}`;
+    const nextEst=calcNextStake(b,r);
+    const capNote=nextEst>=maxStk?` (capped at Max Stake $${maxStk})`:'';
+    r.msg=`⚠️ Lost -$${st.toFixed(2)} USD ${exitStr?'('+exitStr+')':''} · Next: $${nextEst.toFixed(2)}${capNote}`;
     r.history.push('L');
   }
 
@@ -743,7 +992,16 @@ async function place(b,r,optContract,optBarrier){
     TW.toast(`✅ [${b.name}] Max trades completed (${b.max}). Bot finished session.`, 'ok', 4000);
   }
  }
- catch(e){r.msg='⚠️ Execution note: '+(e.message||e);}
+ catch(e){
+  const msg=e&&(e.message||String(e))||'Trade error';
+  r.msg='⚠️ Execution note: '+msg;
+  if(r.on && /balance|stop-loss|max-stake|minimum stake|cancelled|not enough|unauthorized|authori/i.test(msg)){
+    stop(b,'🛑 Halted: '+msg);
+    TW.toast(`🛑 [${b.name}] Halted: ${msg}`,'err',5000);
+  } else if(!r.on && !(e&&e.quiet)){
+    TW.toast(`⚠️ [${b.name}] ${msg}`,'err',4000);
+  }
+ }
  finally{
   r.busy=false;info(b);
   // Ultra-Fast Continuous Deriv Execution Loop
@@ -762,16 +1020,57 @@ $('#list').addEventListener('change',e=>{const c=e.target.closest('.bc');if(!c||
  let v=t.type==='checkbox'?t.checked:t.type==='range'?+t.value:t.type==='number'?+t.value:t.value;let o=b;for(let i=0;i<p.length-1;i++)o=o[p[i]];o[p[p.length-1]]=v;Object.assign(b,Object.assign(clean(b),{id:b.id}));save();
  if(t.dataset.k==='aiGate'){const cv=document.getElementById('cval-'+b.id);if(cv)cv.textContent='Gate: '+v+'%';}
  if(R[b.id]&&R[b.id].on&&e.target.dataset.k==='symbol')start(b)});
-$('#list').addEventListener('click',e=>{const a=e.target.dataset.a,c=e.target.closest('.bc');if(!a||!c)return;const b=get(c.dataset.id);
- if(a==='run'){const r=R[b.id];if(r&&r.on){stop(b,'Stopped by you');e.target.textContent='Start'}else{if(b.mart.on&&!confirm('Martingale doubles risk after each loss. Start this bot with Martingale on?'))return;if(TW.mode()==='live'&&!confirm('LIVE mode: this bot will use real money. Start it?'))return;start(b);e.target.textContent='Stop'}}
+async function fetchBotTicks(sym, count) {
+  const existing = TW.tickPool[sym];
+  if (existing && Array.isArray(existing.prices) && existing.prices.length >= count) {
+    return { prices: existing.prices, digits: existing.digits };
+  }
+  return new Promise(resolve => {
+    let settled = false;
+    const pip = TW.volPip(sym) || 2;
+    const sock = new TW.Socket({
+      url: TW.tickUrl(),
+      onOpen: s => s.send({ ticks_history: sym, end: 'latest', count, style: 'ticks', req_id: 1 }),
+      onMessage: d => {
+        if (settled) return;
+        if (d.history && d.history.prices) {
+          settled = true;
+          clearTimeout(timer);
+          sock.close();
+          const prices = d.history.prices;
+          const p = d.pip_size || pip;
+          const digits = prices.map(x => TW.digitOf(x, p));
+          TW.tickPool[sym] = { pip: p, prices, digits, epochs: d.history.times || [], lastUpdated: Date.now() };
+          resolve({ prices, digits });
+        }
+      },
+      onError: () => {
+        if (!settled) { settled = true; clearTimeout(timer); sock.close(); resolve(null); }
+      }
+    });
+    const timer = setTimeout(() => {
+      if (!settled) { settled = true; sock.close(); resolve(null); }
+    }, 3500);
+  });
+}
+
+$('#list').addEventListener('click',async e=>{const a=e.target.dataset.a,c=e.target.closest('.bc');if(!a||!c)return;const b=get(c.dataset.id);if(!b)return;
+ if(a==='run'){const r=R[b.id];if(r&&r.on){stop(b,'Stopped by you');}else{if(!(await confirmStartBot(b)))return;start(b);}}
  if(a==='test'){
    const r=R[b.id]||(R[b.id]={n:0,w:0,pnl:0,step:0,consecutiveLosses:0,vetos:0,history:[]});
-   TW.toast(`⚡ Test Fire Dispatched: ${b.name} ($1.00 Paper)…`,'ok',3000);
+   if(r.busy){ TW.toast(`⏳ ${b.name} already has a trade executing…`,'mut',2000); return; }
+   TW.toast(`⚡ Test Fire Dispatched: ${b.name} ($${b.stake.toFixed(2)})…`,'ok',3000);
    place(b,r);
    return;
  }
  if(a==='backtest'){
-  const res=TWS.quickBacktest({symbol:b.symbol,contract:b.contract,barrier:b.barrier,rule:b.rule,duration:b.duration||1,ticksCount:500,stake:b.stake||1})||{};
+  TW.toast(`Fetching 500 live ticks for ${b.symbol}…`,'mut',2000);
+  const live = await fetchBotTicks(b.symbol, 500);
+  const res=TWS.quickBacktest({
+    symbol:b.symbol,contract:b.contract,barrier:b.barrier,rule:b.rule,duration:b.duration||1,
+    ticksCount:500,stake:b.stake||1,
+    prices:live?live.prices:undefined,digits:live?live.digits:undefined
+  })||{};
   const netPnL=Number(res.netPnL!=null?res.netPnL:(res.netPnl!=null?res.netPnl:0));
   const winRate=Number(res.winRate!=null?res.winRate:0);
   const trades=Number(res.trades!=null?res.trades:(res.total!=null?res.total:0));
@@ -779,44 +1078,56 @@ $('#list').addEventListener('click',e=>{const a=e.target.dataset.a,c=e.target.cl
   const maxLossStreak=Number(res.maxLossStreak!=null?res.maxLossStreak:(res.maxConsecLoss!=null?res.maxConsecLoss:0));
   const wins=Number(res.wins!=null?res.wins:0);
   const losses=Number(res.losses!=null?res.losses:0);
-  const pnlClass=netPnL>=0?'text-emerald-400':'text-rose-400';
-  const winClass=winRate>=65?'text-emerald-400':winRate>=50?'text-amber-400':'text-rose-400';
+  const isLive=res.source==='live_pool';
+  const pnlCol=netPnL>=0?'#00ffa3':'#ff3b69';
+  const winCol=winRate>=65?'#00ffa3':winRate>=50?'#ffd600':'#ff3b69';
   TW.modal({
-    title:`🧪 500-Tick Historical Simulation: ${b.name}`,
-    body:`<div class="space-y-4 text-xs font-mono">
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-2">
-        <div class="p-3 rounded-lg bg-white/[0.03] border border-white/5">
-          <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Simulated Ticks</div>
-          <div class="text-lg font-bold text-white mt-1">${totalTicks}</div>
-          <div class="text-[10px] text-zinc-400">Market: ${b.symbol}</div>
+    title:`🧪 500-Tick Backtest: ${b.name}`,
+    html:`<div style="display:grid;gap:12px;font-size:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#8e9ab3;">
+        <span>Rule: <b style="color:#fff;">${TW.esc(b.rule.kind)}</b> · Contract: <b style="color:#00b2ff;">${b.contract}</b></span>
+        <span style="padding:2px 8px;border-radius:4px;font-weight:800;font-size:10px;background:${isLive?'rgba(0,255,163,0.12)':'rgba(255,214,0,0.12)'};color:${isLive?'#00ffa3':'#ffd600'};">${isLive?'● LIVE DERIV TICKS':'◐ SYNTHETIC FALLBACK'}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+        <div style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+          <div style="font-size:10px;color:#8e9ab3;text-transform:uppercase;">Sample Ticks</div>
+          <div style="font-size:18px;font-weight:800;color:#fff;margin-top:2px;">${totalTicks}</div>
+          <div style="font-size:10.5px;color:#8e9ab3;">Market: ${b.symbol}</div>
         </div>
-        <div class="p-3 rounded-lg bg-white/[0.03] border border-white/5">
-          <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Triggers Fired</div>
-          <div class="text-lg font-bold text-white mt-1">${trades}</div>
-          <div class="text-[10px] text-zinc-400">Wins: ${wins} | Losses: ${losses}</div>
+        <div style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+          <div style="font-size:10px;color:#8e9ab3;text-transform:uppercase;">Triggers Fired</div>
+          <div style="font-size:18px;font-weight:800;color:#fff;margin-top:2px;">${trades}</div>
+          <div style="font-size:10.5px;color:#8e9ab3;">Wins: <b style="color:#00ffa3;">${wins}</b> | Losses: <b style="color:#ff3b69;">${losses}</b></div>
         </div>
-        <div class="p-3 rounded-lg bg-white/[0.03] border border-white/5">
-          <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Empirical Win Rate</div>
-          <div class="text-lg font-bold ${winClass} mt-1">${winRate.toFixed(1)}%</div>
-          <div class="text-[10px] text-zinc-400">Baseline: ${b.contract==='DIGITOVER'||b.contract==='DIGITUNDER'?'~70%':b.contract==='DIGITDIFF'?'~90%':'~50%'}</div>
+        <div style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+          <div style="font-size:10px;color:#8e9ab3;text-transform:uppercase;">Empirical Win Rate</div>
+          <div style="font-size:18px;font-weight:800;color:${winCol};margin-top:2px;">${winRate.toFixed(1)}%</div>
+          <div style="font-size:10.5px;color:#8e9ab3;">Baseline: ${b.contract==='DIGITOVER'||b.contract==='DIGITUNDER'?'~70%':b.contract==='DIGITDIFF'?'~90%':'~50%'}</div>
         </div>
-        <div class="p-3 rounded-lg bg-white/[0.03] border border-white/5">
-          <div class="text-[10px] text-zinc-500 uppercase tracking-wider">Net Simulated PnL</div>
-          <div class="text-lg font-bold ${pnlClass} mt-1">${netPnL>=0?'+':''}$${netPnL.toFixed(2)}</div>
-          <div class="text-[10px] text-zinc-400">Max Loss Streak: ${maxLossStreak}</div>
+        <div style="padding:10px;border-radius:8px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);">
+          <div style="font-size:10px;color:#8e9ab3;text-transform:uppercase;">Net Simulated PnL</div>
+          <div style="font-size:18px;font-weight:800;color:${pnlCol};margin-top:2px;">${netPnL>=0?'+':''}$${netPnL.toFixed(2)}</div>
+          <div style="font-size:10.5px;color:#8e9ab3;">Max Loss Streak: ${maxLossStreak}</div>
         </div>
       </div>
-      <div class="p-3 rounded-lg bg-indigo-500/10 border border-indigo-500/20 text-indigo-300 leading-relaxed text-[11px]">
-        <strong>💡 Newbie Analysis:</strong> Simulated over ${totalTicks} live historical ticks. ${netPnL>=0?'✅ Positive statistical edge demonstrated over this sample window.':'⚠️ Negative variance detected under static execution. Consider combining with Markov AI Alpha or dynamic streak entry.'} Always test with Paper demo before enabling live real money!
+      <div style="padding:10px 12px;border-radius:8px;background:rgba(0,178,255,0.08);border:1px solid rgba(0,178,255,0.22);color:#cbd5e1;font-size:11.5px;line-height:1.5;">
+        <strong>Analysis:</strong> ${netPnL>=0?'Positive outcome over this 500-tick window. Past windows do not guarantee future ticks — verify with paper mode before staking real balance.':'Negative variance over this sample window. Lowering Martingale exposure or testing a wider barrier may reduce drawdown.'}
       </div>
     </div>`,
-    okText:'Close Simulation'
+    buttons:[{label:'Close Simulation',value:true}]
   });
   return;
  }
  if(a==='scan'){scanInto(b.symbol,$('#in-'+b.id),false);return}
  if(a==='exp'){const x=Object.assign({},b);delete x.id;const u=URL.createObjectURL(new Blob([JSON.stringify(x,null,2)],{type:'application/json'})),l=document.createElement('a');l.href=u;l.download=(b.name.replace(/[^a-z0-9]+/gi,'-')||'bot')+'.json';l.click()}
- if(a==='del'&&confirm('Delete this bot?')){lastDel=b;$('#undo').hidden=false;stop(b);delete R[b.id];bots=bots.filter(x=>x.id!==b.id);save();draw()}});
+ if(a==='del'){
+   const ok = await TW.modal({
+     title:'Delete bot?',
+     html:`<div class="sub">Remove <b>${TW.esc(b.name)}</b>? You can restore the last deleted bot with <b>Undo delete</b>.</div>`,
+     buttons:[{label:'Cancel',cls:'ghost',value:false},{label:'Delete',cls:'red',value:true}]
+   });
+   if(ok){lastDel=b;$('#undo').hidden=false;stop(b);delete R[b.id];bots=bots.filter(x=>x.id!==b.id);save();draw();}
+ }});
 $('#add').onclick=()=>{bots.push(clean({}));save();draw()};
 $('#ex').onclick=()=>{EX.forEach(x=>bots.push(clean(x)));save();draw()};
 /* ---- Library: ready-made bots for the chosen market ---- */
@@ -880,9 +1191,9 @@ async function importFiles(files){let n=0;const notes=[];for(const fl of files){
 $('#up').onclick=()=>$('#file').click();$('#file').onchange=e=>{const fs=[...e.target.files];e.target.value='';importFiles(fs)};
 addEventListener('dragover',e=>e.preventDefault());addEventListener('drop',e=>{e.preventDefault();if(e.dataTransfer&&e.dataTransfer.files.length)importFiles([...e.dataTransfer.files])});
 $('#dl').onclick=()=>{if(!bots.length){TW.toast('No bots to download yet.','err');return}dl('tickwealth-bots.json',JSON.stringify({app:'TickWealth',version:1,bots:bots.map(strip)},null,2))};
-$('#runall').onclick=()=>{if(!bots.length)return;if(TW.mode()==='live'&&!confirm('LIVE mode: every bot will use real money. Start them all?'))return;if(bots.some(b=>b.mart.on)&&!confirm('Some bots use Martingale (risky). Start all anyway?'))return;bots.forEach(b=>{const r=R[b.id];if(!r||!r.on)start(b)})};
+$('#runall').onclick=async ()=>{if(!bots.length)return;if(!(await confirmStartBot(bots)))return;bots.forEach(b=>{const r=R[b.id];if(!r||!r.on)start(b)})};
 $('#stopall').onclick=()=>bots.forEach(b=>{if(R[b.id]&&R[b.id].on)stop(b,'Stopped by you')});
-const reset=b=>{const r=R[b.id];if(r){r.n=r.w=r.pnl=r.step=0;r.msg=''}info(b)};
+const reset=b=>{const r=R[b.id];if(r){r.n=r.w=r.pnl=r.step=r.consecutiveLosses=r.vetos=r.k=0;r.history=[];r.msg=''}info(b)};
 $('#rst').onclick=()=>bots.forEach(reset);
 const spdNormal = $('#spdNormal'), spdTurbo = $('#spdTurbo'), spdHyper = $('#spdHyper');
 function updateSpeedButtons() {
@@ -960,6 +1271,123 @@ if (btnExpCsv) {
 }
 const btnClrM = document.getElementById('btnClearMonitor');
 if (btnClrM) btnClrM.onclick = clearMonStats;
+const monFilterEl = document.getElementById('monJournalFilter');
+if (monFilterEl) monFilterEl.onchange = renderMonJournal;
+
+// Persist global Portfolio TP/Trail/SL limits across reloads
+(function initPortfolioLimits(){
+  const tpEl = document.getElementById('monTpInp'), trailEl = document.getElementById('monTrailInp'), slEl = document.getElementById('monSlInp');
+  try {
+    const saved = JSON.parse(localStorage.getItem('tw_mon_limits') || '{}');
+    if (tpEl && saved.tp != null) tpEl.value = saved.tp;
+    if (trailEl && saved.trail != null) trailEl.value = saved.trail;
+    if (slEl && saved.sl != null) slEl.value = saved.sl;
+  } catch(e){}
+  const persistLimits = () => {
+    try { localStorage.setItem('tw_mon_limits', JSON.stringify({ tp: +(tpEl?.value || 0), trail: +(trailEl?.value || 0), sl: +(slEl?.value || 0) })); } catch(e){}
+  };
+  if (tpEl) tpEl.addEventListener('change', persistLimits);
+  if (trailEl) trailEl.addEventListener('change', persistLimits);
+  if (slEl) slEl.addEventListener('change', persistLimits);
+})();
+
+// AI Bot Architect wiring
+(function initAiArchitect(){
+  const inp = document.getElementById('aiBotGoalInp');
+  const btn = document.getElementById('btnAiArchitect');
+  const prev = document.getElementById('aiArchPreview');
+  let draftBot = null;
+
+  document.querySelectorAll('.ai-arch-chip').forEach(ch => {
+    ch.onclick = () => {
+      if (inp) inp.value = ch.dataset.goal || '';
+      if (btn) btn.click();
+    };
+  });
+
+  async function generate() {
+    if (!inp || !prev || !btn) return;
+    const goal = inp.value.trim() || 'Safe balanced Under 7 sniper on R_100';
+    btn.disabled = true; btn.textContent = '✨ Designing…';
+    prev.style.display = 'block';
+    prev.innerHTML = '<div style="font-size:12px;color:#00b2ff;">Synthesizing risk-calibrated bot blueprint…</div>';
+    try {
+      const sym = (document.getElementById('lm') && document.getElementById('lm').value) || 'R_100';
+      const data = await TW.aiRequest('/api/ai/bot-architect', { goal, activeSymbol: sym, defaultStake: 0.5 });
+      draftBot = data.bot;
+      if (!draftBot) throw new Error('Empty blueprint');
+      const srcTag = data.source === 'gemini' ? '✦ Gemini AI Architect' : '⚡ Quant AI Architect';
+      prev.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:10px;">
+          <div style="flex:1;min-width:220px;">
+            <span style="font-size:10px;font-weight:900;color:#04101c;background:#00ffa3;padding:2px 7px;border-radius:4px;">${srcTag}</span>
+            <div style="font-size:15px;font-weight:900;color:#fff;margin-top:4px;">${TW.esc(draftBot.name)}</div>
+            <div style="font-size:11.5px;color:#00b2ff;font-weight:700;margin-top:2px;">
+              ${TW.esc(draftBot.symbol)} · ${TW.esc(draftBot.contract)}${/OVER|UNDER|MATCH|DIFF/.test(draftBot.contract) ? ' ' + draftBot.barrier : ''} · $${Number(draftBot.stake).toFixed(2)} · Gate ${draftBot.aiGate}% · Shield ${draftBot.lossShield ? 'ON' : 'OFF'} · Cool ${draftBot.coolSecs}s · Mart ${draftBot.mart && draftBot.mart.on ? draftBot.mart.mult + '× (' + draftBot.mart.steps + 's)' : 'OFF'}
+            </div>
+            <div style="font-size:11.5px;color:#cbd5e1;margin-top:6px;line-height:1.45;">${TW.esc(draftBot.rationale || '')}</div>
+            <div style="font-size:10.5px;color:#ffd600;margin-top:4px;">🛡️ ${TW.esc(draftBot.riskNote || '')}</div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+            <button type="button" id="btnDeployDraftBot" class="btn" style="padding:9px 16px;font-size:12px;font-weight:900;background:#00ffa3;color:#04101c;border:0;border-radius:8px;cursor:pointer;">+ Deploy Bot to Library</button>
+          </div>
+        </div>`;
+      const depBtn = document.getElementById('btnDeployDraftBot');
+      if (depBtn) {
+        depBtn.onclick = () => {
+          bots.unshift(clean(draftBot));
+          save(); draw();
+          TW.toast('✨ Deployed AI Bot: ' + draftBot.name, 'ok', 3500);
+          prev.style.display = 'none';
+        };
+      }
+    } catch (err) {
+      prev.innerHTML = `<div style="font-size:12px;color:#ff3b69;">Architect error: ${TW.esc(err.message || String(err))}</div>`;
+    } finally {
+      btn.disabled = false; btn.textContent = '✨ Generate Bot';
+    }
+  }
+  if (btn) btn.onclick = generate;
+  if (inp) inp.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); generate(); } });
+})();
+
+// D-Bot Monitor AI Session Risk Audit
+const btnAiAudit = document.getElementById('btnAiAuditMon');
+if (btnAiAudit) {
+  btnAiAudit.onclick = async () => {
+    const bal = TW.mode() === 'live' ? (TW.account.balance || 0) : (TW.paper.balance || 1000);
+    btnAiAudit.disabled = true; btnAiAudit.textContent = '🧠 Auditing…';
+    try {
+      const data = await TW.aiRequest('/api/ai/session-audit', {
+        trades: monData.trades,
+        wins: monData.wins,
+        pnl: +monData.pnl.toFixed(2),
+        totalStake: +monData.stake.toFixed(2),
+        grossWin: +monData.grossWin.toFixed(2),
+        grossLoss: +monData.grossLoss.toFixed(2),
+        maxDrawdown: +monData.maxDrawdown.toFixed(2),
+        peakPnl: +monData.peakPnl.toFixed(2),
+        balance: +bal.toFixed(2),
+        recent: monData.journal.slice(0, 12).map(j => (j.won ? 'W' : 'L'))
+      });
+      await TW.modal({
+        title: data.source === 'gemini' ? '✦ Gemini AI Session Risk Audit' : '⚡ Quant AI Session Risk Audit',
+        html: `<pre style="margin:0;white-space:pre-wrap;font:12.5px/1.6 system-ui,sans-serif;color:#d7e0f2;background:rgba(0,0,0,0.35);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);">${TW.esc(data.audit || '')}</pre>`,
+        buttons: [{ label: 'Close', value: true }]
+      });
+    } catch (err) {
+      TW.toast('Audit error: ' + (err.message || err), 'err', 4000);
+    } finally {
+      btnAiAudit.disabled = false; btnAiAudit.textContent = '🧠 AI Audit';
+    }
+  };
+}
+
+const botSearchInp = document.getElementById('botSearchInp');
+const botActiveOnly = document.getElementById('botActiveOnly');
+if (botSearchInp) botSearchInp.addEventListener('input', applyBotFilter);
+if (botActiveOnly) botActiveOnly.addEventListener('change', applyBotFilter);
+
 $('#undo').onclick=()=>{if(lastDel){bots.push(lastDel);lastDel=null;save();draw()}$('#undo').hidden=true};
 $('#list').addEventListener('click',e=>{const a=e.target.dataset.a,c=e.target.closest('.bc');if(!a||!c)return;const b=get(c.dataset.id);if(!b)return;
  if(a==='dup'){const x=clean(strip(b));x.name=(b.name+' (copy)').slice(0,40);bots.push(x);save();draw()}

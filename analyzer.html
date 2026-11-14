@@ -5,7 +5,7 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TickWealth – Market Alpha Analyzer</title>
-<meta name="description" content="Cross-market quantitative alpha scanner across all 13 volatility indices and all 4 contract pillars with single best card, live validity countdown, and 1-click manual and bot launch.">
+<meta name="description" content="Cross-market quantitative alpha scanner across all 17 volatility indices and all 4 contract pillars with single best card, live validity countdown, and 1-click manual and bot launch.">
 <link rel="stylesheet" href="core.css">
 <style>
 .wrap-clean{max-width:1040px;margin:0 auto;padding:16px 18px 40px;display:grid;gap:18px}
@@ -19,7 +19,7 @@
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0;background:rgba(0,0,0,0.35);padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)}
 .kpi-cell-val{font-size:22px;font-weight:900;margin-top:2px}
 .launch-bar{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
-@media(max-width:680px){.launch-bar{grid-template-columns:1fr}}
+@media(max-width:680px){.launch-bar{grid-template-columns:1fr}.wrap-clean{padding:12px 10px 32px}.single-card{padding:14px}.command-bar{padding:12px}.command-btn{width:100%;justify-content:center}}
 .launch-btn{padding:14px 18px;border-radius:10px;font-size:13px;font-weight:900;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;transition:transform 0.2s,box-shadow 0.2s}
 .launch-btn:hover{transform:translateY(-2px)}
 .launch-btn.manual{background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;box-shadow:0 0 22px rgba(0,255,163,0.35)}
@@ -36,12 +36,12 @@
     <div>
       <div class="h" style="font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;">MARKET ALPHA ANALYZER</div>
       <div class="sub" style="font-size:12.5px;color:#9fb0cc;margin-top:4px;">
-        Cross-market quantitative scanner. Evaluates all 13 volatility indices across Over/Under, Matches/Differs, Even/Odd, and Rise/Fall in lightning speed to isolate the single highest-edge market.
+        Cross-market quantitative scanner. Evaluates all 17 volatility indices across Over/Under, Matches/Differs, Even/Odd, and Rise/Fall in lightning speed to isolate the single highest-edge market.
       </div>
     </div>
     <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#00ffa3;background:rgba(0,255,163,0.1);padding:4px 10px;border-radius:99px;font-weight:800;">
       <span class="dot live" style="width:8px;height:8px;background:#00ffa3;"></span>
-      <span>13 ACTIVE INDICES STREAMING</span>
+      <span>17 ACTIVE INDICES STREAMING</span>
     </div>
   </div>
 
@@ -49,7 +49,7 @@
   <div class="command-bar">
     <div>
       <div style="font-size:11px;font-weight:800;color:#8e9ab3;letter-spacing:0.4px;">SCANNER COMMANDS:</div>
-      <div style="font-size:12px;color:#cbd5e1;margin-top:2px;">Execute live Markov matrix analysis across all 13 markets:</div>
+      <div style="font-size:12px;color:#cbd5e1;margin-top:2px;">Execute live Markov matrix analysis across all 17 markets:</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <button type="button" class="command-btn rapid" id="btnRapidScan">
@@ -76,6 +76,22 @@
       <span class="dot live" style="width:10px;height:10px;margin-right:8px;background:#00ffa3;"></span>
       Initiating live cross-market stream… Click <b>Rapid Scan (50t)</b> or <b>Quantum Deep Scan (1000t)</b> to evaluate.
     </div>
+  </div>
+  <div id="leaderboardBox" style="margin-top:12px;"></div>
+
+  <!-- AI Executive Briefing & Cross-Market Synthesis Panel -->
+  <div id="aiExecutivePanel" style="background:linear-gradient(135deg,rgba(11,16,27,0.98),rgba(17,24,39,0.98));border:1px solid rgba(0,178,255,0.3);border-radius:14px;padding:14px 16px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
+      <div>
+        <div style="font-size:12.5px;font-weight:900;color:#00b2ff;letter-spacing:0.4px;">🧠 AI EXECUTIVE BRIEFING &amp; REGIME SYNTHESIS</div>
+        <div style="font-size:11px;color:#9fb0cc;margin-top:2px;">Synthesizes live 17-market Markov, Hurst, Shannon entropy &amp; chop diagnostics via server AI engine.</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button type="button" id="btnAiProjBrief" class="btn" style="padding:8px 13px;font-size:11.5px;font-weight:800;background:#0d1627;border:1px solid #00ffa3;color:#00ffa3;border-radius:8px;cursor:pointer;">🔮 AI Market Projection</button>
+        <button type="button" id="btnAiCrossBrief" class="btn" style="padding:8px 13px;font-size:11.5px;font-weight:800;background:linear-gradient(90deg,#00b2ff,#00ffa3);color:#04101c;border:0;border-radius:8px;cursor:pointer;">🌐 Cross-Market AI Matrix</button>
+      </div>
+    </div>
+    <pre id="aiBriefOutput" style="display:none;margin:12px 0 0;padding:12px 14px;background:rgba(0,0,0,0.45);border:1px solid rgba(255,255,255,0.08);border-radius:10px;color:#d7e0f2;font:12px/1.6 ui-sans-serif,system-ui,sans-serif;white-space:pre-wrap;word-break:break-word;"></pre>
   </div>
 
   <!-- Optional Collapsible: Active Market Digit Inspector -->
@@ -136,7 +152,7 @@ TW.ready(function(){
     if(!feed) return;
     pb.mark(barrier);
     const d=feed.digits||[];
-    TW.renderCircles($('#dGrid'),d,{state:x=>x===barrier?'sel':'',tag:x=>x===barrier?'BARRIER':''});
+    TW.renderCircles($('#dGrid'),d,{state:x=>x===barrier?'sel':'',tag:x=>x===barrier?'BARRIER':'',onPick:x=>{barrier=x;updateFeed();}});
   }
 
   /* =========================================================================
@@ -150,6 +166,7 @@ TW.ready(function(){
 
     const box=$('#masterCardContainer');
 
+    window._silentScanActive = !!silent;
     latestRawScan=[];
     let got=0;
     let isFinished=false;
@@ -214,14 +231,14 @@ TW.ready(function(){
         }
 
         clearTimeout(idleTimer);
-        if(got>=5 && latestRawScan.length>=4){
-          idleTimer=setTimeout(finish, 180);
+        if(got>=Math.min(syms.length, 13) && latestRawScan.length>=11){
+          idleTimer=setTimeout(finish, 450);
         }
         if(got>=syms.length) finish();
       }
     });
 
-    const to=setTimeout(finish, 3000);
+    const to=setTimeout(finish, isDeep ? 9000 : 5000);
 
     function finish(){
       if(isFinished) return;
@@ -291,25 +308,28 @@ TW.ready(function(){
 
       const confCalc=(window.TWS&&TWS.calcConfidence)?TWS.calcConfidence({contract:ou.best?ou.best.contract:c.type,barrier:ou.barrier,prices,digits:dg,gate:85}):{score:TW.strength(c.heat)};
       const effectiveConf=Math.max(bestPillar.setup.conviction||50, confCalc.score||50);
-      const score=(bestPillar.setup.edgePts*2.2)+(bestPillar.setup.projectedWinPct*0.8)+(effectiveConf*1.2);
+      const rf=(window.TWS&&TWS.regimeFingerprint)?TWS.regimeFingerprint(prices,dg):{chopIndex:0.5,droughtDigit:0,droughtTicks:0,kellyPct:1.0,hazard:'BALANCED',regimeLabel:'Balanced'};
+      const chopPenalty=rf.hazard==='CHOP_TRAP'?10:0;
+      const score=(bestPillar.setup.edgePts*2.2)+(bestPillar.setup.projectedWinPct*0.8)+(effectiveConf*1.2)-chopPenalty;
 
       computed.push({
         v, c, n:dg.length, isDeep:!!isDeep,
         entropy:+(ds.entropy/Math.log2(10)).toFixed(3),
         conf:effectiveConf,
+        rf,
         ou, eo, md, bestPillar, proj, prices, dg, score
       });
     });
 
     computed.sort((x,y)=>y.score-x.score);
     latestComputed=computed;
-    renderSingleBestMasterCard();
+    renderSingleBestMasterCard(!isPreliminary && !window._silentScanActive);
   }
 
   /* =========================================================================
    * RENDER THE SINGLE BEST MASTER CARD (CLEAN, NO CONGESTION)
    * ========================================================================= */
-  function renderSingleBestMasterCard(){
+  function renderSingleBestMasterCard(shouldChime){
     const box=$('#masterCardContainer');
     if(!box || !latestComputed || !latestComputed.length) return;
 
@@ -325,14 +345,22 @@ TW.ready(function(){
     const setup=topBest.bestPillar.setup;
     const pillarName=topBest.bestPillar.favourablePillar;
 
-    // Trigger audio chime if alpha conviction reaches >=85%
-    if(isAuthorized && TW.fx) TW.fx.alert();
+    // Trigger audio chime once per completed scan if alpha conviction reaches >=85%
+    if(isAuthorized && TW.fx && shouldChime) TW.fx.alert();
+
+    const isRF = pillarName === 'Rise / Fall';
+    if (!isRF && selectedUnit !== 't') {
+      selectedUnit = 't';
+      selectedDur = 5;
+    }
 
     // Build Launch Manual URL
     function getManualUrl(){
       let base=topBest.bestPillar.url;
       const sep=base.includes('?')?'&':'?';
-      let url=`${base}${sep}dur=${selectedDur}&unit=${selectedUnit}`;
+      const effUnit = isRF ? selectedUnit : 't';
+      const effDur = isRF ? selectedDur : Math.min(10, Math.max(1, selectedDur));
+      let url=`${base}${sep}dur=${effDur}&unit=${effUnit}`;
       if(setup.action) url+=`&type=${setup.action}`;
       if(setup.barrier!=null) url+=`&barrier=${setup.barrier}`;
       if(setup.digit!=null) url+=`&digit=${setup.digit}`;
@@ -346,7 +374,8 @@ TW.ready(function(){
       const barr = setup.barrier != null ? setup.barrier : (setup.digit != null ? setup.digit : 2);
       bUrl+=`&barrier=${barr}`;
       const recGate = (contract==='DIGITOVER'&&barr<=2)?68:(contract==='DIGITUNDER'&&barr>=7)?68:contract==='DIGITDIFF'?85:54;
-      bUrl+=`&name=${encodeURIComponent(`AI Alpha ${topBest.v.name} (${setup.decision})`)}&dur=${selectedDur}&rule_kind=instant&rule_cond=${setup.action==='UNDER'?'over':setup.action==='OVER'?'under':setup.action==='EVEN'?'odd':'even'}&rule_n=1&mart=1&mart_mult=2.5&mart_steps=3&gate=${recGate}`;
+      const tickDur = selectedUnit === 't' ? Math.min(10, Math.max(1, selectedDur)) : 1;
+      bUrl+=`&name=${encodeURIComponent(`AI Alpha ${topBest.v.name} (${setup.decision})`)}&dur=${tickDur}&rule_kind=instant&rule_cond=${setup.action==='UNDER'?'over':setup.action==='OVER'?'under':setup.action==='EVEN'?'odd':'even'}&rule_cb=${barr}&rule_n=1&mart=1&mart_mult=2.5&mart_steps=3&gate=${recGate}`;
       return bUrl;
     }
 
@@ -360,7 +389,8 @@ TW.ready(function(){
       const bBot = $('#btnLaunchBotTrade');
       if(bBot){
         bBot.href = getBotUrl();
-        bBot.innerHTML = `🤖 LAUNCH IN BOT (PRECONFIGURED · USE ${durLabel}) →`;
+        const botDurLabel = selectedUnit==='t' ? `${selectedDur} Ticks` : '1 Tick Bot';
+        bBot.innerHTML = `🤖 LAUNCH IN BOT (PRECONFIGURED · USE ${botDurLabel}) →`;
       }
     }
 
@@ -498,25 +528,25 @@ TW.ready(function(){
           <div style="margin-top:12px;">
             <div style="font-size:10.5px;color:#8e9ab3;font-weight:700;margin-bottom:6px;">SELECT EXECUTION DURATION &amp; UNIT (CLICK TO APPLY TO BUTTONS):</div>
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;" id="timingPresetGrid">
-              <button type="button" class="btn timing-chip active" data-d="5" data-u="t" style="text-align:left;padding:8px 10px;border-radius:8px;background:#00ffa3;color:#04101c;border:1.5px solid #00ffa3;cursor:pointer;">
+              <button type="button" class="btn timing-chip ${selectedUnit==='t'&&selectedDur===5?'active':''}" data-d="5" data-u="t" style="text-align:left;padding:8px 10px;border-radius:8px;background:${selectedUnit==='t'&&selectedDur===5?'#00ffa3':'rgba(255,255,255,0.04)'};color:${selectedUnit==='t'&&selectedDur===5?'#04101c':'#cbd5e1'};border:1.5px solid ${selectedUnit==='t'&&selectedDur===5?'#00ffa3':'rgba(255,255,255,0.12)'};cursor:pointer;">
                 <div style="font-size:12px;font-weight:900;">⚡ 5 Ticks (~5s)</div>
                 <div style="font-size:9.5px;font-weight:700;opacity:0.9;">OPTIMAL ALPHA (+${setup.edgePts} pts)</div>
               </button>
-              <button type="button" class="btn timing-chip" data-d="1" data-u="t" style="text-align:left;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.04);color:#cbd5e1;border:1.5px solid rgba(255,255,255,0.12);cursor:pointer;">
+              <button type="button" class="btn timing-chip ${selectedUnit==='t'&&selectedDur===1?'active':''}" data-d="1" data-u="t" style="text-align:left;padding:8px 10px;border-radius:8px;background:${selectedUnit==='t'&&selectedDur===1?'#00ffa3':'rgba(255,255,255,0.04)'};color:${selectedUnit==='t'&&selectedDur===1?'#04101c':'#cbd5e1'};border:1.5px solid ${selectedUnit==='t'&&selectedDur===1?'#00ffa3':'rgba(255,255,255,0.12)'};cursor:pointer;">
                 <div style="font-size:12px;font-weight:800;">⚡ 1 Tick (~1s)</div>
                 <div style="font-size:9.5px;color:#7d8aa5;">FAST IMPULSE SNIPER</div>
               </button>
-              <button type="button" class="btn timing-chip" data-d="10" data-u="t" style="text-align:left;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.04);color:#cbd5e1;border:1.5px solid rgba(255,255,255,0.12);cursor:pointer;">
+              <button type="button" class="btn timing-chip ${selectedUnit==='t'&&selectedDur===10?'active':''}" data-d="10" data-u="t" style="text-align:left;padding:8px 10px;border-radius:8px;background:${selectedUnit==='t'&&selectedDur===10?'#00ffa3':'rgba(255,255,255,0.04)'};color:${selectedUnit==='t'&&selectedDur===10?'#04101c':'#cbd5e1'};border:1.5px solid ${selectedUnit==='t'&&selectedDur===10?'#00ffa3':'rgba(255,255,255,0.12)'};cursor:pointer;">
                 <div style="font-size:12px;font-weight:800;">⚡ 10 Ticks (~10s)</div>
                 <div style="font-size:9.5px;color:#7d8aa5;">MOMENTUM CONTINUITY</div>
               </button>
-              <button type="button" class="btn timing-chip" data-d="15" data-u="s" style="text-align:left;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.04);color:#cbd5e1;border:1.5px solid rgba(255,255,255,0.12);cursor:pointer;">
+              <button type="button" class="btn timing-chip ${isRF?'':'disabled'}" data-d="15" data-u="s" ${isRF?'':'disabled title="Seconds only apply to Rise/Fall contracts"'} style="text-align:left;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.04);color:#cbd5e1;border:1.5px solid rgba(255,255,255,0.12);${isRF?'cursor:pointer;':'opacity:0.4;cursor:not-allowed;'}">
                 <div style="font-size:12px;font-weight:800;">⏱️ 15 Seconds</div>
-                <div style="font-size:9.5px;color:#7d8aa5;">VOLATILITY HORIZON</div>
+                <div style="font-size:9.5px;color:#7d8aa5;">${isRF?'VOLATILITY HORIZON':'RISE / FALL ONLY'}</div>
               </button>
-              <button type="button" class="btn timing-chip" data-d="1" data-u="m" style="text-align:left;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.04);color:#cbd5e1;border:1.5px solid rgba(255,255,255,0.12);cursor:pointer;">
+              <button type="button" class="btn timing-chip ${isRF?'':'disabled'}" data-d="1" data-u="m" ${isRF?'':'disabled title="Minutes only apply to Rise/Fall contracts"'} style="text-align:left;padding:8px 10px;border-radius:8px;background:rgba(255,255,255,0.04);color:#cbd5e1;border:1.5px solid rgba(255,255,255,0.12);${isRF?'cursor:pointer;':'opacity:0.4;cursor:not-allowed;'}">
                 <div style="font-size:12px;font-weight:800;">⏱️ 1 Minute</div>
-                <div style="font-size:9.5px;color:#7d8aa5;">MACRO CYCLE REVERSION</div>
+                <div style="font-size:9.5px;color:#7d8aa5;">${isRF?'MACRO CYCLE REVERSION':'RISE / FALL ONLY'}</div>
               </button>
             </div>
           </div>
@@ -570,6 +600,12 @@ TW.ready(function(){
           </div>
           <div style="display:grid;grid-template-columns:repeat(10,1fr);gap:4px;text-align:center;font-size:9px;color:#7d8aa5;margin-top:2px;">
             <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span><span>7</span><span>8</span><span>9</span>
+          </div>
+          <div style="margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,0.06);display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:10.5px;color:#9fb0cc;">
+            <span>Regime Hazard: <b style="color:${topBest.rf.hazard==='CHOP_TRAP'?'#ff3b69':topBest.rf.hazard==='SKEW_SPIKE'?'#00ffa3':'#00b2ff'};">${topBest.rf.hazard.replace('_',' ')}</b></span>
+            <span>Chop Index: <b>${Math.round((topBest.rf.chopIndex||0.5)*100)}%</b></span>
+            <span>Max Drought: <b>Digit ${topBest.rf.droughtDigit} (${topBest.rf.droughtTicks}t)</b></span>
+            <span>Kelly Stake Cap: <b style="color:#00ffa3;">${topBest.rf.kellyPct}% eq</b></span>
           </div>
         </div>
 
@@ -720,23 +756,23 @@ TW.ready(function(){
     if(btnTest){
       btnTest.onclick=async ()=>{
         const contract = setup.best ? setup.best.contract : (pillarName==='Over / Under'?(setup.action==='OVER'?'DIGITOVER':'DIGITUNDER'):pillarName==='Even / Odd'?(setup.action==='EVEN'?'DIGITEVEN':'DIGITODD'):pillarName==='Matches / Differs'?(setup.action==='MATCHES'?'DIGITMATCH':'DIGITDIFF'):(setup.action==='CALL'?'CALL':'PUT'));
+        const isDig = /^DIGIT/.test(contract);
+        const fireDur = isDig && selectedUnit !== 't' ? 5 : selectedDur;
+        const fireUnit = isDig ? 't' : selectedUnit;
         const tradeParam={
           contract_type:contract,
           symbol:topBest.v.id,
           amount:testStake,
-          duration:selectedDur,
-          duration_unit:selectedUnit,
+          duration:fireDur,
+          duration_unit:fireUnit,
           barrier:/OVER|UNDER|MATCH|DIFF/.test(contract)?(setup.barrier!=null?setup.barrier:setup.digit!=null?setup.digit:4):undefined,
           label:`Analyzer Test: ${setup.decision}`
         };
         try{
-          TW.toast(`⚡ Test Fire Dispatched: ${setup.decision} on ${topBest.v.name} ($${testStake.toFixed(2)} · ${selectedDur}${selectedUnit})…`,'ok',3000);
-          const tr=await TW.trade(tradeParam);
-          tr.done.then(res=>{
-            TW.toast((res.profit>0?'🎯 TEST WON +':'⚠️ TEST LOST ')+TW.money(res.profit), res.profit>0?'ok':'err',4000);
-          });
+          TW.toast(`⚡ Test Fire Dispatched: ${setup.decision} on ${topBest.v.name} ($${testStake.toFixed(2)} · ${fireDur}${fireUnit})…`,'ok',3000);
+          await TW.trade(tradeParam);
         }catch(err){
-          TW.toast('Test error: '+(err.message||err),'err',4000);
+          if(!err.quiet) TW.toast('Test error: '+(err.message||err),'err',4000);
         }
       };
     }
@@ -746,11 +782,97 @@ TW.ready(function(){
     // Card Rescan Handlers
     $('#btnCardRescan').onclick=()=>executeScan(50,false);
     $('#btnCardDeepScan').onclick=()=>executeScan(1000,true);
+
+    // Top-5 Cross-Market Leaderboard
+    const lbBox=$('#leaderboardBox');
+    if(lbBox && latestComputed.length>1){
+      const top5=latestComputed.slice(0,5);
+      lbBox.innerHTML=`
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:12px 14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+            <span style="font-size:12px;font-weight:900;color:#fff;letter-spacing:0.3px;">📊 TOP ${top5.length} CROSS-MARKET LEADERBOARD (${latestComputed.length} SCANNED)</span>
+            <span style="font-size:10.5px;color:#7d8aa5;">Ranked by empirical edge &amp; Markov conviction</span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:11.5px;text-align:left;">
+              <thead>
+                <tr style="color:#7d8aa5;border-bottom:1px solid rgba(255,255,255,0.1);font-size:10px;text-transform:uppercase;">
+                  <th style="padding:5px 6px;">Rank</th>
+                  <th style="padding:5px 6px;">Market</th>
+                  <th style="padding:5px 6px;">Pillar · Setup</th>
+                  <th style="padding:5px 6px;">Win / Edge</th>
+                  <th style="padding:5px 6px;">Conviction</th>
+                  <th style="padding:5px 6px;text-align:right;">Quick Launch</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${top5.map((row,idx)=>{
+                  const rs=row.bestPillar.setup;
+                  const rp=row.bestPillar.favourablePillar;
+                  const rContract=rs.best?rs.best.contract:(rp==='Over / Under'?(rs.action==='OVER'?'DIGITOVER':'DIGITUNDER'):rp==='Even / Odd'?(rs.action==='EVEN'?'DIGITEVEN':'DIGITODD'):rp==='Matches / Differs'?(rs.action==='MATCHES'?'DIGITMATCH':'DIGITDIFF'):(rs.action==='CALL'?'CALL':'PUT'));
+                  const rBarr=rs.barrier!=null?rs.barrier:(rs.digit!=null?rs.digit:2);
+                  const rSep=row.bestPillar.url.includes('?')?'&':'?';
+                  const rMan=`${row.bestPillar.url}${rSep}dur=5&unit=t${rs.action?'&type='+rs.action:''}${rs.barrier!=null?'&barrier='+rs.barrier:''}${rs.digit!=null?'&digit='+rs.digit:''}`;
+                  const rBot=`bots-library.html?symbol=${row.v.id}&contract=${rContract}&barrier=${rBarr}&name=${encodeURIComponent('AI '+row.v.name+' ('+rs.decision+')')}&dur=1&rule_kind=instant&mart=1&mart_mult=2.2&mart_steps=3&gate=${Math.max(48,Math.min(85,row.conf))}`;
+                  return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);${idx===0?'background:rgba(0,255,163,0.05);':''}">
+                    <td style="padding:6px;font-weight:900;color:${idx===0?'#00ffa3':'#9fb0cc'};">#${idx+1}</td>
+                    <td style="padding:6px;font-weight:700;color:#fff;">${TW.esc(row.v.name)} <span style="color:#7d8aa5;font-size:10px;">(${row.v.id})</span></td>
+                    <td style="padding:6px;color:#00b2ff;font-weight:800;">${TW.esc(rp)} · <span style="color:#ffd600;">${TW.esc(rs.decision)}</span></td>
+                    <td style="padding:6px;color:#cbd5e1;"><b>${rs.projectedWinPct}%</b> <span style="color:#00ffa3;">(+${rs.edgePts} pts)</span></td>
+                    <td style="padding:6px;font-weight:800;color:${row.conf>=85?'#00ffa3':'#ffd600'};">${row.conf}%</td>
+                    <td style="padding:6px;text-align:right;white-space:nowrap;">
+                      <a href="${rMan}" class="btn ghost" style="padding:3px 8px;font-size:10.5px;border-radius:6px;margin-right:4px;">Trade →</a>
+                      <a href="${rBot}" class="btn ghost" style="padding:3px 8px;font-size:10.5px;border-radius:6px;color:#00b2ff;border-color:rgba(0,178,255,0.35);">🤖 Bot →</a>
+                    </td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
   }
 
   // Header Command Buttons
   $('#btnRapidScan').onclick=()=>executeScan(50,false);
   $('#btnDeepScan').onclick=()=>executeScan(1000,true);
+
+  async function runExecutiveBrief(mode){
+    const out = $('#aiBriefOutput');
+    if(!out) return;
+    if(!latestComputed.length){ TW.toast('Wait for scan results first…', 'mut', 2500); return; }
+    out.style.display='block';
+    out.textContent = mode === 'cross'
+      ? '🌐 Synthesizing 17-market Cross-Market AI Regime Matrix…'
+      : '🔮 Generating Incoming Market Projection Briefing…';
+    const payloadList = latestComputed.map(m=>({
+      symbol: m.v.id,
+      name: m.v.name,
+      conf: m.conf,
+      entropy: m.entropy,
+      hurst: m.proj.hurst,
+      regime: m.proj.regime,
+      edgePts: m.bestPillar.setup.edgePts,
+      sampleSize: m.n,
+      ouDecision: m.ou,
+      optimalContract: m.proj.optimalContract
+    }));
+    try{
+      if(mode === 'cross'){
+        const d = await TW.aiRequest('/api/ai/cross-market-analysis', { markets: payloadList, activeAsset: top.symbol, confidenceThreshold: 80, riskProfile: 'balanced' });
+        out.textContent = (d.fallback ? '⚡ Quant Cross-Market Matrix\n' : '✦ Gemini Cross-Market AI\n') + (d.crossMarketReport || 'No briefing returned.');
+      } else {
+        const d = await TW.aiRequest('/api/ai/project-markets', { scannedMarkets: payloadList.slice(0, 8), confidenceThreshold: 80, targetHorizon: '1 to 5 ticks', riskProfile: 'balanced' });
+        out.textContent = (d.fallback ? '⚡ Quant Market Projection\n' : '✦ Gemini Market Projection AI\n') + (d.projectionReport || 'No projection returned.');
+      }
+    }catch(err){
+      out.textContent = 'AI briefing error: ' + (err.message || err);
+    }
+  }
+  const bProj = $('#btnAiProjBrief'), bCross = $('#btnAiCrossBrief');
+  if(bProj) bProj.onclick = () => runExecutiveBrief('proj');
+  if(bCross) bCross.onclick = () => runExecutiveBrief('cross');
 
   // Continuous Live Radar Toggle
   const btnRadar=$('#btnLiveRadar');
@@ -774,6 +896,7 @@ TW.ready(function(){
       }
     };
   }
+  window.addEventListener('pagehide', ()=>{ clearInterval(radarInterval); clearInterval(singleCardTimer); });
 
   // Institutional Keyboard Hotkeys Engine
   window.addEventListener('keydown', e => {

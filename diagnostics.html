@@ -29,10 +29,19 @@ TW.guard('Diagnostics', () => {
     out.textContent = ''; lines.length = 0; let ws = null, legacy = false;
     add('Browser WebSocket support', 'WebSocket' in window ? 'pass' : 'fail');
     const t0 = Date.now();
-    ws = await step('Connect to Deriv public data (' + TW.settings.endpoint.replace('wss://', '') + ')', async () => { const w = await open(TW.settings.endpoint); return Object.assign(w, { _t: 'opened in ' + (Date.now() - t0) + ' ms' }); });
+    ws = await step('Connect to Deriv public data (' + TW.settings.endpoint.replace('wss://', '') + ')', async () => { const w = await open(TW.settings.endpoint); return Object.assign(w, { t: 'opened in ' + (Date.now() - t0) + ' ms' }); });
     if (!ws) { ws = await step('Fallback: legacy endpoint', async () => { const w = await open(TW.LEGACY); legacy = true; return w; }); }
     if (ws) {
-      await step('Ping', async () => { const t = Date.now(); await ask(ws, { ping: 1 }); return { t: (Date.now() - t) + ' ms' }; });
+      await step('Ping & Jitter (3 samples)', async () => {
+        const samples = [];
+        for (let i = 0; i < 3; i++) {
+          const t = Date.now();
+          await ask(ws, { ping: 1 });
+          samples.push(Date.now() - t);
+        }
+        const avg = Math.round(samples.reduce((a, b) => a + b, 0) / samples.length);
+        return { t: `avg ${avg} ms (samples: ${samples.join(', ')} ms)` };
+      });
       await step('Market list (active_symbols)', async () => { const d = await ask(ws, { active_symbols: 'brief' }); const n = (d.active_symbols || []).length; if (!n) throw new Error('empty list'); return { t: n + ' markets' }; });
       await step('Live tick (R_100)', async () => { const d = await ask(ws, { ticks: 'R_100', subscribe: 1 }); ws.send(JSON.stringify({ forget_all: 'ticks' })); return { t: 'quote ' + d.tick.quote }; });
       await step('History: 1000 ticks', async () => { const d = await ask(ws, { ticks_history: 'R_100', end: 'latest', count: 1000, style: 'ticks' }); const n = d.history.prices.length; return n >= 1000 ? { t: n + ' ticks' } : { warn: 1, t: 'only ' + n + ' ticks' }; });
@@ -45,6 +54,17 @@ TW.guard('Diagnostics', () => {
     const app = String(TW.settings.appId || '');
     add('App ID configured', !app || app === '1089' || app === 'YOUR_APP_ID' ? 'fail' : 'pass', !app || app === '1089' ? 'still the old test ID' : app.slice(0, 6) + '...');
     await step('Deriv REST API reachable from this browser', async () => { try { const r = await fetch('https://api.derivws.com/trading/v1/options/accounts', { headers: { 'Deriv-App-ID': app } }); return { t: 'HTTP ' + r.status + ' (a reply without a token is expected)' }; } catch (e) { throw new Error('blocked (CORS or network). Login from this site may fail'); } });
+    await step('AI Quant Backend (/api/ai/chat)', async () => {
+      const ep = (TW.settings && TW.settings.aiEndpoint) || '/api/ai/chat';
+      const r = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [{ role: 'user', content: 'ping' }], context: { page: 'diagnostics' } }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok && j.reply) return { t: 'HTTP ' + r.status + ' · AI engine responding' };
+      return { warn: 1, t: 'HTTP ' + r.status + ' · Falling back to local statistical explainer' };
+    });
+    await step('Browser LocalStorage persistence', async () => {
+      try { localStorage.setItem('_tw_diag', '1'); localStorage.removeItem('_tw_diag'); return { t: 'read/write OK' }; }
+      catch (e) { throw new Error('storage blocked or full'); }
+    });
     add('Login state', TW.account.authed ? 'pass' : 'skip', TW.account.authed ? TW.account.loginid + (TW.account.virtual ? ' (demo)' : ' (REAL)') + ', balance ' + TW.account.balance : 'not logged in');
     add('Trading mode', 'skip', TW.mode ? TW.mode() : 'unknown');
   }

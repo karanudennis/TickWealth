@@ -776,36 +776,42 @@ const TWS = (() => {
 
   function quickBacktest(opt) {
     opt = opt || {};
-    let digits = Array.isArray(opt.digits) && opt.digits.length ? opt.digits : null;
-    let prices = Array.isArray(opt.prices) && opt.prices.length ? opt.prices : null;
+    let digits = Array.isArray(opt.digits) && opt.digits.length >= 20 ? opt.digits : null;
+    let prices = Array.isArray(opt.prices) && opt.prices.length >= 20 ? opt.prices : null;
+    let usedLive = !!(digits && prices);
     const sym = opt.symbol || 'R_100';
 
-    if (!digits || digits.length < 20) {
+    if (!usedLive) {
       const pool = (typeof window !== 'undefined' && window.TW && window.TW.tickPool && window.TW.tickPool[sym]) ||
                    (typeof globalThis !== 'undefined' && globalThis.TW && globalThis.TW.tickPool && globalThis.TW.tickPool[sym]);
-      if (pool && Array.isArray(pool.digits) && pool.digits.length >= 20) {
+      if (pool && Array.isArray(pool.digits) && pool.digits.length >= 20 && Array.isArray(pool.prices) && pool.prices.length >= 20) {
         digits = pool.digits;
         prices = pool.prices;
+        usedLive = true;
       }
     }
 
-    if (!digits || digits.length < 20) {
+    if (!usedLive) {
       digits = [];
       prices = [];
       let p = 1000.0;
-      for (let i = 0; i < 500; i++) {
-        p += (Math.random() - 0.495) * 0.45;
-        prices.push(+p.toFixed(2));
-        digits.push(Math.floor(Math.random() * 10));
+      const count = opt.ticksCount || 500;
+      for (let i = 0; i < count; i++) {
+        p = +(p + (Math.random() - 0.5) * 0.45).toFixed(2);
+        prices.push(p);
+        const s = p.toFixed(2);
+        digits.push(+s[s.length - 1]);
       }
     }
 
     const contract = opt.contract || 'DIGITOVER';
     const barrier = opt.barrier != null ? +opt.barrier : 2;
-    const dur = opt.duration || 1;
-    const stake = opt.stake || 1.0;
+    const dur = Math.max(1, +opt.duration || 1);
+    const stake = Math.max(0.35, +opt.stake || 1.0);
     const rule = opt.rule || {};
-    const cond = opt.cond || rule.cond || null;
+    const kind = rule.kind || (rule.cond || opt.cond ? 'streak' : 'instant');
+    const condName = opt.cond || rule.cond || null;
+    const reqStreak = Math.max(1, +(rule.n || opt.n || 1));
     const cb = opt.cb != null ? +opt.cb : (rule.cb != null ? +rule.cb : barrier);
     const n = digits.length;
 
@@ -817,24 +823,42 @@ const TWS = (() => {
     if (contract === 'DIGITOVER') payoutMult = (1 / Math.max(0.1, (9 - barrier) / 10)) * 0.95;
     else if (contract === 'DIGITUNDER') payoutMult = (1 / Math.max(0.1, barrier / 10)) * 0.95;
     else if (contract === 'DIGITMATCH') payoutMult = 9.5;
-    else if (contract === 'DIGITDIFF') payoutMult = 1.05;
+    else if (contract === 'DIGITDIFF') payoutMult = 1.09;
 
     const profitOnWin = +(stake * (payoutMult - 1)).toFixed(2);
     const lossAmount = stake;
 
-    for (let i = 10; i < n - dur; i += Math.max(1, dur)) {
+    const checkSingleCond = (idx) => {
+      if (idx < 1) return false;
+      const d = digits[idx];
+      if (condName === 'under') return d < cb;
+      if (condName === 'over') return d > cb;
+      if (condName === 'odd') return d % 2 === 1;
+      if (condName === 'even') return d % 2 === 0;
+      if (condName === 'rise') return prices[idx] > prices[idx - 1];
+      if (condName === 'fall') return prices[idx] < prices[idx - 1];
+      return true;
+    };
+
+    let i = Math.max(10, reqStreak);
+    while (i < n - dur) {
+      let trigger = false;
+      if (kind === 'every') {
+        trigger = (i % reqStreak === 0);
+      } else if (kind === 'streak' && condName) {
+        trigger = true;
+        for (let s = 0; s < reqStreak; s++) {
+          if (!checkSingleCond(i - s)) { trigger = false; break; }
+        }
+      } else {
+        trigger = true;
+      }
+
+      if (!trigger) { i++; continue; }
+
       const entryPrice = prices[i] || 0;
-      const entryDigit = digits[i];
       const exitPrice = prices[i + dur] || 0;
       const exitDigit = digits[i + dur];
-
-      let trigger = true;
-      if (cond === 'under') trigger = entryDigit < cb;
-      else if (cond === 'over') trigger = entryDigit > cb;
-      else if (cond === 'odd') trigger = entryDigit % 2 === 1;
-      else if (cond === 'even') trigger = entryDigit % 2 === 0;
-
-      if (!trigger) continue;
 
       totalTrades++;
       let win = false;
@@ -859,6 +883,7 @@ const TWS = (() => {
         if (consecLoss > maxConsecLoss) maxConsecLoss = consecLoss;
         winHistory.push('L');
       }
+      i += dur;
     }
 
     const winRate = totalTrades > 0 ? +((wins / totalTrades) * 100).toFixed(1) : 0;
@@ -876,13 +901,132 @@ const TWS = (() => {
       maxLossStreak: maxConsecLoss,
       totalTicks: n,
       sampleSize: n,
-      recentStreak: winHistory.slice(-8)
+      recentStreak: winHistory.slice(-8),
+      source: usedLive ? 'live_pool' : 'synthetic_sim'
+    };
+  }
+
+  // 2nd-order Backoff Markov Transition estimator conditioned on last 2 digits (D[n-2], D[n-1])
+  function secondOrderMarkov(D) {
+    if (!D || D.length < 30) return null;
+    const m1 = markovMatrix(D);
+    const n = D.length;
+    const prev2 = D[n - 2], prev1 = D[n - 1];
+    const counts2 = Array(10).fill(0);
+    let hits2 = 0;
+    for (let i = 2; i < n; i++) {
+      if (D[i - 2] === prev2 && D[i - 1] === prev1 && D[i] >= 0 && D[i] <= 9) {
+        counts2[D[i]]++;
+        hits2++;
+      }
+    }
+    const base1 = (m1 && m1.probs && m1.probs[prev1]) ? m1.probs[prev1] : Array(10).fill(0.1);
+    // Confidence-weighted blend of 2nd-order exact bigram match with 1st-order Markov
+    const w2 = Math.min(0.45, hits2 / (hits2 + 12));
+    const probs = counts2.map((c, d) => {
+      const p2 = hits2 > 0 ? (c + 0.1) / (hits2 + 1) : base1[d];
+      return +((p2 * w2) + (base1[d] * (1 - w2))).toFixed(4);
+    });
+    return { pair: [prev2, prev1], sampleMatches: hits2, probs, topDigit: probs.indexOf(Math.max(...probs)) };
+  }
+
+  // Multi-factor Quantitative Regime Fingerprint for terminal cards, risk gates & Gemini prompts
+  function regimeFingerprint(prices, digits) {
+    const P = Array.isArray(prices) ? prices : [];
+    const D = Array.isArray(digits) ? digits : [];
+    const n = D.length;
+    if (n < 15) {
+      return {
+        normEntropy: 0.99,
+        hurst: 0.50,
+        maxDigitZ: 0,
+        chopIndex: 0.50,
+        droughtDigit: 0,
+        droughtTicks: 0,
+        kellyPct: 1.0,
+        hazard: 'CALIBRATING',
+        regimeLabel: 'Calibrating tick window',
+        summary: 'Collecting ticks for entropy, Hurst, and digit-gap calibration.'
+      };
+    }
+
+    const ds = digitStats(D);
+    const normEntropy = +(ds.entropy / (ds.maxEntropy || Math.log2(10))).toFixed(3);
+    const sd = Math.sqrt(0.09 * n) || 1;
+    let maxDigitZ = 0;
+    ds.counts.forEach(c => {
+      const z = Math.abs(c - 0.1 * n) / sd;
+      if (z > maxDigitZ) maxDigitZ = z;
+    });
+    maxDigitZ = +maxDigitZ.toFixed(2);
+
+    // Longest active drought across digits 0-9
+    const lastIdx = Array(10).fill(-1);
+    for (let i = 0; i < n; i++) if (D[i] >= 0 && D[i] <= 9) lastIdx[D[i]] = i;
+    let droughtDigit = 0, droughtTicks = -1;
+    for (let d = 0; d <= 9; d++) {
+      const gap = lastIdx[d] >= 0 ? (n - 1 - lastIdx[d]) : n;
+      if (gap > droughtTicks) { droughtTicks = gap; droughtDigit = d; }
+    }
+
+    // Hurst & Price Chop Index (fraction of sign flips in last 25 moves)
+    let hurst = 0.50, chopIndex = 0.50;
+    if (P.length >= 16) {
+      const sl = P.slice(-26);
+      const rets = [];
+      for (let i = 1; i < sl.length; i++) rets.push(sl[i] - sl[i - 1]);
+      const ac = autocorr(rets, 1);
+      hurst = +Math.max(0.1, Math.min(0.9, 0.5 + (ac.r || 0) * 0.35)).toFixed(2);
+      const signs = rets.map(r => Math.sign(r)).filter(s => s !== 0);
+      if (signs.length >= 4) {
+        let flips = 0;
+        for (let i = 1; i < signs.length; i++) if (signs[i] !== signs[i - 1]) flips++;
+        chopIndex = +(flips / (signs.length - 1)).toFixed(2);
+      }
+    }
+
+    let hazard = 'BALANCED';
+    let regimeLabel = 'Stationary Balanced Flow';
+    if (chopIndex >= 0.68 || normEntropy >= 0.992) {
+      hazard = 'CHOP_TRAP';
+      regimeLabel = 'High-Chop / High-Entropy Noise';
+    } else if (hurst >= 0.58) {
+      regimeLabel = 'Persistent Momentum Drift';
+      if (maxDigitZ >= 2.2) hazard = 'SKEW_SPIKE';
+    } else if (hurst <= 0.42) {
+      regimeLabel = 'Mean-Reverting Oscillation';
+      if (maxDigitZ >= 2.2) hazard = 'SKEW_SPIKE';
+    } else if (maxDigitZ >= 2.2) {
+      hazard = 'SKEW_SPIKE';
+      regimeLabel = 'Empirical Digit Skew Cluster';
+    }
+
+    // Fractional Kelly ceiling (% of bankroll per trade, capped strictly 0.5% - 2.0%)
+    let kellyPct = 1.25;
+    if (hazard === 'CHOP_TRAP') kellyPct = 0.5;
+    else if (maxDigitZ >= 2.0 && normEntropy < 0.98) kellyPct = 1.75;
+    else if (hurst >= 0.6 && chopIndex < 0.5) kellyPct = 1.5;
+
+    const summary = `${regimeLabel} · H=${hurst} · Entropy=${normEntropy} · Chop=${Math.round(chopIndex * 100)}% · Drought D${droughtDigit} (${droughtTicks}t) · Cap=${kellyPct}%`;
+
+    return {
+      normEntropy,
+      hurst,
+      maxDigitZ,
+      chopIndex,
+      droughtDigit,
+      droughtTicks,
+      kellyPct,
+      hazard,
+      regimeLabel,
+      summary
     };
   }
 
   const api = {
     normCdf, chiSqP, digitStats, runsTest, autocorr, wilson, beta, truthTest, riskSim, spikeProb,
-    calcConfidence, markovMatrix, projectMarket, decideOverUnder, decideMatchesDiffers, decideEvenOdd,
+    calcConfidence, markovMatrix, secondOrderMarkov, regimeFingerprint,
+    projectMarket, decideOverUnder, decideMatchesDiffers, decideEvenOdd,
     recommendBestPillar, crossMarketAnalysis, quickBacktest
   };
   if (typeof window !== 'undefined') window.TWS = api;
