@@ -8,13 +8,13 @@
 <meta name="description" content="Live Deriv analytics, honest strategy tests and paper-first trading, built for Kenya.">
 <link rel="stylesheet" href="core.css">
 <style>
-.lp{max-width:1140px;margin:0 auto;padding:0 18px 60px;color:#d7e0f2}
+.lp{max-width:1140px;margin:0 auto;padding:14px 18px 60px;color:#d7e0f2}
 .lp h1{font-size:clamp(34px,6vw,60px);line-height:1.05;margin:0 0 14px;letter-spacing:-1px}
 .lp h2{font-size:clamp(24px,3.4vw,34px);margin:0 0 8px;letter-spacing:-.5px}
 .gr{background:linear-gradient(90deg,#00ffa3,#00b2ff);-webkit-background-clip:text;background-clip:text;color:transparent}
 .lp p{color:#9fb0cc;line-height:1.6}
-.hero{display:grid;gap:30px;grid-template-columns:1.1fr .9fr;align-items:center;padding:56px 0 40px}
-@media(max-width:820px){.hero{grid-template-columns:1fr;padding-top:30px}}
+.hero{display:grid;gap:30px;grid-template-columns:1.1fr .9fr;align-items:center;padding:28px 0 40px}
+@media(max-width:820px){.hero{grid-template-columns:1fr;padding-top:20px}}
 .tag{display:inline-block;padding:5px 12px;border:1px solid rgba(0,255,163,.4);border-radius:99px;color:#00ffa3;font-size:12px;margin-bottom:16px;background:rgba(0,255,163,.07)}
 .ctas{display:flex;gap:12px;flex-wrap:wrap;margin-top:22px}
 .cta{padding:13px 22px;border-radius:12px;font-weight:700;text-decoration:none;font-size:15px;transition:.2s}
@@ -161,7 +161,7 @@ TW.tickFeed('R_100',{primary:false,count:80,onStatus:s=>{$('lpSt').textContent=s
 if(TW.scanMarkets && window.TWS){
   const digSyms = TW.VOLS.filter(v => v.digits);
   const txt = $('lpAlphaTxt');
-  if(txt) txt.textContent = `Evaluating ${digSyms.length} Volatility Indices & ${TW.VOLS.filter(v=>v.fx).length} FX pairs with Markov AI…`;
+  if(txt) txt.textContent = `Evaluating ${digSyms.length} Volatility Indices with Markov AI…`;
   TW.scanMarkets(digSyms, {
     count: 80,
     concurrency: 3,

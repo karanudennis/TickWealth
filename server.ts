@@ -752,7 +752,7 @@ app.post('/api/ai/session-audit', async (req: Request, res: Response) => {
     const grade = trades < 5 ? 'CALIBRATING' : (pf >= 1.25 && ddPct < 3 ? 'A (DISCIPLINED)' : (pf >= 1.0 && ddPct < 8 ? 'B (STABLE)' : 'C (ELEVATED RISK)'));
     const ruinRisk = ddPct >= 10 ? 'HIGH' : ddPct >= 4 ? 'MODERATE' : 'LOW';
     const advice = trades === 0
-      ? 'No completed trades recorded yet. Run 10–20 paper trades or a 500-tick backtest before sizing up.'
+      ? 'No completed trades recorded yet. Run 10–20 paper trades or a 1000-tick backtest before sizing up.'
       : (pnl < 0 && ddPct >= 4
         ? `Drawdown reached $${Number(maxDrawdown).toFixed(2)} (${ddPct}% of balance). Enable Loss Cooldown (5–10s) and set a hard Trailing Profit Lock / Stop-Loss.`
         : (pf >= 1.2

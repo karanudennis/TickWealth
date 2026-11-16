@@ -1724,14 +1724,15 @@ async function runBacktestModal(b) {
   const net = Number(res.netPnL != null ? res.netPnL : (res.netPnl || 0)), wr = Number(res.winRate || 0);
   const dd = Number(res.maxDrawdown || 0), pf = Number(res.profitFactor || 0);
   const sampleN = res.totalTicks || (live?.prices?.length) || targetCount;
-  const srcBadge = live ? (isFx ? `● ${sampleN}×15m FX CANDLES` : `● ${sampleN} LIVE TICKS`) : '◐ SYNTHETIC FALLBACK';
+  const isLive = res.source === 'live_pool' || !!live;
+  const srcBadge = isLive ? (isFx ? `● ${sampleN}×15m FX CANDLES` : `● ${sampleN} LIVE TICKS`) : '◐ SYNTHETIC FALLBACK';
   const timeTxt = live && live.elapsedMs ? ` · ${(live.elapsedMs / 1000).toFixed(2)}s` : '';
   TW.modal({
     title: `🧪 ${isFx ? '240-Candle (15m)' : sampleN + '-Tick'} Backtest: ${b.name}`,
     html: `<div style="display:grid;gap:10px;font-size:12px;">
       <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#9fb0cc;">
         <span>${TW.esc(TW.volName(b.symbol))} (${b.symbol})</span>
-        <span style="color:${live ? '#00ffa3' : '#ffd600'};font-weight:800;">${srcBadge}${timeTxt}</span>
+        <span style="color:${isLive ? '#00ffa3' : '#ffd600'};font-weight:800;">${srcBadge}${timeTxt}</span>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
         <div class="db-sumbox"><small>Trades</small><b>${res.trades || 0} (${res.wins || 0}W/${res.losses || 0}L)</b></div>

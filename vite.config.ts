@@ -1,11 +1,42 @@
+import fs from 'fs';
 import tailwindcss from '@tailwindcss/vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import {defineConfig} from 'vite';
 
+const STATIC_RUNTIME_ASSETS = [
+  'config.js',
+  'core.js',
+  'stats.js',
+  'coach.js',
+  'advisor.js',
+  'botrunner.js',
+  'pillars.js',
+  'digitpage.js',
+  'favicon.svg',
+  'logo.svg',
+  'logo-mark.svg',
+];
+
+function copyStaticRuntimeAssets() {
+  return {
+    name: 'copy-static-runtime-assets',
+    writeBundle(options: { dir?: string }) {
+      const outDir = path.resolve(import.meta.dirname, options.dir || 'dist');
+      for (const file of STATIC_RUNTIME_ASSETS) {
+        const src = path.resolve(import.meta.dirname, file);
+        const dest = path.resolve(outDir, file);
+        if (fs.existsSync(src)) {
+          fs.copyFileSync(src, dest);
+        }
+      }
+    },
+  };
+}
+
 export default defineConfig(() => {
   return {
-    plugins: [react(), tailwindcss()],
+    plugins: [react(), tailwindcss(), copyStaticRuntimeAssets()],
     resolve: {
       alias: {
         '@': path.resolve(import.meta.dirname, '.'),

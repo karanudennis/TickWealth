@@ -1137,7 +1137,30 @@
     o = o || {};
     const el = $('#top'); el.className = 'top';
     const isAct = p => p[0] === o.active || p[0].replace('.html','') === String(o.active).replace('.html','') || (p[0] === 'bots-library.html' && o.active === 'bots');
-    el.innerHTML = `<div class="top-row"><a class="brand" href="index.html" aria-label="TickWealth home"><img src="logo-mark.svg" alt="" width="30" height="30"><span>Tick<b style="color:#00ffa3">Wealth</b></span></a>${o.symbols ? '<select class="sel" id="twSym" aria-label="Market"></select>' : ''}<span class="dot" id="twDot"></span><span class="mut" id="twStatus" style="font-size:11px"></span><span id="twPing" style="font-size:10.5px;color:#00ffa3;font-weight:800;background:rgba(0,255,163,0.08);padding:3px 8px;border-radius:6px;border:1px solid rgba(0,255,163,0.25);">⚡ <b>--ms</b></span><span class="spacer"></span><button type="button" class="pill" id="twSoundBtn" title="Toggle Sound FX" style="padding:4px 10px;font-size:11px;cursor:pointer;">${TW.fx.enabled?'🔊 FX':'🔇 FX'}</button><button type="button" class="pill" id="twKillBtn" title="Emergency Stop All Bots & Trades" style="padding:4px 8px;font-size:11px;font-weight:900;background:rgba(255,59,105,0.12);color:#ff3b69;border:1px solid rgba(255,59,105,0.4);cursor:pointer;">🚨 STOP</button><button class="pill" id="twAcc" title="Account & mode"></button></div><nav class="nav">${PAGES.map(p => `<a href="${p[0]}" class="${isAct(p) ? 'on' : ''}">${p[1]}</a>`).join('')}</nav>`;
+    el.innerHTML = `<div class="top-row"><a class="brand" href="index.html" aria-label="TickWealth home"><img src="logo-mark.svg" alt="" width="30" height="30"><span>Tick<b style="color:#00ffa3">Wealth</b></span></a>${o.symbols ? '<select class="sel" id="twSym" aria-label="Market"></select>' : ''}<span class="dot" id="twDot"></span><span class="mut" id="twStatus" style="font-size:11px"></span><span id="twPing" style="font-size:10.5px;color:#00ffa3;font-weight:800;background:rgba(0,255,163,0.08);padding:3px 8px;border-radius:6px;border:1px solid rgba(0,255,163,0.25);">⚡ <b>--ms</b></span><span class="spacer"></span><span class="tw-clock" id="twClock" aria-label="Live Date and Time" title="Live local date & time"><span class="tw-clock-date" id="twClockDate">--</span><span class="tw-clock-sep">·</span><span class="tw-clock-time" id="twClockTime">--:--:--</span></span><button type="button" class="pill" id="twSoundBtn" title="Toggle Sound FX" style="padding:4px 10px;font-size:11px;cursor:pointer;">${TW.fx.enabled?'🔊 FX':'🔇 FX'}</button><button type="button" class="pill" id="twKillBtn" title="Emergency Stop All Bots & Trades" style="padding:4px 8px;font-size:11px;font-weight:900;background:rgba(255,59,105,0.12);color:#ff3b69;border:1px solid rgba(255,59,105,0.4);cursor:pointer;">🚨 STOP</button><button class="pill" id="twAcc" title="Account & mode"></button></div><nav class="nav">${PAGES.map(p => `<a href="${p[0]}" class="${isAct(p) ? 'on' : ''}">${p[1]}</a>`).join('')}</nav>`;
+    const clkEl = $('#twClock'), clkD = $('#twClockDate'), clkT = $('#twClockTime');
+    if (clkEl && clkD && clkT) {
+      const p2 = n => String(n).padStart(2, '0');
+      const dNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const mNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      let tzShort = '';
+      try {
+        tzShort = Intl.DateTimeFormat(undefined, { timeZoneName: 'short' }).formatToParts(new Date()).find(p => p.type === 'timeZoneName')?.value || '';
+      } catch {}
+      const tickHeaderClock = () => {
+        const now = new Date();
+        const h24 = now.getHours(), m = p2(now.getMinutes()), s = p2(now.getSeconds());
+        clkD.textContent = `${dNames[now.getDay()]} ${p2(now.getDate())} ${mNames[now.getMonth()]}`;
+        clkT.textContent = `${p2(h24)}:${m}:${s}`;
+        const h12 = p2(h24 % 12 || 12), ampm = h24 >= 12 ? 'PM' : 'AM';
+        const utc = `${p2(now.getUTCHours())}:${p2(now.getUTCMinutes())}:${p2(now.getUTCSeconds())} UTC`;
+        const fxSess = (window.TWS && TWS.forexSessionContext) ? (TWS.forexSessionContext('frxEURUSD', now).isOpen ? TWS.forexSessionContext('frxEURUSD', now).sessionName : 'FX Weekend Closed') : 'Synthetics 24/7';
+        clkEl.title = `${dNames[now.getDay()]} ${p2(now.getDate())} ${mNames[now.getMonth()]} ${now.getFullYear()} · ${h12}:${m}:${s} ${ampm}${tzShort ? ' ' + tzShort : ''} · ${utc} · ${fxSess}`;
+      };
+      if (window.__twClockTimer) clearInterval(window.__twClockTimer);
+      tickHeaderClock();
+      window.__twClockTimer = setInterval(tickHeaderClock, 1000);
+    }
     const out = { symbol: o.defaultSymbol || 'R_25' };
     if (o.symbols) {
       const sel = $('#twSym'), list = TW.VOLS.filter(v => {

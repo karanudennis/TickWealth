@@ -29,6 +29,11 @@ button{font:inherit;cursor:pointer}
 .nav::-webkit-scrollbar{display:none}
 .nav a{white-space:nowrap;text-decoration:none;color:var(--mut);font-size:12px;font-weight:700;padding:6px 12px;border-radius:16px;border:1px solid transparent}
 .nav a:hover{color:var(--tx)}.nav a.on{background:var(--acc);color:var(--ink)}
+.tw-clock{display:inline-flex;align-items:center;gap:6px;background:var(--p2);border:1px solid var(--line);border-radius:20px;padding:4px 10px;font-size:11px;white-space:nowrap;font-variant-numeric:tabular-nums;color:var(--tx)}
+.tw-clock-date{color:var(--mut);font-weight:700}
+.tw-clock-sep{color:var(--dim);font-weight:700}
+.tw-clock-time{color:#00ffa3;font-weight:800;font-family:'JetBrains Mono',ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;letter-spacing:.3px}
+@media(max-width:760px){.tw-clock-date,.tw-clock-sep{display:none}.tw-clock{padding:4px 8px;font-size:10.5px}}
 /* layout */
 .layout{display:grid;grid-template-columns:minmax(0,1fr) 370px;min-height:calc(100vh - 100px)}
 .left{padding:14px;background:radial-gradient(900px 500px at 50% -20%,#1a2140 0%,#070a14 60%);min-width:0}
