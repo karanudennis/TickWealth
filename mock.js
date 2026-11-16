@@ -1,9 +1,12 @@
 /* Simulated Deriv WebSocket for testing: ticks, history, candles, symbols, quotes, trades. */
 (() => {
   const SYMS = [['R_10','Volatility 10 Index','Derived','Volatility Indices'],['R_25','Volatility 25 Index','Derived','Volatility Indices'],['R_50','Volatility 50 Index','Derived','Volatility Indices'],['R_75','Volatility 75 Index','Derived','Volatility Indices'],['R_100','Volatility 100 Index','Derived','Volatility Indices'],
-    ['1HZ10V','Volatility 10 (1s) Index','Derived','Volatility Indices'],['1HZ100V','Volatility 100 (1s) Index','Derived','Volatility Indices'],['BOOM500','Boom 500 Index','Derived','Crash/Boom Indices'],['CRASH500','Crash 500 Index','Derived','Crash/Boom Indices'],['RDBULL','Bull Market Index','Derived','Step Indices']];
-  const base = s => 500 + (s.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 50) * 40, state = {};
-  const next = s => { const st = state[s] || (state[s] = { p: base(s) }); st.p += (Math.random() - .5) * 2; return +st.p.toFixed(2); };
+    ['1HZ10V','Volatility 10 (1s) Index','Derived','Volatility Indices'],['1HZ100V','Volatility 100 (1s) Index','Derived','Volatility Indices'],['BOOM500','Boom 500 Index','Derived','Crash/Boom Indices'],['CRASH500','Crash 500 Index','Derived','Crash/Boom Indices'],['RDBULL','Bull Market Index','Derived','Step Indices'],
+    ['frxEURUSD','EUR/USD','Forex','Major Pairs'],['frxGBPUSD','GBP/USD','Forex','Major Pairs'],['frxUSDJPY','USD/JPY','Forex','Major Pairs'],['frxAUDUSD','AUD/USD','Forex','Major Pairs'],['frxXAUUSD','Gold / USD','Commodities','Metals']];
+  const FX_BASE = { frxEURUSD: 1.085, frxGBPUSD: 1.268, frxUSDJPY: 149.5, frxAUDUSD: 0.662, frxUSDCAD: 1.385, frxUSDCHF: 0.882, frxEURGBP: 0.855, frxEURJPY: 162.1, frxGBPJPY: 189.4, frxXAUUSD: 2640.0 };
+  const fxPip = s => /JPY$/.test(s) ? 3 : /^frxXAU/.test(s) ? 2 : /^frx/.test(s) ? 5 : 2;
+  const base = s => FX_BASE[s] || (500 + (s.split('').reduce((a, c) => a + c.charCodeAt(0), 0) % 50) * 40), state = {};
+  const next = s => { const p = fxPip(s); const step = /^frxXAU/.test(s) ? 0.6 : /JPY$/.test(s) ? 0.03 : /^frx/.test(s) ? 0.00025 : 2; const st = state[s] || (state[s] = { p: base(s) }); st.p += (Math.random() - .5) * step; return +st.p.toFixed(p); };
   window.__wsLog = [];
   class MockWS {
     constructor(url) { this.url = url; this.readyState = 0; this._l = {}; this.t = []; window.__wsLog.push('open ' + url); setTimeout(() => { this.readyState = 1; this._emit('open', {}); }, 20); }

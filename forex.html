@@ -1,0 +1,791 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>TickWealth – Forex &amp; Gold Desk</title>
+<meta name="description" content="Live Deriv Forex &amp; Gold (XAU/USD) terminal with multi-timeframe candles, BUY/SELL/WAIT regime scanner, session liquidity notes, and live DBot execution.">
+<link rel="stylesheet" href="core.css">
+<style>
+.fx-session-bar{margin:0 0 10px;background:#090f1d;border:1px solid rgba(0,178,255,0.28);border-radius:10px;padding:10px 13px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;font-variant-numeric:tabular-nums}
+.fx-sig-card{margin:12px 0 0;background:#0a101f;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:14px;display:grid;gap:12px;font-variant-numeric:tabular-nums}
+.fx-sig-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.fx-dir-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:7px;font-size:13px;font-weight:900;letter-spacing:.3px}
+.fx-dir-badge.buy{background:rgba(0,255,163,0.16);color:#00ffa3;border:1px solid rgba(0,255,163,0.45)}
+.fx-dir-badge.sell{background:rgba(255,59,105,0.16);color:#ff3b69;border:1px solid rgba(255,59,105,0.45)}
+.fx-dir-badge.wait{background:rgba(255,214,0,0.14);color:#ffd600;border:1px solid rgba(255,214,0,0.4)}
+.fx-kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;background:rgba(0,0,0,0.32);border:1px solid rgba(255,255,255,0.06);border-radius:9px;padding:10px}
+.fx-kpi span{display:block;font-size:10px;color:#8e9ab3;font-weight:700;text-transform:uppercase}
+.fx-kpi b{display:block;font-size:15px;font-weight:900;color:#fff;margin-top:2px}
+.fx-notes{background:rgba(0,178,255,0.06);border:1px solid rgba(0,178,255,0.22);border-radius:9px;padding:10px 12px;font-size:11.5px;color:#cbd5e1;line-height:1.55}
+.fx-tbl-wrap{overflow-x:auto;border:1px solid rgba(255,255,255,0.08);border-radius:9px;background:#070c17}
+.fx-tbl{width:100%;border-collapse:collapse;font-size:11.5px;text-align:left;font-variant-numeric:tabular-nums}
+.fx-tbl th{padding:7px 9px;color:#8e9ab3;font-size:10px;text-transform:uppercase;border-bottom:1px solid rgba(255,255,255,0.1);white-space:nowrap}
+.fx-tbl td{padding:7px 9px;border-bottom:1px solid rgba(255,255,255,0.05);white-space:nowrap}
+.fx-tbl tr:hover{background:rgba(255,255,255,0.03)}
+.fx-handbook{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px}
+.fx-note-box{background:rgba(255,255,255,0.025);border:1px solid rgba(255,255,255,0.08);border-radius:9px;padding:10px 12px;font-size:11.5px;color:#cbd5e1;line-height:1.5}
+.fx-note-box b{display:block;color:#fff;font-size:12px;margin-bottom:4px}
+</style>
+</head>
+<body>
+<div id="top"></div>
+<div class="layout">
+  <section class="left">
+    <!-- FOREX SESSION & WEEKEND MARKET STATUS BAR -->
+    <div id="fxSessionBar" class="fx-session-bar">
+      <div>
+        <div style="font-size:11px;font-weight:900;color:#00b2ff;letter-spacing:.4px;">🌍 GLOBAL FX &amp; GOLD SESSION MONITOR</div>
+        <div id="fxSessionText" style="font-size:12px;color:#fff;font-weight:700;margin-top:2px;">Checking UTC trading session &amp; liquidity window…</div>
+      </div>
+      <div id="fxPairTip" style="font-size:11px;color:#9fb0cc;max-width:460px;line-height:1.4;">Select any Forex major, cross, or Gold (XAU/USD) above to inspect pair behavior.</div>
+    </div>
+
+    <div class="chartbar" id="gran"></div>
+    <div class="chartbox" id="chartBox"></div>
+
+    <!-- LIVE PRICE STREAM BAR -->
+    <div id="liveTickerBar" style="margin:8px 0 10px;background:#090d18;border:1px solid rgba(0,255,163,0.3);border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+        <span class="dot live" style="width:8px;height:8px;background:#00ffa3;"></span>
+        <span style="font-size:11px;font-weight:900;color:#00ffa3;letter-spacing:0.5px;">LIVE FX QUOTES:</span>
+        <div id="tickerChips" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:4px;">
+        <button type="button" id="btnTicks5" class="btn ghost" style="padding:2px 8px;font-size:10px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);cursor:pointer;">5 Quotes</button>
+        <button type="button" id="btnTicks10" class="btn" style="padding:2px 8px;font-size:10px;border-radius:4px;background:#00ffa3;color:#04101c;font-weight:800;border:0;cursor:pointer;">10 Quotes</button>
+      </div>
+    </div>
+
+    <!-- QUICK MANUAL EXECUTION BAR -->
+    <div id="chartQuickTrade" class="quick-trade-bar" aria-label="Quick Forex BUY/SELL">
+      <div class="qt-meta">
+        <div class="qt-controls">
+          <span style="font-weight:900;color:#00ffa3;letter-spacing:0.4px;">⚡ QUICK FX ORDER</span>
+          <span id="qtLiveSpot" style="font-weight:800;color:#fff;background:rgba(255,255,255,0.06);padding:3px 7px;border-radius:6px;">Spot: --</span>
+          <label class="qt-field">Stake $<input id="qtStake" type="number" min="0.35" step="0.5" value="1.00"></label>
+          <button type="button" id="qtHalfBtn" class="qt-stk-btn" title="Halve stake">½</button>
+          <button type="button" id="qtDoubleBtn" class="qt-stk-btn" title="Double stake">2×</button>
+          <label class="qt-field">Expiry <input id="qtDur" type="number" min="1" max="1440" step="1" value="15" style="width:48px;">
+            <select id="qtUnit" aria-label="Quick duration unit"><option value="m" selected>Min</option><option value="h">Hr</option><option value="s">Sec</option><option value="t">Ticks</option></select>
+          </label>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <span id="qtTradeState" class="qt-trade-state">Ready</span>
+          <span id="qtQuoteTxt" style="font-weight:800;color:#cbd5e1;">Payout …</span>
+          <button type="button" id="qtPinBtn" class="qt-pin-btn on" title="Toggle sticky position while scrolling">📌 Pinned</button>
+        </div>
+      </div>
+      <div id="qtAiStrip" class="qt-ai-strip">
+        <span id="qtAiText">🧠 <b>FX Signal:</b> Analyzing EMA(9/21/50), RSI(14), Hurst &amp; Chop Index…</span>
+        <div class="qt-ai-actions">
+          <button type="button" id="qtVerdictBtn" class="qt-mini-btn" title="Get Gemini / Quant AI BUY or SELL audit for this FX pair">🧠 AI Verdict</button>
+          <button type="button" id="qtBetAiBtn" class="qt-mini-btn bet" style="display:none;">⚡ Trade AI</button>
+          <button type="button" id="qtMatchAiBtn" class="qt-mini-btn" style="display:none;">🎯 Match AI</button>
+          <button type="button" id="qtScanAiBtn" class="qt-mini-btn scan">⚡ Scan FX</button>
+        </div>
+      </div>
+      <div class="qt-actions">
+        <button type="button" id="qtBuyBtn" class="qt-btn primary">▲ BUY (CALL) <span id="qtBuySub" style="font-size:11px;opacity:0.9;"></span></button>
+        <button type="button" id="qtSellBtn" class="qt-btn neg">▼ SELL (PUT) <span id="qtSellSub" style="font-size:11px;opacity:0.92;"></span></button>
+      </div>
+      <div class="qt-hk-hint" style="font-size:10px;color:#7d8aa5;display:flex;justify-content:space-between;gap:8px;padding-top:1px;">
+        <span>Hotkeys: <b>B</b> Buy (Call) · <b>S</b> Sell (Put) · <b>M</b> Match AI Signal · <b>Q</b> Refresh Scan</span>
+        <span>Deriv Bot dock mounts cleanly right below</span>
+      </div>
+    </div>
+
+    <!-- ACTIVE PAIR SIGNAL & ENTRY VERDICT CARD -->
+    <div class="fx-sig-card" id="fxActiveSignalCard">
+      <div class="fx-sig-top">
+        <div>
+          <div style="font-size:11px;font-weight:800;color:#8e9ab3;letter-spacing:.4px;">ACTIVE PAIR BUY / SELL / WAIT ENGINE</div>
+          <div id="fxPairTitle" style="font-size:17px;font-weight:900;color:#fff;margin-top:2px;">EUR/USD (frxEURUSD)</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <span id="fxSignalBadge" class="fx-dir-badge wait">ANALYZING…</span>
+          <button type="button" id="btnApplySignal" class="btn ghost" style="padding:6px 11px;font-size:11px;">🎯 Apply Horizon &amp; Side</button>
+          <button type="button" id="btnAskFxAi" class="btn ghost" style="padding:6px 11px;font-size:11px;">✦ Ask AI Advisor</button>
+        </div>
+      </div>
+      <div class="fx-kpis" id="fxSigKpis">
+        <div class="fx-kpi"><span>EMA 9 / 21 / 50</span><b id="fxEmaTxt">--</b></div>
+        <div class="fx-kpi"><span>RSI (14)</span><b id="fxRsiTxt">--</b></div>
+        <div class="fx-kpi"><span>Hurst / Chop</span><b id="fxRegimeTxt">--</b></div>
+        <div class="fx-kpi"><span>50-Bar Range %</span><b id="fxRangeTxt">--</b></div>
+        <div class="fx-kpi"><span>Best Expiry</span><b id="fxHorizonTxt">15m</b></div>
+        <div class="fx-kpi"><span>Conviction</span><b id="fxConvTxt">--%</b></div>
+      </div>
+      <div class="fx-notes" id="fxTriggerNote">Buffering live quotes from Deriv to compute BUY / SELL triggers…</div>
+    </div>
+
+    <!-- 10-PAIR LIVE FOREX & GOLD BUY / SELL SCANNER -->
+    <div class="fx-sig-card" style="margin-top:12px;">
+      <div class="fx-sig-top">
+        <div>
+          <div style="font-size:13px;font-weight:900;color:#00ffa3;letter-spacing:.4px;">💱 ALL-PAIR FOREX &amp; GOLD SCANNER (BUY / SELL / WAIT)</div>
+          <div style="font-size:11px;color:#9fb0cc;margin-top:2px;">Scans all 10 Deriv FX pairs &amp; XAU/USD across 15m candles (or ticks) to tell you which pairs to BUY, SELL, or skip. <span id="fxScanTiming" style="color:#00b2ff;font-weight:700;"></span></div>
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          <button type="button" id="btnFxQuickScan" class="btn" style="padding:7px 12px;font-size:11.5px;background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;font-weight:900;border:0;">⚡ Scan All 10 Pairs</button>
+          <button type="button" id="btnFxCandleScan" class="btn ghost" style="padding:7px 12px;font-size:11.5px;">⚛ 15m Candle Deep Scan</button>
+        </div>
+      </div>
+      <div class="fx-tbl-wrap">
+        <table class="fx-tbl">
+          <thead>
+            <tr>
+              <th>Pair</th>
+              <th>Signal</th>
+              <th>Win Odds</th>
+              <th>Conviction</th>
+              <th>RSI (14)</th>
+              <th>Hurst / Chop</th>
+              <th>Horizon</th>
+              <th style="text-align:right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="fxScannerBody">
+            <tr><td colspan="8" style="text-align:center;color:#7d8aa5;padding:16px;">Click <b>Scan All 10 Pairs</b> or wait a moment for live FX quotes…</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ENHANCED FOREX & GOLD EXECUTION HANDBOOK NOTES -->
+    <div class="fx-sig-card" style="margin-top:12px;">
+      <div style="font-size:13px;font-weight:900;color:#00b2ff;letter-spacing:.4px;">📘 FOREX &amp; GOLD TRADING NOTES · SESSION PLAYBOOK</div>
+      <div class="fx-handbook">
+        <div class="fx-note-box">
+          <b>1. Trade Peak Liquidity Sessions</b>
+          <span>London/NY Overlap (12:00–16:00 UTC) produces the cleanest EMA 9/21 breakouts on EUR/USD, GBP/USD, USD/JPY, and Gold. During Asian hours (00:00–07:00 UTC), prefer range-respecting pairs or hold flat if Chop &gt; 65%.</span>
+        </div>
+        <div class="fx-note-box">
+          <b>2. Respect WAIT &amp; Chop-Trap Vetoes</b>
+          <span>Unlike 24/7 synthetic indices, FX pairs stall ahead of central-bank releases and print fakeout wicks. When the engine signals <b>NEUTRAL / WAIT</b> or Chop ≥ 70%, keep capital idle rather than forcing a coin-flip entry.</span>
+        </div>
+        <div class="fx-note-box">
+          <b>3. Expiry &amp; Risk Sizing Discipline</b>
+          <span>Deriv Forex options trade cleanest on <b>5m–30m</b> horizons (ticks are often disabled on FX). Cap Gold (XAU/USD) and GBP/JPY stakes at ≤1.5% equity and cap recovery at max 3 split steps.</span>
+        </div>
+        <div class="fx-note-box">
+          <b>4. Weekend Closure Protocol</b>
+          <span>Forex &amp; Gold markets close Friday ~21:30 UTC until Sunday ~21:00 UTC. If Deriv reports market closed on weekends, switch to Synthetic Indices (Volatility 30 1s / 100) for 24/7 execution.</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="notice" id="disc" style="margin-top:14px;"></div>
+  </section>
+
+  <aside class="side">
+    <div class="panel">
+      <div class="h">FOREX BUY / SELL</div>
+      <div class="seg"><button id="tRise" class="active">▲ Buy (Call)</button><button id="tFall">▼ Sell (Put)</button></div>
+      <div class="lbl">EXPIRY DURATION</div>
+      <div class="ctrl"><select id="unit" aria-label="Duration unit"><option value="m" selected>Minutes</option><option value="h">Hours</option><option value="s">Seconds</option><option value="t">Ticks</option></select></div>
+      <div class="ctrl"><button data-for="dur" data-step="-1">−</button><input id="dur" type="number" min="1" max="1440" step="1" value="15"><button data-for="dur" data-step="1">+</button><span class="u" id="durU">minutes</span></div>
+      <div class="lbl">STAKE</div>
+      <div class="ctrl"><button data-for="stake" data-step="-1">−</button><input id="stake" type="number" min="0.35" step="0.5" value="1.00"><button data-for="stake" data-step="1">+</button><span class="u">USD</span></div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 8px;">
+        <button type="button" class="btn ghost qk-stk" data-v="0.5" style="padding:2px 7px;font-size:10px;border-radius:4px;cursor:pointer;">$0.50</button>
+        <button type="button" class="btn ghost qk-stk" data-v="1" style="padding:2px 7px;font-size:10px;border-radius:4px;cursor:pointer;">$1</button>
+        <button type="button" class="btn ghost qk-stk" data-v="2" style="padding:2px 7px;font-size:10px;border-radius:4px;cursor:pointer;">$2</button>
+        <button type="button" class="btn ghost qk-stk" data-v="5" style="padding:2px 7px;font-size:10px;border-radius:4px;cursor:pointer;">$5</button>
+        <button type="button" class="btn ghost qk-stk" data-v="10" style="padding:2px 7px;font-size:10px;border-radius:4px;cursor:pointer;">$10</button>
+        <button type="button" class="btn ghost qk-stk" data-v="2x" style="padding:2px 7px;font-size:10px;border-radius:4px;color:#00ffa3;border-color:rgba(0,255,163,0.3);cursor:pointer;font-weight:700;">2×</button>
+        <button type="button" class="btn ghost qk-stk" data-v="half" style="padding:2px 7px;font-size:10px;border-radius:4px;cursor:pointer;">½</button>
+      </div>
+      <label class="switch" style="margin:4px 0 10px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:11px;color:#9fb0cc;">Split-2 Recovery on Loss</span>
+        <input type="checkbox" id="chkManualMart">
+      </label>
+      <div class="quote"><span id="qTxt">Payout …</span><span id="qProfit"></span></div>
+      <button class="buy" id="buyBtn">Buy (Call)<small id="buySub">&nbsp;</small></button>
+    </div>
+
+    <div class="panel" style="margin:10px;background:#0d1424;border:1px solid rgba(0,178,255,0.3);border-radius:14px;padding:12px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="font-size:12px;font-weight:800;color:#00b2ff;letter-spacing:0.4px;">🤖 FX AI SENTRY AUTO-TRADER</div>
+        <span id="aiAutoBadge" style="font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.06);color:#9fb0cc;font-weight:700;">OFF</span>
+      </div>
+      <label class="switch" style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;">
+        <span style="font-size:11.5px;font-weight:700;">Enable FX Auto-Trading</span>
+        <input type="checkbox" id="autoOn">
+      </label>
+      <div style="margin-top:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:#9fb0cc;margin-bottom:4px;">
+          <span>FX Conviction Gate:</span>
+          <b id="gateValTxt" style="color:#00ffa3;">70% min</b>
+        </div>
+        <input type="range" id="thr" min="55" max="90" step="5" value="70" style="width:100%;accent-color:#00ffa3;">
+      </div>
+      <div id="aiSentryStatus" style="margin-top:8px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;font-size:11px;color:#cbd5e1;line-height:1.4;">
+        Status: <span style="color:#9fb0cc;">Idle. Arm switch to trade high-conviction FX signals automatically.</span>
+      </div>
+    </div>
+
+    <div class="panel" id="logPanel"></div>
+  </aside>
+</div>
+<div class="foot" id="foot"></div>
+<script src="config.js"></script>
+<script src="core.js"></script>
+<script src="stats.js"></script>
+<script src="coach.js"></script>
+<script src="botrunner.js"></script>
+<script>
+TW.ready(function () {
+  const $ = TW.$;
+  let type = 'CALL', gran = 900, feed = null, csock = null, candleCloses = [], fxSig = null;
+  let lastAuto = 0, busy = false, consecutiveLosses = 0, baseGate = 70, lastQuote = null;
+  let botRunner = null;
+
+  $('#disc').textContent = TW.DISCLAIMER;
+  $('#foot').textContent = 'Engineered & Owned by Dennis K.M · TickWealth is an independent tool and is not affiliated with Deriv.';
+  const q = TW.qs();
+  const top = TW.mountTop({ active: 'forex', symbols: 'fx', defaultSymbol: q.vol || 'frxEURUSD', onSymbol: () => restart() });
+  const chart = TW.Chart($('#chartBox'));
+  TW.mountLog($('#logPanel'));
+
+  const UNITS = { t: { min: 1, max: 10, def: 5, l: 'ticks' }, s: { min: 15, max: 3600, def: 30, l: 'seconds' }, m: { min: 1, max: 1440, def: 15, l: 'minutes' }, h: { min: 1, max: 24, def: 1, l: 'hours' } };
+
+  const G = [[60, '1m'], [300, '5m'], [900, '15m'], [3600, '1h'], [0, 'Ticks']];
+  $('#gran').innerHTML = G.map(g => `<button class="btn ${g[0] === gran ? 'active' : ''}" data-g="${g[0]}">${g[1]}</button>`).join('') + '<span class="spacer"></span><button class="btn" id="zo" title="Zoom out">−</button><button class="btn" id="zi" title="Zoom in">+</button><button class="btn" id="zl" title="Jump to latest">⇥</button>';
+  $('#gran').onclick = e => {
+    const b = e.target.closest('[data-g]');
+    if (!b) return;
+    gran = +b.dataset.g;
+    document.querySelectorAll('[data-g]').forEach(x => x.classList.toggle('active', x === b));
+    startChart();
+  };
+  const IB = [['ma', 'MA 20/50'], ['ema', 'EMA 20'], ['bb', 'Bollinger'], ['rsi', 'RSI 14'], ['macd', 'MACD']];
+  let IND = { ema: true, rsi: true };
+  try { const savedInd = JSON.parse(sessionStorage.getItem('tw_fx_ind')); if (savedInd) IND = savedInd; } catch (e) {}
+  const ib = document.createElement('div');
+  ib.className = 'chartbar indbar';
+  ib.setAttribute('aria-label', 'Indicators');
+  $('#gran').after(ib);
+  IB.forEach(([k, l]) => {
+    const b = document.createElement('button');
+    b.className = 'btn' + (IND[k] ? ' active' : '');
+    b.textContent = l;
+    b.type = 'button';
+    b.onclick = () => {
+      IND[k] = !IND[k];
+      b.classList.toggle('active', IND[k]);
+      sessionStorage.setItem('tw_fx_ind', JSON.stringify(IND));
+      chart.setIndicators(IND);
+    };
+    ib.appendChild(b);
+  });
+  chart.setIndicators(IND);
+  $('#zo').onclick = () => chart.zoom(1.3);
+  $('#zi').onclick = () => chart.zoom(0.77);
+  $('#zl').onclick = () => chart.latest();
+
+  let streamLen = 10;
+  function renderTickerBar(prices) {
+    const box = $('#tickerChips');
+    if (!box) return;
+    if (!prices || prices.length < 2) {
+      box.innerHTML = '<span style="font-size:11px;color:#7d8aa5;">Awaiting live FX quotes…</span>';
+      return;
+    }
+    const pip = (feed && feed.pip != null) ? feed.pip : TW.volPip(top.symbol);
+    const slice = prices.slice(-streamLen);
+    box.innerHTML = slice.map((p, idx) => {
+      const prev = idx > 0 ? slice[idx - 1] : slice[0];
+      const up = p > prev, dn = p < prev, latest = idx === slice.length - 1;
+      const fg = up ? '#00ffa3' : dn ? '#ff3b69' : '#cbd5e1';
+      const bg = up ? 'rgba(0,255,163,0.16)' : dn ? 'rgba(255,59,105,0.16)' : 'rgba(255,255,255,0.05)';
+      const arrow = up ? '▲' : dn ? '▼' : '▬';
+      const txt = typeof p === 'number' ? p.toFixed(pip) : p;
+      return `<span class="ticker-digit-chip${latest ? ' tick-chip-blink' : ''}" style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:800;color:${fg};background:${bg};border:1px solid ${latest ? fg : fg + '44'};font-variant-numeric:tabular-nums;">${arrow} ${txt}</span>`;
+    }).join('');
+  }
+  $('#btnTicks5').onclick = () => { streamLen = 5; renderTickerBar(feed ? feed.prices : []); };
+  $('#btnTicks10').onclick = () => { streamLen = 10; renderTickerBar(feed ? feed.prices : []); };
+
+  function updateSessionBanner() {
+    if (!window.TWS || !TWS.forexSessionContext) return;
+    const ctx = TWS.forexSessionContext(top.symbol);
+    const st = $('#fxSessionText');
+    const tip = $('#fxPairTip');
+    if (st) {
+      st.innerHTML = `<span style="color:${ctx.isOpen ? '#00ffa3' : '#ff3b69'};">${ctx.isOpen ? '● OPEN' : '● WEEKEND CLOSED'}</span> · ${TW.esc(ctx.sessionName)} <span style="color:#8e9ab3;font-size:11px;">(${ctx.utcHour}h UTC)</span> — <span style="font-weight:500;color:#cbd5e1;">${TW.esc(ctx.sessionNote)}</span>`;
+    }
+    if (tip) tip.innerHTML = `<b>${TW.esc(TW.volName(top.symbol))}:</b> ${TW.esc(ctx.pairTip)}`;
+  }
+
+  function updateSignalPanel() {
+    const series = candleCloses.length >= 25 ? candleCloses : (feed && feed.prices ? feed.prices : []);
+    $('#fxPairTitle').textContent = `${TW.volName(top.symbol)} (${top.symbol})`;
+    if (!series.length || !window.TWS || !TWS.analyzeForex) return;
+
+    fxSig = TWS.analyzeForex(series, top.symbol);
+    const pip = TW.volPip(top.symbol);
+    const b = $('#fxSignalBadge');
+    const isBuy = fxSig.biasLabel === 'BUY';
+    const isSell = fxSig.biasLabel === 'SELL';
+    b.textContent = `${fxSig.signal} (${fxSig.winPct}%)`;
+    b.className = 'fx-dir-badge ' + (isBuy ? 'buy' : isSell ? 'sell' : 'wait');
+
+    const bullEma = fxSig.ema9 >= fxSig.ema21;
+    $('#fxEmaTxt').innerHTML = `<span style="color:${bullEma ? '#00ffa3' : '#ff3b69'};">${bullEma ? 'Bullish' : 'Bearish'}</span> <small style="color:#8e9ab3;font-size:10px;">(${Number(fxSig.ema9).toFixed(pip)})</small>`;
+    $('#fxRsiTxt').innerHTML = `<span style="color:${fxSig.rsi >= 70 ? '#ff3b69' : fxSig.rsi <= 30 ? '#00ffa3' : '#fff'};">${fxSig.rsi}</span>`;
+    $('#fxRegimeTxt').innerHTML = `${fxSig.hurst} / <span style="color:${fxSig.chopIndex >= 0.68 ? '#ff3b69' : '#00ffa3'};">${Math.round(fxSig.chopIndex * 100)}%</span>`;
+    $('#fxRangeTxt').textContent = fxSig.rangePct + '%';
+    $('#fxHorizonTxt').textContent = fxSig.horizon;
+    $('#fxConvTxt').innerHTML = `<span style="color:${fxSig.conviction >= 72 ? '#00ffa3' : '#ffd600'};">${fxSig.conviction}%</span>`;
+
+    const ctx = TWS.forexSessionContext ? TWS.forexSessionContext(top.symbol) : null;
+    $('#fxTriggerNote').innerHTML = `
+      <div><b style="color:#fff;">Entry Trigger:</b> ${TW.esc(fxSig.entryTrigger)}</div>
+      <div style="margin-top:4px;color:#9fb0cc;"><b>Technical Basis:</b> ${TW.esc(fxSig.reason)} ${ctx ? '· ' + TW.esc(ctx.pairTip) : ''}</div>
+    `;
+
+    const aiTxt = $('#qtAiText');
+    const matchBtn = $('#qtMatchAiBtn'), betBtn = $('#qtBetAiBtn');
+    if (aiTxt) {
+      const sigCol = isBuy ? '#00ffa3' : isSell ? '#ff3b69' : '#ffd600';
+      aiTxt.innerHTML = `🧠 <b>${TW.esc(TW.volName(top.symbol))}:</b> <b style="color:${sigCol};">${TW.esc(fxSig.signal)}</b> · ${fxSig.winPct}% odds · RSI ${fxSig.rsi} · Horizon <b>${fxSig.horizon}</b> · ${TW.esc(fxSig.entryTrigger)}`;
+    }
+    if (matchBtn) matchBtn.style.display = fxSig.action === 'HOLD' ? 'none' : '';
+    if (betBtn) betBtn.style.display = fxSig.action === 'HOLD' ? 'none' : '';
+  }
+
+  function updateSpotUi() {
+    const sp = $('#qtLiveSpot');
+    if (sp && feed && feed.prices && feed.prices.length) {
+      const p = feed.prices[feed.prices.length - 1], prev = feed.prices[feed.prices.length - 2] || p;
+      const up = p >= prev;
+      sp.innerHTML = `Spot: <b style="color:${up ? '#00ffa3' : '#ff3b69'};">${Number(p).toFixed(feed.pip || TW.volPip(top.symbol))} ${up ? '▲' : '▼'}</b>`;
+    }
+  }
+
+  function updateQtTradeState() {
+    const el = $('#qtTradeState');
+    if (!el) return;
+    const open = (TW.trades || []).find(t => t.status === 'open');
+    if (open) {
+      el.className = 'qt-trade-state live';
+      el.innerHTML = `<span class="dot live" style="width:6px;height:6px;background:#00ffa3;"></span> ⏳ ${TW.esc(open.label || open.type)} ${open.duration}${open.unit} · $${Number(open.stake || 0).toFixed(2)}`;
+      return;
+    }
+    el.className = 'qt-trade-state';
+    const sess = TW.session || { trades: 0, wins: 0, pnl: 0 };
+    if (sess.trades > 0) {
+      const pCol = sess.pnl >= 0 ? '#00ffa3' : '#ff3b69';
+      el.innerHTML = `Session ${sess.wins}W/${Math.max(0, sess.trades - sess.wins)}L · <b style="color:${pCol};">${sess.pnl >= 0 ? '+' : '-'}$${Math.abs(sess.pnl).toFixed(2)}</b>`;
+    } else el.textContent = 'Ready';
+  }
+  TW.on('trade', updateQtTradeState);
+  TW.on('account', updateQtTradeState);
+  updateQtTradeState();
+
+  function setType(t) {
+    type = t === 'PUT' ? 'PUT' : 'CALL';
+    $('#tRise').classList.toggle('active', type === 'CALL');
+    $('#tFall').classList.toggle('active', type === 'PUT');
+    $('#tFall').classList.toggle('neg', type === 'PUT');
+    $('#buyBtn').classList.toggle('neg', type === 'PUT');
+    $('#buyBtn').firstChild.textContent = type === 'CALL' ? 'Buy (Call)' : 'Sell (Put)';
+    document.body.classList.toggle('t-red', type === 'PUT');
+    refreshQuote();
+  }
+  $('#tRise').onclick = () => setType('CALL');
+  $('#tFall').onclick = () => setType('PUT');
+
+  function syncQuickControls() {
+    const qs = $('#qtStake'), qd = $('#qtDur'), qu = $('#qtUnit');
+    const stNum = Math.max(0.35, +$('#stake').value || 1);
+    const stVal = stNum.toFixed(2);
+    if (qs && document.activeElement !== qs) qs.value = stVal;
+    if (qd) { qd.min = $('#dur').min; qd.max = $('#dur').max; if (document.activeElement !== qd) qd.value = $('#dur').value; }
+    if (qu) qu.value = $('#unit').value;
+    const estPay = (lastQuote && Math.abs((lastQuote.stake || 0) - stNum) < 0.01) ? lastQuote.payout : +(stNum * 1.92).toFixed(2);
+    const prof = Math.max(0, +(estPay - stNum).toFixed(2)).toFixed(2);
+    $('#qtBuySub').textContent = `($${stVal} ➔ +$${prof})`;
+    $('#qtSellSub').textContent = `($${stVal} ➔ +$${prof})`;
+  }
+
+  $('#unit').onchange = () => {
+    const u = UNITS[$('#unit').value] || UNITS.m, d = $('#dur');
+    d.min = u.min; d.max = u.max; d.value = u.def;
+    $('#durU').textContent = u.l;
+    syncQuickControls();
+    refreshQuote();
+  };
+
+  const params = () => ({ contract_type: type, symbol: top.symbol, amount: +$('#stake').value || 1, duration: +$('#dur').value, duration_unit: $('#unit').value });
+  const refreshQuote = TW.watchQuote(params, (qr, msg) => {
+    if (qr) {
+      const st = +$('#stake').value || 1;
+      lastQuote = { stake: st, payout: +qr.payout };
+      $('#qTxt').innerHTML = 'Payout <b>' + TW.money(qr.payout) + '</b>';
+      $('#qProfit').innerHTML = 'Profit <b>' + TW.money(qr.payout - st) + '</b>';
+      $('#buySub').textContent = 'Payout ' + TW.money(qr.payout);
+      $('#qtQuoteTxt').innerHTML = 'Payout <b style="color:#00ffa3;">' + TW.money(qr.payout) + '</b> · Profit <b>' + TW.money(qr.payout - st) + '</b>';
+    } else {
+      lastQuote = null;
+      const errTxt = msg === 'loading' ? 'Getting price…' : msg;
+      $('#qTxt').textContent = errTxt;
+      $('#qProfit').textContent = '';
+      if (msg !== 'loading') $('#buySub').innerHTML = '&nbsp;';
+      $('#qtQuoteTxt').textContent = errTxt;
+    }
+    syncQuickControls();
+  });
+
+  ['stake', 'dur'].forEach(id => $('#' + id).addEventListener('input', () => { syncQuickControls(); refreshQuote(); }));
+  $('#qtStake').addEventListener('input', e => { $('#stake').value = e.target.value; baseManualStake = +e.target.value || 1; syncQuickControls(); refreshQuote(); });
+  $('#qtDur').addEventListener('input', e => { $('#dur').value = e.target.value; syncQuickControls(); refreshQuote(); });
+  $('#qtUnit').addEventListener('change', e => { $('#unit').value = e.target.value; $('#unit').onchange(); });
+  $('#qtHalfBtn').onclick = () => { const nv = Math.max(0.35, +((+$('#stake').value || 1) / 2).toFixed(2)); $('#stake').value = nv.toFixed(2); baseManualStake = nv; syncQuickControls(); refreshQuote(); };
+  $('#qtDoubleBtn').onclick = () => { const nv = Math.min((TW.settings && TW.settings.maxStake) || 500, +((+$('#stake').value || 1) * 2).toFixed(2)); $('#stake').value = nv.toFixed(2); baseManualStake = nv; syncQuickControls(); refreshQuote(); };
+  $('#qtPinBtn').onclick = () => { const bar = $('#chartQuickTrade'), btn = $('#qtPinBtn'); const pinned = !bar.classList.toggle('unpinned'); btn.classList.toggle('on', pinned); btn.textContent = pinned ? '📌 Pinned' : '📍 Docked'; };
+
+  let baseManualStake = +$('#stake').value || 1.0, manualLossPool = 0;
+  $('#stake').addEventListener('change', () => { baseManualStake = +$('#stake').value || 1.0; syncQuickControls(); });
+  $('#chkManualMart').addEventListener('change', e => { if (!e.target.checked) { manualLossPool = 0; $('#stake').value = baseManualStake.toFixed(2); syncQuickControls(); refreshQuote(); } });
+  document.querySelectorAll('.qk-stk').forEach(btn => {
+    btn.onclick = () => {
+      const v = btn.dataset.v;
+      let cur = parseFloat($('#stake').value) || 1.0;
+      if (v === '2x') cur = +(cur * 2).toFixed(2);
+      else if (v === 'half') cur = Math.max(0.35, +(cur / 2).toFixed(2));
+      else cur = parseFloat(v);
+      $('#stake').value = cur.toFixed(2);
+      baseManualStake = cur;
+      syncQuickControls();
+      refreshQuote();
+    };
+  });
+
+  function setBusyBtns(on) {
+    busy = on;
+    $('#buyBtn').disabled = on;
+    $('#qtBuyBtn').disabled = on;
+    $('#qtSellBtn').disabled = on;
+  }
+
+  async function buy(opts) {
+    if (busy) return;
+    setBusyBtns(true);
+    try {
+      const p = params();
+      const t = await TW.trade(Object.assign(p, { label: `${TW.volName(top.symbol)} ${type === 'CALL' ? 'BUY' : 'SELL'}` }), opts);
+      TW.toast(`⚡ Dispatched ${type === 'CALL' ? 'BUY (CALL)' : 'SELL (PUT)'} on ${TW.volName(top.symbol)}`, 'ok');
+      updateQtTradeState();
+      t.done.then(r => {
+        updateQtTradeState();
+        if ($('#chkManualMart').checked) {
+          const maxStk = (TW.settings && TW.settings.maxStake) || 25;
+          const roi = (lastQuote && lastQuote.stake > 0) ? Math.max(0.5, (lastQuote.payout - lastQuote.stake) / lastQuote.stake) : 0.92;
+          if (r.profit > 0) {
+            manualLossPool = Math.max(0, +(manualLossPool - Number(r.profit)).toFixed(2));
+            const next = manualLossPool <= 0.02 ? baseManualStake : Math.min(maxStk, Math.max(baseManualStake, +(((manualLossPool / 1.5) + baseManualStake * 0.15) / roi).toFixed(2)));
+            if (manualLossPool <= 0.02) manualLossPool = 0;
+            $('#stake').value = next.toFixed(2);
+          } else {
+            manualLossPool = +(manualLossPool + (Number(p.amount) || baseManualStake)).toFixed(2);
+            const next = Math.min(maxStk, Math.max(baseManualStake, +(((manualLossPool / 1.5) + baseManualStake * 0.2) / roi).toFixed(2)));
+            $('#stake').value = next.toFixed(2);
+          }
+          syncQuickControls();
+          refreshQuote();
+        }
+      });
+    } catch (e) {
+      if (!e.quiet) TW.toast(e.message, 'err', 5000);
+    } finally {
+      setBusyBtns(false);
+      updateQtTradeState();
+    }
+  }
+  $('#buyBtn').onclick = () => buy();
+  $('#qtBuyBtn').onclick = () => { setType('CALL'); buy(); };
+  $('#qtSellBtn').onclick = () => { setType('PUT'); buy(); };
+
+  $('#btnApplySignal').onclick = () => {
+    if (!fxSig) return;
+    if (fxSig.action === 'CALL' || fxSig.action === 'PUT') setType(fxSig.action);
+    $('#unit').value = fxSig.durationUnit || 'm';
+    $('#unit').onchange();
+    $('#dur').value = fxSig.duration || 15;
+    syncQuickControls();
+    refreshQuote();
+    TW.toast(`Applied ${fxSig.signal} (${fxSig.horizon}) to order ticket.`, 'ok', 2500);
+  };
+  $('#qtMatchAiBtn').onclick = $('#btnApplySignal').onclick;
+  $('#qtBetAiBtn').onclick = () => { if (fxSig && fxSig.action !== 'HOLD') { $('#btnApplySignal').onclick(); buy(); } };
+  $('#btnAskFxAi').onclick = () => TW.ai && TW.ai.ask(`Analyze ${TW.volName(top.symbol)} (${top.symbol}): explain whether to BUY, SELL, or WAIT based on EMA 9/21/50, RSI, Hurst, and current session liquidity.`);
+
+  $('#qtVerdictBtn').onclick = async () => {
+    const series = candleCloses.length >= 15 ? candleCloses : (feed ? feed.prices : []);
+    if (!series || series.length < 15) { TW.toast('Buffering at least 15 quotes first.', 'mut', 2500); return; }
+    const btn = $('#qtVerdictBtn');
+    btn.disabled = true; btn.textContent = '🧠 Auditing…';
+    try {
+      const data = await TW.aiRequest('/api/ai/analyze-asset', {
+        symbol: top.symbol,
+        proposedContract: type,
+        recentTicks: series.slice(-15),
+        indicators: fxSig ? { shortEma: +fxSig.ema9.toFixed(5), slowLinearSlope: +(fxSig.ema9 - fxSig.ema21).toFixed(5), rsi14: fxSig.rsi } : {}
+      });
+      await TW.modal({
+        title: `🧠 AI Forex Verdict: ${TW.volName(top.symbol)}`,
+        html: `<pre style="margin:0;white-space:pre-wrap;font:12.5px/1.6 system-ui,sans-serif;color:#d7e0f2;background:rgba(0,0,0,0.35);padding:12px;border-radius:10px;border:1px solid rgba(255,255,255,0.08);">${TW.esc(data.analysis || '')}</pre>`,
+        buttons: [{ label: 'Close', value: true }]
+      });
+    } catch (e) {
+      TW.toast('AI Verdict failed: ' + (e.message || e), 'err', 3500);
+    } finally {
+      btn.disabled = false; btn.textContent = '🧠 AI Verdict';
+    }
+  };
+
+  let activeFxScan = null;
+  /* 10-Pair Forex & Gold Parallel Multi-Market Scanner */
+  function scanForexPairs(useCandles) {
+    if (activeFxScan && activeFxScan.cancel) activeFxScan.cancel();
+    const pairs = TW.VOLS.filter(v => v.fx);
+    const body = $('#fxScannerBody');
+    const reqCount = useCandles ? 200 : 100;
+    body.innerHTML = `<tr><td colspan="8" style="text-align:center;color:#00ffa3;padding:14px;">Parallel scan of ${pairs.length} Forex &amp; Gold pairs (${useCandles ? reqCount + '×15m candles' : reqCount + ' live quotes'})…</td></tr>`;
+
+    activeFxScan = TW.scanMarkets(pairs, {
+      count: reqCount,
+      style: useCandles ? 'candles' : 'ticks',
+      granularity: 900,
+      isDeep: !!useCandles,
+      forceFresh: true,
+      concurrency: 3,
+      timeoutMs: 7500,
+      onDone: (items, scanMeta) => {
+        const results = new Map();
+        items.forEach(item => {
+          if (item && item.prices && item.prices.length >= 20) {
+            results.set(item.v.id, { v: item.v, analysis: TWS.analyzeForex(item.prices, item.v.id), err: null, src: item.gran ? '15m' : `${item.prices.length}t` });
+          } else if (item && item.err) {
+            results.set(item.v.id, { v: item.v, analysis: null, err: item.err });
+          }
+        });
+
+        const rows = pairs.map(v => {
+          if (results.has(v.id)) return results.get(v.id);
+          const poolP = (TW.tickPool[v.id] || {}).prices || [];
+          return { v, analysis: TWS.analyzeForex(poolP, v.id), err: null, src: poolP.length ? `${poolP.length}t fallback` : '' };
+        });
+        rows.sort((a, b) => ((b.analysis ? b.analysis.conviction : 0) + (b.analysis && b.analysis.action !== 'HOLD' ? 20 : 0)) - ((a.analysis ? a.analysis.conviction : 0) + (a.analysis && a.analysis.action !== 'HOLD' ? 20 : 0)));
+        const secEl = document.getElementById('fxScanTiming');
+        if (secEl && scanMeta && scanMeta.elapsedMs) secEl.textContent = `${scanMeta.receivedMarkets}/${pairs.length} pairs (${useCandles ? '15m candles' : 'live ticks'}) · ${(scanMeta.elapsedMs / 1000).toFixed(2)}s`;
+
+      body.innerHTML = rows.map(row => {
+        const a = row.analysis;
+        if (row.err || !a || a.entryTrigger.startsWith('Buffering')) {
+          return `<tr>
+            <td><b>${TW.esc(row.v.name)}</b> <span style="color:#7d8aa5;font-size:10px;">${row.v.id}</span></td>
+            <td colspan="6" style="color:#8e9ab3;">${TW.esc(row.err || 'Market closed or awaiting quotes (FX closes weekends)')}</td>
+            <td style="text-align:right;"><button type="button" class="btn ghost fx-load-pair" data-sym="${row.v.id}" style="padding:3px 8px;font-size:10.5px;">Open Chart</button></td>
+          </tr>`;
+        }
+        const sigCol = a.biasLabel === 'BUY' ? '#00ffa3' : a.biasLabel === 'SELL' ? '#ff3b69' : '#ffd600';
+        const botType = a.action === 'PUT' ? 'PUT' : 'CALL';
+        return `<tr>
+          <td><b>${TW.esc(row.v.name)}</b> <span style="color:#7d8aa5;font-size:10px;">${row.v.id}</span></td>
+          <td style="font-weight:900;color:${sigCol};">${TW.esc(a.signal)}</td>
+          <td><b>${a.winPct}%</b> <span style="color:#8e9ab3;">(+${a.edgePts})</span></td>
+          <td style="font-weight:800;color:${a.conviction >= 72 ? '#00ffa3' : '#ffd600'};">${a.conviction}%</td>
+          <td>${a.rsi}</td>
+          <td>H=${a.hurst} · ${Math.round(a.chopIndex * 100)}%</td>
+          <td><b>${a.horizon}</b> <span style="color:#7d8aa5;font-size:10px;">(${row.src || (useCandles ? '15m' : 'ticks')})</span></td>
+          <td style="text-align:right;white-space:nowrap;">
+            <button type="button" class="btn ghost fx-load-pair" data-sym="${row.v.id}" data-act="${a.action}" data-dur="${a.duration}" data-unit="${a.durationUnit}" style="padding:3px 8px;font-size:10.5px;margin-right:4px;">Load</button>
+            <button type="button" class="btn ghost fx-launch-bot" data-sym="${row.v.id}" data-act="${botType}" data-dur="${a.duration}" data-unit="${a.durationUnit}" style="padding:3px 8px;font-size:10.5px;color:#00ffa3;border-color:rgba(0,255,163,0.35);">Save Bot</button>
+          </td>
+        </tr>`;
+      }).join('');
+
+      body.querySelectorAll('.fx-load-pair').forEach(btn => {
+        btn.onclick = () => {
+          const symSel = $('#twSym');
+          if (symSel) { symSel.value = btn.dataset.sym; top.symbol = btn.dataset.sym; }
+          if (btn.dataset.act === 'CALL' || btn.dataset.act === 'PUT') setType(btn.dataset.act);
+          if (btn.dataset.unit) { $('#unit').value = btn.dataset.unit; $('#unit').onchange(); }
+          if (btn.dataset.dur) { $('#dur').value = btn.dataset.dur; syncQuickControls(); }
+          restart();
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        };
+      });
+      body.querySelectorAll('.fx-launch-bot').forEach(btn => {
+        btn.onclick = () => {
+          if (!TW.botStore) return;
+          const act = btn.dataset.act || 'CALL';
+          const nb = TW.botStore.upsert({
+            name: TW.botStore.specialistName(btn.dataset.sym, act, 0),
+            symbol: btn.dataset.sym,
+            contract: act,
+            barrier: 0,
+            duration: +btn.dataset.dur || 15,
+            durationUnit: btn.dataset.unit || 'm',
+            stake: Math.max(0.35, +$('#stake').value || 1.0),
+            rule: { kind: 'ai_alpha', cond: act === 'PUT' ? 'fall' : 'rise', cb: 0, n: 1 },
+            mart: { on: true, mode: 'split_recovery', mult: 1.05, steps: 3 },
+            aiMode: 'active',
+            aiGate: 56,
+            lossShield: true,
+            coolSecs: 8,
+            sl: 15,
+            tp: 30
+          });
+          if (botRunner) botRunner.selectBot(nb.id);
+          TW.toast(`💾 Saved "${nb.name}" into Live Bot Runner!`, 'ok', 2800);
+        };
+      });
+      }
+    });
+  }
+  $('#btnFxQuickScan').onclick = () => scanForexPairs(false);
+  $('#btnFxCandleScan').onclick = () => scanForexPairs(true);
+  $('#qtScanAiBtn').onclick = () => scanForexPairs(false);
+
+  /* AI Sentry Auto-Trader */
+  const thr = $('#thr'), autoOn = $('#autoOn');
+  thr.oninput = () => { baseGate = +thr.value; $('#gateValTxt').textContent = baseGate + '% min'; };
+  autoOn.onchange = async e => {
+    if (e.target.checked && TW.mode() === 'live') {
+      const ok = await TW.modal({ title: 'Enable FX AI Auto-Trading?', html: '<div class="warn">Real-time Deriv account trades will fire when FX conviction passes your gate.</div>', buttons: [{ label: 'Cancel', cls: 'ghost', value: false }, { label: 'Enable', cls: 'red', value: true }] });
+      if (!ok) { e.target.checked = false; return; }
+    }
+    consecutiveLosses = 0;
+    $('#aiAutoBadge').textContent = e.target.checked ? 'ARMED' : 'OFF';
+    $('#aiAutoBadge').style.color = e.target.checked ? '#00ffa3' : '#9fb0cc';
+  };
+  async function maybeAuto() {
+    if (!autoOn.checked || busy || !fxSig || fxSig.action === 'HOLD') return;
+    if (Date.now() - lastAuto < 15000) return;
+    const gate = baseGate + consecutiveLosses * 5;
+    if (fxSig.conviction < gate || fxSig.hazard === 'CHOP_TRAP') {
+      $('#aiSentryStatus').innerHTML = `🛡️ Holding flat — Conv <b>${fxSig.conviction}%</b> (Gate ${gate}%, ${fxSig.hazard})`;
+      return;
+    }
+    lastAuto = Date.now();
+    setType(fxSig.action);
+    $('#unit').value = fxSig.durationUnit || 'm';
+    $('#unit').onchange();
+    $('#dur').value = fxSig.duration || 15;
+    try {
+      const tr = await TW.trade(Object.assign(params(), { contract_type: fxSig.action, label: `FX AI ${fxSig.biasLabel}`, bot: 'FX AI Sentry' }), { silent: true });
+      tr.done.then(r => { consecutiveLosses = r.profit > 0 ? 0 : consecutiveLosses + 1; });
+    } catch (e) {
+      autoOn.checked = false;
+      $('#aiAutoBadge').textContent = 'OFF';
+    }
+  }
+
+  function startChart() {
+    if (csock) { csock.close(); csock = null; }
+    if (gran === 0) {
+      candleCloses = [];
+      if (feed && feed.prices.length) chart.setData(feed.prices.map((p, i) => ({ t: feed.epochs[i], o: p, h: p, l: p, c: p })), true, feed.pip);
+      else { chart.clear(); chart.message('Connecting…'); }
+      return;
+    }
+    chart.clear(); chart.message('Loading Forex candles…');
+    const sym = top.symbol;
+    csock = new TW.Socket({
+      url: TW.tickUrl(),
+      onOpen: s => s.send({ ticks_history: sym, end: 'latest', count: 240, style: 'candles', granularity: gran, subscribe: 1 }),
+      onMessage: d => {
+        if (d.error) { chart.message(d.error.message || 'Forex feed closed/unavailable'); return; }
+        if (d.msg_type === 'candles' && d.candles) {
+          candleCloses = d.candles.map(c => +c.close);
+          chart.setData(d.candles.map(c => ({ t: c.epoch, o: +c.open, h: +c.high, l: +c.low, c: +c.close })), false, d.pip_size || TW.volPip(sym));
+          updateSignalPanel();
+        } else if (d.msg_type === 'ohlc' && d.ohlc) {
+          const c = d.ohlc;
+          if (candleCloses.length) candleCloses[candleCloses.length - 1] = +c.close;
+          chart.update({ t: +c.open_time, o: +c.open, h: +c.high, l: +c.low, c: +c.close });
+          updateSignalPanel();
+        }
+      }
+    });
+  }
+
+  function restart() {
+    if (feed) feed.close();
+    candleCloses = [];
+    chart.clear(); chart.message('Connecting…');
+    updateSessionBanner();
+    feed = TW.tickFeed(top.symbol, {
+      count: 200,
+      onStatus: s => TW.setStatus(s),
+      onError: m => { TW.setStatus('error', m); chart.message(m); $('#fxTriggerNote').innerHTML = `<span style="color:#ffd600;">⚠️ ${TW.esc(m)} (Forex closes weekends Friday ~21:30 to Sunday ~21:00 UTC)</span>`; },
+      onHistory: st => {
+        if (gran === 0) chart.setData(st.prices.map((p, i) => ({ t: st.epochs[i], o: p, h: p, l: p, c: p })), true, st.pip);
+        renderTickerBar(st.prices); updateSpotUi(); updateSignalPanel(); refreshQuote();
+      },
+      onTick: (st, t) => {
+        if (gran === 0) chart.update({ t: t.epoch, o: t.price, h: t.price, l: t.price, c: t.price });
+        renderTickerBar(st.prices); updateSpotUi(); updateSignalPanel(); maybeAuto();
+      }
+    });
+    startChart();
+    refreshQuote();
+    if (botRunner) botRunner.refresh();
+  }
+
+  /* Mount Live Deriv DBot Runner directly below quick-order bar */
+  if (TW.mountBotRunner) {
+    botRunner = TW.mountBotRunner({
+      anchor: '#chartQuickTrade',
+      pillar: 'forex',
+      getSymbol: () => top.symbol,
+      getCurrentSetup: () => ({
+        symbol: top.symbol,
+        contract: type,
+        barrier: 0,
+        duration: +$('#dur').value || 15,
+        durationUnit: $('#unit').value || 'm',
+        stake: +$('#stake').value || 1.0
+      }),
+      onSelectBot: b => {
+        if (!b) return;
+        const symSel = $('#twSym');
+        if (symSel && b.symbol && /^(frx|XAU)/i.test(b.symbol) && symSel.value !== b.symbol) {
+          symSel.value = b.symbol;
+          top.symbol = b.symbol;
+          restart();
+        }
+        setType(b.contract === 'PUT' ? 'PUT' : 'CALL');
+        if (b.durationUnit && UNITS[b.durationUnit]) { $('#unit').value = b.durationUnit; $('#unit').onchange(); }
+        if (b.duration) $('#dur').value = b.duration;
+        if (b.stake) { $('#stake').value = Number(b.stake).toFixed(2); baseManualStake = +b.stake; }
+        syncQuickControls();
+        refreshQuote();
+      }
+    });
+  }
+
+  if (q.type) setType(q.type === 'PUT' || q.type === 'SELL' ? 'PUT' : 'CALL');
+  if (q.unit && UNITS[q.unit]) { $('#unit').value = q.unit; $('#unit').onchange(); }
+  if (q.dur) $('#dur').value = q.dur;
+  syncQuickControls();
+  restart();
+  setTimeout(() => scanForexPairs(true), 400);
+
+  window.addEventListener('keydown', e => {
+    if (e.target && /^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'b') { e.preventDefault(); $('#qtBuyBtn').click(); }
+    else if (k === 's') { e.preventDefault(); $('#qtSellBtn').click(); }
+    else if (k === 'm') { e.preventDefault(); $('#btnApplySignal').click(); }
+    else if (k === 'q') { e.preventDefault(); scanForexPairs(false); }
+  });
+});
+</script>
+</body>
+</html>

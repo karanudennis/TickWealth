@@ -5,7 +5,7 @@
 <link rel="icon" type="image/svg+xml" href="favicon.svg">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>TickWealth – Market Alpha Analyzer</title>
-<meta name="description" content="Cross-market quantitative alpha scanner across all 17 volatility indices and all 4 contract pillars with single best card, live validity countdown, and 1-click manual and bot launch.">
+<meta name="description" content="Cross-market quantitative alpha scanner across all 20 live Deriv digit-capable indices (Volatility, 1s, Jump & Daily Reset) and all 4 contract pillars with single best card and 1-click launch.">
 <link rel="stylesheet" href="core.css">
 <style>
 .wrap-clean{max-width:1040px;margin:0 auto;padding:16px 18px 40px;display:grid;gap:18px}
@@ -36,12 +36,18 @@
     <div>
       <div class="h" style="font-size:22px;font-weight:900;color:#fff;letter-spacing:0.5px;">MARKET ALPHA ANALYZER</div>
       <div class="sub" style="font-size:12.5px;color:#9fb0cc;margin-top:4px;">
-        Cross-market quantitative scanner. Evaluates all 17 volatility indices across Over/Under, Matches/Differs, Even/Odd, and Rise/Fall in lightning speed to isolate the single highest-edge market.
+        Cross-market quantitative scanner. Evaluate all 20 live Deriv digit indices (Over/Under, Matches/Differs, Even/Odd, Rise/Fall) or scan 10 live Forex &amp; Gold pairs for BUY / SELL / WAIT setups.
       </div>
     </div>
-    <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#00ffa3;background:rgba(0,255,163,0.1);padding:4px 10px;border-radius:99px;font-weight:800;">
-      <span class="dot live" style="width:8px;height:8px;background:#00ffa3;"></span>
-      <span>17 ACTIVE INDICES STREAMING</span>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+      <div id="scopeSwitch" style="display:inline-flex;background:#0d1627;border:1px solid rgba(255,255,255,0.14);border-radius:8px;padding:3px;gap:3px;">
+        <button type="button" class="scope-btn active" data-scope="digits" style="padding:6px 12px;border-radius:6px;border:0;font-size:11.5px;font-weight:800;cursor:pointer;background:#00ffa3;color:#04101c;">📊 Digit Indices (20)</button>
+        <button type="button" class="scope-btn" data-scope="forex" style="padding:6px 12px;border-radius:6px;border:0;font-size:11.5px;font-weight:800;cursor:pointer;background:transparent;color:#cbd5e1;">💱 Forex &amp; Gold Buy/Sell (10)</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:#00ffa3;background:rgba(0,255,163,0.1);padding:4px 10px;border-radius:6px;font-weight:800;">
+        <span class="dot live" style="width:8px;height:8px;background:#00ffa3;"></span>
+        <span id="scopeLiveBadge">20 LIVE INDICES</span>
+      </div>
     </div>
   </div>
 
@@ -49,7 +55,7 @@
   <div class="command-bar">
     <div>
       <div style="font-size:11px;font-weight:800;color:#8e9ab3;letter-spacing:0.4px;">SCANNER COMMANDS:</div>
-      <div style="font-size:12px;color:#cbd5e1;margin-top:2px;">Execute live Markov matrix analysis across all 17 markets:</div>
+      <div id="scanCmdDesc" style="font-size:12px;color:#cbd5e1;margin-top:2px;">Execute live Markov matrix analysis across all 20 live Deriv markets:</div>
     </div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
       <button type="button" class="command-btn rapid" id="btnRapidScan">
@@ -84,7 +90,7 @@
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;">
       <div>
         <div style="font-size:12.5px;font-weight:900;color:#00b2ff;letter-spacing:0.4px;">🧠 AI EXECUTIVE BRIEFING &amp; REGIME SYNTHESIS</div>
-        <div style="font-size:11px;color:#9fb0cc;margin-top:2px;">Synthesizes live 17-market Markov, Hurst, Shannon entropy &amp; chop diagnostics via server AI engine.</div>
+        <div style="font-size:11px;color:#9fb0cc;margin-top:2px;">Synthesizes live 20-market Markov, Hurst, Shannon entropy &amp; chop diagnostics via server AI engine.</div>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
         <button type="button" id="btnAiProjBrief" class="btn" style="padding:8px 13px;font-size:11.5px;font-weight:800;background:#0d1627;border:1px solid #00ffa3;color:#00ffa3;border-radius:8px;cursor:pointer;">🔮 AI Market Projection</button>
@@ -115,6 +121,7 @@
 <script src="core.js"></script>
 <script src="stats.js"></script>
 <script src="coach.js"></script>
+<script src="botrunner.js"></script>
 <script>
 TW.ready(function(){
   const $=TW.$;
@@ -155,123 +162,148 @@ TW.ready(function(){
     TW.renderCircles($('#dGrid'),d,{state:x=>x===barrier?'sel':'',tag:x=>x===barrier?'BARRIER':'',onPick:x=>{barrier=x;updateFeed();}});
   }
 
+  let scanScope = TW.qs().scope === 'forex' ? 'forex' : 'digits';
+
+  function applyScopeUI() {
+    document.querySelectorAll('.scope-btn').forEach(btn => {
+      const act = btn.dataset.scope === scanScope;
+      btn.classList.toggle('active', act);
+      btn.style.background = act ? '#00ffa3' : 'transparent';
+      btn.style.color = act ? '#04101c' : '#cbd5e1';
+    });
+    const badge = $('#scopeLiveBadge');
+    const desc = $('#scanCmdDesc');
+    const bR = $('#btnRapidScan'), bD = $('#btnDeepScan');
+    if (scanScope === 'forex') {
+      if (badge) badge.textContent = '10 FOREX & GOLD PAIRS';
+      if (desc) desc.textContent = 'Scan EUR/USD, GBP/USD, JPY crosses & Gold (XAU/USD) for BUY / SELL / WAIT setups:';
+      if (bR) bR.innerHTML = '⚡ SCAN FX 5m CANDLES';
+      if (bD) bD.innerHTML = '⚛ DEEP FX 15m TREND SCAN';
+    } else {
+      if (badge) badge.textContent = '20 LIVE INDICES';
+      if (desc) desc.textContent = 'Execute live Markov matrix analysis across all 20 live Deriv markets:';
+      if (bR) bR.innerHTML = '⚡ RAPID SCAN (50 TICKS)';
+      if (bD) bD.innerHTML = '⚛ QUANTUM DEEP SCAN (1000t AI)';
+    }
+  }
+  applyScopeUI();
+  document.querySelectorAll('.scope-btn').forEach(btn => {
+    btn.onclick = () => {
+      if (scanScope === btn.dataset.scope) return;
+      scanScope = btn.dataset.scope;
+      applyScopeUI();
+      executeScan(50, false);
+    };
+  });
+
+  function specBotName(contract, barrier, symbol, customTag) {
+    if (TW.botStore && TW.botStore.specialistName) {
+      return TW.botStore.specialistName(contract, barrier, symbol);
+    }
+    return `${customTag || contract} — ${symbol}`;
+  }
+
+  let activeAnalyzerScan = null;
+  let latestScanMeta = null;
+
   /* =========================================================================
-   * LIGHTNING RAPID SCAN (50t) & QUANTUM DEEP SCAN (1000t) - SUB-150MS SPEED
+   * PARALLEL MULTI-SOCKET SCANNER: RAPID (50t / 80x5m) & DEEP (1000t / 240x15m)
    * ========================================================================= */
   function executeScan(tickCount, isDeep, silent){
-    const syms=TW.VOLS.filter(v=>v.digits);
+    if (activeAnalyzerScan && activeAnalyzerScan.cancel) activeAnalyzerScan.cancel();
+    const isFxScope = scanScope === 'forex';
+    const syms=TW.VOLS.filter(v => isFxScope ? v.fx : v.digits);
     const btnRapid=$('#btnRapidScan'), btnDeep=$('#btnDeepScan');
     if(btnRapid && !silent) btnRapid.disabled=true;
     if(btnDeep && !silent) btnDeep.disabled=true;
 
     const box=$('#masterCardContainer');
-
     window._silentScanActive = !!silent;
-    latestRawScan=[];
-    let got=0;
-    let isFinished=false;
-    let hasRenderedPreliminary=false;
-    let idleTimer=null;
 
-    // Zero-Latency Seeding: Hydrate from in-memory pool
-    syms.forEach(v=>{
-      if(TW.tickPool[v.id] && TW.tickPool[v.id].prices && TW.tickPool[v.id].prices.length>=10){
-        latestRawScan.push({
-          v:{id:v.id,name:v.name},
-          prices:TW.tickPool[v.id].prices,
-          dg:TW.tickPool[v.id].digits
-        });
-      }
-    });
+    const reqCount = isFxScope ? (isDeep ? 240 : 80) : tickCount;
+    const reqStyle = isFxScope ? 'candles' : 'ticks';
+    const reqGran = isFxScope ? (isDeep ? 900 : 300) : 0;
 
-    if(latestRawScan.length>=3){
-      recalcScanResults(isDeep, true);
-      hasRenderedPreliminary=true;
-    } else if(!silent) {
+    if(!silent) {
       box.innerHTML=`
         <div style="background:linear-gradient(135deg,rgba(11,16,27,0.98),rgba(17,24,39,0.98));border:1.5px solid rgba(0,255,163,0.35);border-radius:16px;padding:28px;text-align:center;">
           <div style="display:flex;align-items:center;justify-content:center;gap:10px;font-size:13.5px;color:#00ffa3;font-weight:900;">
             <span class="dot live" style="width:10px;height:10px;background:#00ffa3;"></span>
-            <span>${isDeep ? `⚛ QUANTUM DEEP SCAN INGESTING 1000 TICKS ACROSS ALL ${syms.length} MARKETS…` : `⚡ LIGHTNING RAPID SCAN ACROSS ALL ${syms.length} MARKETS (50 TICKS)…`}</span>
+            <span>${isFxScope ? `💱 PARALLEL SCAN OF ${syms.length} FOREX &amp; GOLD PAIRS (${reqCount}×${isDeep ? '15m' : '5m'} BARS)…` : (isDeep ? `⚛ PARALLEL 1000t DEEP SCAN ACROSS ALL ${syms.length} MARKETS (${(syms.length * reqCount).toLocaleString()} TICKS)…` : `⚡ PARALLEL RAPID SCAN ACROSS ALL ${syms.length} MARKETS (${reqCount}t EACH)…`)}</span>
           </div>
           <div id="scanProgressTxt" style="font-size:12px;color:#9fb0cc;margin-top:6px;">
-            Calculating Markov transition matrices, entropy & Kelly edge…
+            ${isFxScope ? 'Streaming parallel Deriv candles · computing EMA, RSI(14), Hurst &amp; London/NY session bias…' : 'Streaming across 3 concurrent Deriv channels · computing Markov2, split-half persistence, Chi-Square &amp; Kelly edge…'}
           </div>
         </div>
       `;
     }
 
-    const sock=new TW.Socket({
-      url:TW.tickUrl(),
-      onOpen:s=>{
-        syms.forEach((v,i)=>s.send({ticks_history:v.id,end:'latest',count:tickCount,style:'ticks',req_id:i+1}));
-      },
-      onMessage:d=>{
-        if(!d.req_id) return;
-        const v=syms[d.req_id-1];
-        if(!v) return;
-        got++;
-
-        if(d.history && d.history.prices){
-          const prices=d.history.prices;
-          const pip=v.pip || d.pip_size || TW.volPip(v.id) || 2;
-          const dg=prices.map(p=>TW.digitOf(p,pip));
-          const exIdx=latestRawScan.findIndex(x=>x.v.id===v.id);
-          if(exIdx>=0) latestRawScan[exIdx]={v,prices,dg};
-          else latestRawScan.push({v,prices,dg});
-          TW.tickPool[v.id]={pip,prices,digits:dg,epochs:[],lastUpdated:Date.now()};
-        }
-
+    activeAnalyzerScan = TW.scanMarkets(syms, {
+      count: reqCount,
+      style: reqStyle,
+      granularity: reqGran,
+      isDeep: !!isDeep,
+      concurrency: 3,
+      forceFresh: !!isDeep,
+      timeoutMs: isDeep ? 9500 : 5000,
+      onProgress: (got, total) => {
         const progEl=$('#scanProgressTxt');
-        if(progEl) progEl.textContent=`Ingesting live tick streams across all ${syms.length} volatility indices (${got}/${syms.length} received)… Calculating empirical Markov matrices…`;
+        if(progEl) progEl.textContent=`Parallel ingestion across ${syms.length} ${isFxScope ? 'Forex & Gold pairs' : 'volatility indices'} (${got}/${total} received · ${isFxScope ? `${got * reqCount} bars` : `${(got * reqCount).toLocaleString()} ticks`})…`;
+      },
+      onDone: (items, meta) => {
+        if(btnRapid) btnRapid.disabled=false;
+        if(btnDeep) btnDeep.disabled=false;
+        latestScanMeta = meta;
 
-        if(latestRawScan.length>=3 && !hasRenderedPreliminary){
-          hasRenderedPreliminary=true;
-          recalcScanResults(isDeep, true);
+        latestRawScan = items.filter(x => x && x.prices && x.prices.length >= 10).map(x => ({
+          v: x.v,
+          prices: x.prices,
+          dg: x.dg && x.dg.length ? x.dg : x.prices.map(p => TW.digitOf(p, x.v.pip || 2)),
+          gran: x.gran || reqGran
+        }));
+
+        if(!latestRawScan.length && !isFxScope && feed && feed.prices && feed.prices.length>=10){
+          latestRawScan.push({
+            v:{id:top.symbol,name:TW.volName(top.symbol),pip:TW.volPip(top.symbol)},
+            prices:feed.prices,
+            dg:feed.digits
+          });
         }
 
-        clearTimeout(idleTimer);
-        if(got>=Math.min(syms.length, 13) && latestRawScan.length>=11){
-          idleTimer=setTimeout(finish, 450);
+        if(!latestRawScan.length){
+          box.innerHTML=`
+            <div style="padding:22px;color:#ff3b69;font-size:12.5px;text-align:center;background:rgba(255,59,105,0.06);border:1px solid rgba(255,59,105,0.25);border-radius:14px;">
+              ${isFxScope ? 'Forex candle feed timed out or weekend FX desk is closed.' : 'Connection timed out. Deriv tick node was temporarily busy.'}
+              <button type="button" onclick="document.getElementById('btnRapidScan').click()" style="margin-top:8px;font-size:11.5px;padding:6px 16px;background:#00ffa3;color:#04101c;font-weight:900;border:0;border-radius:6px;cursor:pointer;">⚡ Retry Scan</button>
+            </div>
+          `;
+          return;
         }
-        if(got>=syms.length) finish();
+
+        recalcScanResults(isDeep, false);
       }
     });
-
-    const to=setTimeout(finish, isDeep ? 9000 : 5000);
-
-    function finish(){
-      if(isFinished) return;
-      isFinished=true;
-      clearTimeout(to);
-      clearTimeout(idleTimer);
-      sock.close();
-      if(btnRapid) btnRapid.disabled=false;
-      if(btnDeep) btnDeep.disabled=false;
-
-      if(!latestRawScan.length && feed && feed.prices && feed.prices.length>=10){
-        latestRawScan.push({
-          v:{id:top.symbol,name:TW.volName(top.symbol)},
-          prices:feed.prices,
-          dg:feed.digits
-        });
-      }
-
-      if(!latestRawScan.length){
-        box.innerHTML=`
-          <div style="padding:22px;color:#ff3b69;font-size:12.5px;text-align:center;background:rgba(255,59,105,0.06);border:1px solid rgba(255,59,105,0.25);border-radius:14px;">
-            Connection timed out. Deriv tick node was temporarily busy.
-            <button type="button" onclick="document.getElementById('btnRapidScan').click()" style="margin-top:8px;font-size:11.5px;padding:6px 16px;background:#00ffa3;color:#04101c;font-weight:900;border:0;border-radius:6px;cursor:pointer;">⚡ Retry Rapid Scan</button>
-          </div>
-        `;
-        return;
-      }
-
-      recalcScanResults(isDeep, false);
-    }
   }
 
   function recalcScanResults(isDeep, isPreliminary){
+    if (scanScope === 'forex') {
+      const fxRows = [];
+      latestRawScan.forEach(item => {
+        const { v, prices } = item;
+        const fx = (window.TWS && TWS.analyzeForex)
+          ? TWS.analyzeForex(prices, v.id)
+          : { biasLabel: 'WAIT', action: 'HOLD', conviction: 50, winPct: 50, edgePts: 0, rsi: 50, hurst: 0.5, chopIndex: 0.5, duration: 5, durationUnit: 'm', entryTrigger: 'Awaiting trend', reason: 'Insufficient history' };
+        const sess = (window.TWS && TWS.forexSessionContext) ? TWS.forexSessionContext(v.id) : { isOpen: true, sessionName: 'FX Market', pairTip: '' };
+        const actionBonus = fx.action === 'HOLD' ? -15 : 15;
+        const score = (fx.conviction * 1.3) + (fx.edgePts * 2.2) + actionBonus;
+        fxRows.push({ isFx: true, v, prices, fx, sess, isDeep: !!isDeep, n: prices.length, conf: fx.conviction, score });
+      });
+      fxRows.sort((a, b) => b.score - a.score);
+      latestComputed = fxRows;
+      renderForexMasterCard(!isPreliminary && !window._silentScanActive);
+      return;
+    }
+
     const computed=[];
 
     latestRawScan.forEach(item=>{
@@ -326,6 +358,191 @@ TW.ready(function(){
     renderSingleBestMasterCard(!isPreliminary && !window._silentScanActive);
   }
 
+  function renderForexMasterCard(shouldChime) {
+    const box = $('#masterCardContainer');
+    const lbBox = $('#leaderboardBox');
+    if (!box || !latestComputed || !latestComputed.length) return;
+
+    const topFx = latestComputed[0];
+    const fx = topFx.fx;
+    const sess = topFx.sess;
+    const isBuy = fx.action === 'CALL';
+    const isSell = fx.action === 'PUT';
+    const dirCol = isBuy ? '#00ffa3' : isSell ? '#ff3b69' : '#ffd600';
+    const contract = isSell ? 'PUT' : 'CALL';
+    const durMin = fx.duration || 5;
+
+    if (fx.conviction >= 72 && fx.action !== 'HOLD' && TW.fx && shouldChime) TW.fx.alert();
+
+    const pSlice = (topFx.prices || []).slice(-40);
+    let sparkSvg = '';
+    if (pSlice.length >= 2) {
+      const minP = Math.min(...pSlice), maxP = Math.max(...pSlice), rng = (maxP - minP) || 0.0001;
+      const curP = pSlice[pSlice.length - 1];
+      const pts = pSlice.map((p, idx) => `${((idx / (pSlice.length - 1)) * 300).toFixed(1)},${(32 - ((p - minP) / rng) * 26).toFixed(1)}`).join(' ');
+      sparkSvg = `
+        <div style="background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:8px 12px;margin:10px 0;">
+          <div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;color:#8e9ab3;margin-bottom:4px;">
+            <span style="font-weight:700;">${TW.esc(topFx.v.name)} (${topFx.isDeep ? '15m' : '5m'} Candles · ${topFx.n} bars)</span>
+            <span>Last Close: <b style="color:${dirCol};">${curP.toFixed(topFx.v.pip || 4)}</b> · RSI(14): <b style="color:#ffd600;">${fx.rsi}</b></span>
+          </div>
+          <svg viewBox="0 0 300 36" width="100%" height="36" style="display:block;overflow:visible;">
+            <polyline points="${pts}" fill="none" stroke="${dirCol}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+      `;
+    }
+
+    const botName = specBotName(contract, 0, topFx.v.id);
+    const botUrl = `bots-library.html?symbol=${topFx.v.id}&contract=${contract}&barrier=0&name=${encodeURIComponent(botName)}&dur=${durMin}&unit=m&rule_kind=ai_alpha&rule_cond=${contract === 'PUT' ? 'fall' : 'rise'}&rule_cb=0&rule_n=1&mart=1&mart_mode=split_recovery&mart_mult=1.05&mart_steps=4&shield=1&gate=56`;
+    const fxDeskUrl = `forex.html?vol=${topFx.v.id}&type=${contract}&dur=${durMin}&unit=m`;
+
+    box.innerHTML = `
+      <div class="single-card" style="border-color:${dirCol};">
+        <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <span style="font-size:11px;font-weight:900;color:#04101c;background:${dirCol};padding:3px 10px;border-radius:4px;">
+              💱 #1 FOREX &amp; GOLD SIGNAL
+            </span>
+            <span style="font-size:11.5px;color:#00b2ff;font-weight:800;">
+              ${TW.esc(sess.sessionName)}${sess.isWeekendClosed ? ' · WEEKEND CLOSED' : ''} · ${topFx.n}×${topFx.isDeep ? '15m' : '5m'} Verified${latestScanMeta && latestScanMeta.elapsedMs ? ` · ${(latestScanMeta.elapsedMs / 1000).toFixed(2)}s` : ''}
+            </span>
+          </div>
+          <span style="font-size:11.5px;font-weight:800;color:${dirCol};">Recommended Horizon: ${durMin} Min</span>
+        </div>
+
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;flex-wrap:wrap;gap:8px;">
+          <div>
+            <span style="font-size:12px;color:#9fb0cc;">Top FX / Commodity Setup:</span>
+            <h1 style="margin:2px 0 0 0;font-size:24px;font-weight:900;color:#fff;">
+              ${TW.esc(topFx.v.name)} <span style="font-size:14px;color:#7d8aa5;">(${topFx.v.id})</span>
+            </h1>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:11px;color:#8e9ab3;font-weight:700;">TECHNICAL VERDICT:</div>
+            <div style="font-size:24px;font-weight:900;color:${dirCol};">${TW.esc(fx.biasLabel)}</div>
+          </div>
+        </div>
+
+        ${sparkSvg}
+
+        <div class="kpi-row">
+          <div>
+            <div style="font-size:10px;color:#8e9ab3;font-weight:700;">DIRECTIONAL ODDS</div>
+            <div class="kpi-cell-val" style="color:${dirCol};">${fx.winPct}%</div>
+            <div style="font-size:10px;color:#7d8aa5;">${fx.pastUpPct}% bullish bars</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#8e9ab3;font-weight:700;">STATISTICAL EDGE</div>
+            <div class="kpi-cell-val" style="color:#00b2ff;">${fx.edgePts >= 0 ? '+' : ''}${fx.edgePts} pts</div>
+            <div style="font-size:10px;color:#7d8aa5;">EMA + RSI + Hurst</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#8e9ab3;font-weight:700;">HURST / CHOP</div>
+            <div class="kpi-cell-val" style="color:#fff;">${fx.hurst}</div>
+            <div style="font-size:10px;color:#7d8aa5;">Chop ${Math.round((fx.chopIndex || 0.5) * 100)}%</div>
+          </div>
+          <div>
+            <div style="font-size:10px;color:#8e9ab3;font-weight:700;">AI CONVICTION</div>
+            <div class="kpi-cell-val" style="color:${dirCol};">${fx.conviction}%</div>
+            <div style="font-size:10px;color:#9fb0cc;">${TW.esc(fx.regimeLabel || 'Balanced')}</div>
+          </div>
+        </div>
+
+        <div style="background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;font-size:12px;color:#cbd5e1;line-height:1.5;">
+          <div><strong style="color:#fff;">Entry Trigger:</strong> ${TW.esc(fx.entryTrigger)}</div>
+          <div style="margin-top:4px;color:#9fb0cc;"><strong style="color:#ffd600;">Session Note:</strong> ${TW.esc(sess.pairTip || sess.sessionNote || '')}</div>
+        </div>
+
+        <div class="launch-bar">
+          <a href="${fxDeskUrl}" class="launch-btn manual">
+            💱 OPEN IN FOREX TERMINAL (${TW.esc(fx.biasLabel)} · ${durMin}m) →
+          </a>
+          <button type="button" id="btnSaveFxWatchBot" class="launch-btn" style="background:linear-gradient(90deg,#ffd600,#00ffa3);color:#04101c;border:0;cursor:pointer;">
+            🎯 SAVE SPECIALIST BOT &amp; WATCH →
+          </button>
+          <a href="${botUrl}" class="launch-btn bot">
+            🤖 OPEN IN DBOT STUDIO →
+          </a>
+        </div>
+      </div>
+    `;
+
+    const btnSaveFx = $('#btnSaveFxWatchBot');
+    if (btnSaveFx) {
+      btnSaveFx.onclick = () => {
+        if (!TW.botStore) { window.location.href = botUrl; return; }
+        const saved = TW.botStore.upsert({
+          name: botName,
+          symbol: topFx.v.id,
+          contract,
+          barrier: 0,
+          duration: durMin,
+          durationUnit: 'm',
+          stake: testStake || 1.0,
+          rule: { kind: 'ai_alpha', cond: contract === 'PUT' ? 'fall' : 'rise', cb: 0, n: 1 },
+          mart: { on: true, mode: 'split_recovery', mult: 1.05, steps: 4 },
+          aiMode: 'active',
+          aiGate: 56,
+          lossShield: true,
+          coolSecs: 4,
+          sl: 12,
+          tp: 24,
+          notes: `Forex Analyzer: ${fx.biasLabel} (${fx.conviction}% conf, RSI ${fx.rsi})`
+        });
+        TW.toast(`💾 Saved "${saved.name}"! Opening Forex Terminal…`, 'ok', 2200);
+        setTimeout(() => { window.location.href = TW.botStore.marketUrl(saved); }, 250);
+      };
+    }
+
+    if (lbBox) {
+      lbBox.innerHTML = `
+        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:12px 14px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+            <span style="font-size:12px;font-weight:900;color:#fff;">💱 ALL 10 FOREX &amp; GOLD BUY/SELL SCANNER BOARD</span>
+            <span style="font-size:10.5px;color:#7d8aa5;">Click Trade → to chart pair or Studio → to run specialist FX bot</span>
+          </div>
+          <div style="overflow-x:auto;">
+            <table style="width:100%;border-collapse:collapse;font-size:11.5px;text-align:left;">
+              <thead>
+                <tr style="color:#7d8aa5;border-bottom:1px solid rgba(255,255,255,0.1);font-size:10px;text-transform:uppercase;">
+                  <th style="padding:6px;">Pair</th>
+                  <th style="padding:6px;">Last Price</th>
+                  <th style="padding:6px;">Signal</th>
+                  <th style="padding:6px;">RSI / Hurst</th>
+                  <th style="padding:6px;">Conviction</th>
+                  <th style="padding:6px;">Horizon</th>
+                  <th style="padding:6px;text-align:right;">Launch</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${latestComputed.map((row, idx) => {
+                  const f = row.fx;
+                  const c = f.action === 'CALL' ? '#00ffa3' : f.action === 'PUT' ? '#ff3b69' : '#ffd600';
+                  const ct = f.action === 'PUT' ? 'PUT' : 'CALL';
+                  const pVal = row.prices[row.prices.length - 1];
+                  const bName = specBotName(ct, 0, row.v.id);
+                  return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);${idx === 0 ? 'background:rgba(0,255,163,0.04);' : ''}">
+                    <td style="padding:6px;font-weight:800;color:#fff;">${TW.esc(row.v.name)} <span style="color:#7d8aa5;font-size:10px;">(${row.v.id})</span></td>
+                    <td style="padding:6px;font-family:monospace;color:#cbd5e1;">${pVal ? pVal.toFixed(row.v.pip || 4) : '--'}</td>
+                    <td style="padding:6px;font-weight:900;color:${c};">${TW.esc(f.biasLabel)}</td>
+                    <td style="padding:6px;color:#9fb0cc;">RSI ${f.rsi} · H=${f.hurst}</td>
+                    <td style="padding:6px;font-weight:800;color:${c};">${f.conviction}%</td>
+                    <td style="padding:6px;color:#cbd5e1;">${f.duration || 5}m</td>
+                    <td style="padding:6px;text-align:right;white-space:nowrap;">
+                      <a href="forex.html?vol=${row.v.id}&type=${ct}&dur=${f.duration || 5}&unit=m" class="btn ghost" style="padding:3px 8px;font-size:10.5px;border-radius:6px;margin-right:4px;">Trade →</a>
+                      <a href="bots-library.html?symbol=${row.v.id}&contract=${ct}&barrier=0&name=${encodeURIComponent(bName)}&dur=${f.duration || 5}&unit=m&rule_kind=ai_alpha&rule_cond=${ct === 'PUT' ? 'fall' : 'rise'}&mart=1&mart_mode=split_recovery&gate=56" class="btn ghost" style="padding:3px 8px;font-size:10.5px;border-radius:6px;color:#00b2ff;">🤖 Bot →</a>
+                    </td>
+                  </tr>`;
+                }).join('')}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      `;
+    }
+  }
+
   /* =========================================================================
    * RENDER THE SINGLE BEST MASTER CARD (CLEAN, NO CONGESTION)
    * ========================================================================= */
@@ -367,30 +584,52 @@ TW.ready(function(){
       return url;
     }
 
-    // Build Launch Bot URL with contract-calibrated AI gate
+    // Build Launch Bot URL with contract-calibrated AI gate & Smart Recovery
+    function buildSpecialistRule(c, act, barr) {
+      const b = barr != null ? +barr : 2;
+      if (c === 'DIGITOVER') return { kind: 'streak', cond: 'under', cb: Math.min(8, b + 1), n: 1 };
+      if (c === 'DIGITUNDER') return { kind: 'streak', cond: 'over', cb: Math.max(1, b - 1), n: 1 };
+      if (c === 'DIGITEVEN') return { kind: 'streak', cond: 'odd', cb: 0, n: 2 };
+      if (c === 'DIGITODD') return { kind: 'streak', cond: 'even', cb: 0, n: 2 };
+      return { kind: 'ai_alpha', cond: act === 'CALL' ? 'rise' : 'fall', cb: 0, n: 1 };
+    }
+
     function getBotUrl(){
       const contract = setup.best ? setup.best.contract : (pillarName==='Over / Under'?(setup.action==='OVER'?'DIGITOVER':'DIGITUNDER'):pillarName==='Even / Odd'?(setup.action==='EVEN'?'DIGITEVEN':'DIGITODD'):pillarName==='Matches / Differs'?(setup.action==='MATCHES'?'DIGITMATCH':'DIGITDIFF'):(setup.action==='CALL'?'CALL':'PUT'));
-      let bUrl=`bots-library.html?symbol=${topBest.v.id}&contract=${contract}`;
       const barr = setup.barrier != null ? setup.barrier : (setup.digit != null ? setup.digit : 2);
-      bUrl+=`&barrier=${barr}`;
-      const recGate = (contract==='DIGITOVER'&&barr<=2)?68:(contract==='DIGITUNDER'&&barr>=7)?68:contract==='DIGITDIFF'?85:54;
+      const rl = buildSpecialistRule(contract, setup.action, barr);
+      const recGate = (contract==='DIGITOVER'&&barr<=2)?66:(contract==='DIGITUNDER'&&barr>=7)?66:contract==='DIGITDIFF'?82:contract==='DIGITMATCH'?16:54;
       const tickDur = selectedUnit === 't' ? Math.min(10, Math.max(1, selectedDur)) : 1;
-      bUrl+=`&name=${encodeURIComponent(`AI Alpha ${topBest.v.name} (${setup.decision})`)}&dur=${tickDur}&rule_kind=instant&rule_cond=${setup.action==='UNDER'?'over':setup.action==='OVER'?'under':setup.action==='EVEN'?'odd':'even'}&rule_cb=${barr}&rule_n=1&mart=1&mart_mult=2.5&mart_steps=3&gate=${recGate}`;
-      return bUrl;
+      const isRF = contract === 'CALL' || contract === 'PUT';
+      const martOn = contract === 'DIGITMATCH' ? 0 : 1;
+      const martMode = isRF ? 'split_recovery' : 'smart_barrier';
+      const sName = specBotName(contract, barr, topBest.v.id);
+      return `bots-library.html?symbol=${topBest.v.id}&contract=${contract}&barrier=${barr}&name=${encodeURIComponent(sName)}&dur=${tickDur}&rule_kind=${rl.kind}&rule_cond=${rl.cond}&rule_cb=${rl.cb}&rule_n=${rl.n}&mart=${martOn}&mart_mode=${martMode}&mart_mult=1.05&mart_steps=4&shield=1&gate=${recGate}`;
     }
 
     function updateActionButtonsText(){
-      const durLabel = selectedUnit==='t' ? `${selectedDur} Ticks` : `${selectedDur} ${selectedUnit==='s'?'Sec':'Min'}`;
+      const durLabel = selectedUnit==='t' ? `${selectedDur} ${selectedDur===1?'Tick':'Ticks'}` : `${selectedDur} ${selectedUnit==='s'?'Sec':'Min'}`;
       const bManual = $('#btnLaunchManualTrade');
       if(bManual){
         bManual.href = getManualUrl();
-        bManual.innerHTML = `⚡ LAUNCH MANUAL TRADE (${setup.decision} · USE ${durLabel}) →`;
+        bManual.innerHTML = `⚡ LAUNCH MANUAL TRADE (${setup.decision} · USE ${durLabel.toUpperCase()}) →`;
       }
       const bBot = $('#btnLaunchBotTrade');
       if(bBot){
         bBot.href = getBotUrl();
-        const botDurLabel = selectedUnit==='t' ? `${selectedDur} Ticks` : '1 Tick Bot';
-        bBot.innerHTML = `🤖 LAUNCH IN BOT (PRECONFIGURED · USE ${botDurLabel}) →`;
+        const botDurLabel = selectedUnit==='t' ? `${selectedDur} ${selectedDur===1?'Tick':'Ticks'}` : '1 Tick Bot';
+        bBot.innerHTML = `🤖 OPEN IN BOT STUDIO (${botDurLabel}) →`;
+      }
+      const hl = document.getElementById('analyzerTimingHeadline');
+      if(hl){
+        const approx = selectedUnit==='t' ? ` (~${selectedDur}s)` : '';
+        hl.textContent = `⏱️ USE ${durLabel.toUpperCase()}${approx}${isRF ? '' : ' · DIGIT TICKS ONLY'}`;
+      }
+      const nt = document.getElementById('analyzerTimingNote');
+      if(nt){
+        nt.textContent = isRF
+          ? `Active Rise/Fall horizon: ${durLabel} (edge +${setup.edgePts} pts, Hurst ${topBest.proj.hurst}).`
+          : `Active digit window: ${durLabel} (Markov2 edge +${setup.edgePts} pts; Deriv digit contracts require ticks).`;
       }
     }
 
@@ -418,7 +657,7 @@ TW.ready(function(){
     }
 
     box.innerHTML=`
-      <div class="single-card" style="border-left:5px solid ${isAuthorized?'#00ffa3':'#ffd600'};">
+      <div class="single-card" style="border-color:${isAuthorized?'rgba(0,255,163,0.55)':'rgba(255,214,0,0.48)'};">
 
         <!-- Top Badges & Countdown Timer -->
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -427,7 +666,7 @@ TW.ready(function(){
               👑 #1 SINGLE MOST FAVOURABLE MARKET
             </span>
             <span style="font-size:11.5px;color:#00b2ff;font-weight:800;">
-              ${topBest.isDeep ? '1000t Quantum Calibrated' : '50t Lightning Rapid Calibrated'}
+              ${topBest.n}t ${topBest.isDeep ? 'Quantum Deep Verified' : 'Rapid Verified'}${latestScanMeta && latestScanMeta.elapsedMs ? ` · ${(latestScanMeta.elapsedMs / 1000).toFixed(2)}s (${latestScanMeta.receivedMarkets}/${latestScanMeta.totalMarkets} mkts)` : ''}
             </span>
           </div>
 
@@ -515,10 +754,10 @@ TW.ready(function(){
             <!-- Card Box 2: Recommended Timing Directive -->
             <div style="background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px;">
               <div style="font-size:10px;color:#8e9ab3;font-weight:700;letter-spacing:0.3px;">EXACT TIMING RECOMMENDATION:</div>
-              <div style="font-size:14px;font-weight:900;color:#00ffa3;margin-top:4px;">
-                ⏱️ USE 5 TICKS (~5s) or 15 SECONDS
+              <div id="analyzerTimingHeadline" style="font-size:14px;font-weight:900;color:#00ffa3;margin-top:4px;">
+                ⏱️ USE 5 TICKS (~5s)${isRF ? ' or 15 SECONDS' : ' · DIGIT TICKS ONLY'}
               </div>
-              <div style="margin-top:6px;font-size:11px;color:#cbd5e1;line-height:1.4;">
+              <div id="analyzerTimingNote" style="margin-top:6px;font-size:11px;color:#cbd5e1;line-height:1.4;">
                 Markov edge is highest (+${setup.edgePts} pts) within 5 ticks before forward entropy decay dilutes the edge.
               </div>
             </div>
@@ -609,15 +848,13 @@ TW.ready(function(){
           </div>
         </div>
 
-        ${topBest.isDeep ? `
-        <!-- Advanced AI Quantum Regime Synthesis Panel -->
-        <div style="margin-top:10px;background:linear-gradient(135deg,rgba(0,178,255,0.08),rgba(0,255,163,0.06));border:1.5px solid rgba(0,255,163,0.4);border-radius:10px;padding:12px;">
+        <div style="margin-top:10px;background:linear-gradient(135deg,rgba(0,178,255,0.08),rgba(0,255,163,0.06));border:1px solid rgba(0,255,163,0.35);border-radius:10px;padding:11px;">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;flex-wrap:wrap;gap:4px;">
             <div style="display:flex;align-items:center;gap:6px;">
-              <span style="font-size:14px;">⚛</span>
-              <b style="font-size:11.5px;color:#00ffa3;letter-spacing:0.4px;">ADVANCED AI QUANTUM REGIME SYNTHESIS (1000 TICKS)</b>
+              <span style="font-size:14px;">${topBest.isDeep?'⚛':'🛡️'}</span>
+              <b style="font-size:11.5px;color:#00ffa3;letter-spacing:0.4px;">${topBest.isDeep?'ADVANCED AI QUANTUM REGIME SYNTHESIS (1000 TICKS)':'AI QUANTUM REGIME &amp; LOSS SHIELD DIRECTIVE'}</b>
             </div>
-            <span style="font-size:10px;color:#00b2ff;background:rgba(0,178,255,0.15);padding:2px 6px;border-radius:4px;font-weight:700;">INSTITUTIONAL MARKOV ENGINE</span>
+            <span style="font-size:10px;color:#00b2ff;background:rgba(0,178,255,0.15);padding:2px 6px;border-radius:4px;font-weight:700;">MARKOV2 + REGIME FILTER</span>
           </div>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:6px;font-size:10.5px;color:#cbd5e1;margin-bottom:8px;">
             <div>• Regime: <b style="color:#fff;">${topBest.proj.regime.replace(/_/g,' ')}</b></div>
@@ -626,18 +863,20 @@ TW.ready(function(){
             <div>• Attractor Digit: <b style="color:#ffd600;">Digit ${topBest.proj.highestProbDigit!=null?topBest.proj.highestProbDigit:topBest.ou.currentDigit}</b></div>
           </div>
           <div style="font-size:11px;color:#9fb0cc;line-height:1.45;background:rgba(0,0,0,0.3);padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);">
-            🛡️ <b>ADAPTIVE LOSS SHIELD DIRECTIVE:</b> Conviction is verified at <b>${topBest.conf}%</b>. Kelly Edge is <b>+${setup.edgePts} pts</b>. Recommended duration is <b>${selectedDur}${selectedUnit}</b>. Recommended stake ≤ 2% account equity.
+            🛡️ <b>ADAPTIVE LOSS SHIELD:</b> Conviction <b>${topBest.conf}%</b> · Edge <b>${setup.edgePts>=0?'+':''}${setup.edgePts} pts</b> · Horizon <b>${selectedDur}${selectedUnit}</b> · Chop Index <b>${Math.round((topBest.rf.chopIndex||0.5)*100)}%</b> · Kelly Cap <b>${topBest.rf.kellyPct}% eq</b>.
           </div>
         </div>
-        ` : ''}
 
-        <!-- THE TWO PRIMARY REQUESTED LAUNCH BUTTONS + TEST EXECUTION -->
+        <!-- LAUNCH BUTTONS: MANUAL / SAVE & WATCH IN MARKET / BOT STUDIO -->
         <div class="launch-bar">
           <a id="btnLaunchManualTrade" href="${getManualUrl()}" class="launch-btn manual">
             ⚡ LAUNCH MANUAL TRADE (${setup.decision} · USE ${selectedDur} TICKS) →
           </a>
+          <button type="button" id="btnSaveBotAndWatch" class="launch-btn" style="background:linear-gradient(90deg,#ffd600,#00ffa3);color:#04101c;border:0;cursor:pointer;">
+            🎯 SAVE BOT &amp; WATCH LIVE (${setup.decision}) →
+          </button>
           <a id="btnLaunchBotTrade" href="${getBotUrl()}" class="launch-btn bot">
-            🤖 LAUNCH IN BOT (PRECONFIGURED · USE ${selectedDur} TICKS) →
+            🤖 OPEN IN BOT STUDIO →
           </a>
         </div>
 
@@ -777,60 +1016,132 @@ TW.ready(function(){
       };
     }
 
+    // Save Analyzed Setup to Saved DBot Store & Open Live Market Page (ready to run at entry)
+    const btnWatchBot = $('#btnSaveBotAndWatch');
+    if (btnWatchBot) {
+      btnWatchBot.onclick = () => {
+        if (!TW.botStore) { window.location.href = getBotUrl(); return; }
+        const contract = setup.best ? setup.best.contract : (pillarName==='Over / Under'?(setup.action==='OVER'?'DIGITOVER':'DIGITUNDER'):pillarName==='Even / Odd'?(setup.action==='EVEN'?'DIGITEVEN':'DIGITODD'):pillarName==='Matches / Differs'?(setup.action==='MATCHES'?'DIGITMATCH':'DIGITDIFF'):(setup.action==='CALL'?'CALL':'PUT'));
+        const barr = setup.barrier != null ? setup.barrier : (setup.digit != null ? setup.digit : 2);
+        const recGate = (contract==='DIGITOVER'&&barr<=2)?66:(contract==='DIGITUNDER'&&barr>=7)?66:contract==='DIGITDIFF'?82:contract==='DIGITMATCH'?16:54;
+        const tickDur = selectedUnit === 't' ? Math.min(10, Math.max(1, selectedDur)) : 1;
+        const isRFBot = contract === 'CALL' || contract === 'PUT';
+        const rl = buildSpecialistRule(contract, setup.action, barr);
+        const saved = TW.botStore.upsert({
+          name: specBotName(contract, barr, topBest.v.id),
+          symbol: topBest.v.id,
+          contract,
+          barrier: barr,
+          duration: tickDur,
+          stake: testStake || 1.0,
+          rule: rl,
+          mart: { on: contract !== 'DIGITMATCH', mode: isRFBot ? 'split_recovery' : 'smart_barrier', mult: 1.05, steps: 4 },
+          aiMode: 'active',
+          aiGate: recGate,
+          lossShield: true,
+          coolSecs: 4,
+          sl: Math.max(5, +(testStake * 12).toFixed(0)),
+          tp: Math.max(10, +(testStake * 24).toFixed(0)),
+          notes: `Saved from AI Analyzer (${topBest.conf}% conf, ${setup.edgePts>=0?'+':''}${setup.edgePts} pts edge, ${topBest.rf.hazard})`
+        });
+        TW.toast(`💾 Saved "${saved.name}"! Opening ${pillarName} to watch entry…`, 'ok', 2200);
+        setTimeout(() => { window.location.href = TW.botStore.marketUrl(saved); }, 250);
+      };
+    }
+
     updateActionButtonsText();
 
     // Card Rescan Handlers
     $('#btnCardRescan').onclick=()=>executeScan(50,false);
     $('#btnCardDeepScan').onclick=()=>executeScan(1000,true);
 
-    // Top-5 Cross-Market Leaderboard
+    // Cross-Market Leaderboard (Top 5 with Expand All)
     const lbBox=$('#leaderboardBox');
     if(lbBox && latestComputed.length>1){
-      const top5=latestComputed.slice(0,5);
-      lbBox.innerHTML=`
-        <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:12px 14px;">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
-            <span style="font-size:12px;font-weight:900;color:#fff;letter-spacing:0.3px;">📊 TOP ${top5.length} CROSS-MARKET LEADERBOARD (${latestComputed.length} SCANNED)</span>
-            <span style="font-size:10.5px;color:#7d8aa5;">Ranked by empirical edge &amp; Markov conviction</span>
+      let showAllLb = false;
+      function drawLeaderboard(){
+        const list = showAllLb ? latestComputed : latestComputed.slice(0,5);
+        lbBox.innerHTML=`
+          <div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:14px;padding:12px 14px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;flex-wrap:wrap;gap:6px;">
+              <span style="font-size:12px;font-weight:900;color:#fff;letter-spacing:0.3px;">📊 ${showAllLb ? `ALL ${latestComputed.length}` : `TOP ${list.length}`} CROSS-MARKET LEADERBOARD (${latestComputed.length} SCANNED)</span>
+              <div style="display:flex;align-items:center;gap:8px;">
+                <span style="font-size:10.5px;color:#7d8aa5;">Ranked by empirical edge, regime stability &amp; Markov2 conviction</span>
+                ${latestComputed.length > 5 ? `<button type="button" id="btnToggleAllLb" class="btn ghost" style="padding:3px 9px;font-size:10.5px;border-radius:6px;cursor:pointer;">${showAllLb ? 'Show Top 5' : `Show All ${latestComputed.length}`}</button>` : ''}
+              </div>
+            </div>
+            <div style="overflow-x:auto;">
+              <table style="width:100%;border-collapse:collapse;font-size:11.5px;text-align:left;">
+                <thead>
+                  <tr style="color:#7d8aa5;border-bottom:1px solid rgba(255,255,255,0.1);font-size:10px;text-transform:uppercase;">
+                    <th style="padding:5px 6px;">Rank</th>
+                    <th style="padding:5px 6px;">Market</th>
+                    <th style="padding:5px 6px;">Pillar · Setup</th>
+                    <th style="padding:5px 6px;">Win / Edge</th>
+                    <th style="padding:5px 6px;">Sample</th>
+                    <th style="padding:5px 6px;">Regime</th>
+                    <th style="padding:5px 6px;">Conviction</th>
+                    <th style="padding:5px 6px;text-align:right;">Quick Launch</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${list.map((row,idx)=>{
+                    const rs=row.bestPillar.setup;
+                    const rp=row.bestPillar.favourablePillar;
+                    const rContract=rs.best?rs.best.contract:(rp==='Over / Under'?(rs.action==='OVER'?'DIGITOVER':'DIGITUNDER'):rp==='Even / Odd'?(rs.action==='EVEN'?'DIGITEVEN':'DIGITODD'):rp==='Matches / Differs'?(rs.action==='MATCHES'?'DIGITMATCH':'DIGITDIFF'):(rs.action==='CALL'?'CALL':'PUT'));
+                    const rBarr=rs.barrier!=null?rs.barrier:(rs.digit!=null?rs.digit:2);
+                    const rSep=row.bestPillar.url.includes('?')?'&':'?';
+                    const rMan=`${row.bestPillar.url}${rSep}dur=5&unit=t${rs.action?'&type='+rs.action:''}${rs.barrier!=null?'&barrier='+rs.barrier:''}${rs.digit!=null?'&digit='+rs.digit:''}`;
+                    const rl=buildSpecialistRule(rContract, rs.action, rBarr);
+                    const rRF=rContract==='CALL'||rContract==='PUT';
+                    const rMart=rContract==='DIGITMATCH'?0:1;
+                    const rName=specBotName(rContract, rBarr, row.v.id);
+                    const rBot=`bots-library.html?symbol=${row.v.id}&contract=${rContract}&barrier=${rBarr}&name=${encodeURIComponent(rName)}&dur=${rRF?5:1}&rule_kind=${rl.kind}&rule_cond=${rl.cond}&rule_cb=${rl.cb}&rule_n=${rl.n}&mart=${rMart}&mart_mode=${rRF?'split_recovery':'smart_barrier'}&mart_mult=1.05&mart_steps=4&shield=1&gate=${Math.max(48,Math.min(85,row.conf))}`;
+                    const hazCol=row.rf&&row.rf.hazard==='CHOP_TRAP'?'#ff3b69':row.rf&&row.rf.hazard==='SKEW_SPIKE'?'#00ffa3':'#00b2ff';
+                    return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);${idx===0?'background:rgba(0,255,163,0.05);':''}">
+                      <td style="padding:6px;font-weight:900;color:${idx===0?'#00ffa3':'#9fb0cc'};">#${idx+1}</td>
+                      <td style="padding:6px;font-weight:700;color:#fff;">${TW.esc(row.v.name)} <span style="color:#7d8aa5;font-size:10px;">(${row.v.id})</span></td>
+                      <td style="padding:6px;color:#00b2ff;font-weight:800;">${TW.esc(rp)} · <span style="color:#ffd600;">${TW.esc(rs.decision)}</span></td>
+                      <td style="padding:6px;color:#cbd5e1;"><b>${rs.projectedWinPct}%</b> <span style="color:#00ffa3;">(+${rs.edgePts} pts)</span></td>
+                      <td style="padding:6px;color:#9fb0cc;font-weight:700;">${row.n}t</td>
+                      <td style="padding:6px;font-size:10.5px;font-weight:800;color:${hazCol};">${row.rf?TW.esc(row.rf.hazard.replace('_',' ')):'BALANCED'}</td>
+                      <td style="padding:6px;font-weight:800;color:${row.conf>=85?'#00ffa3':'#ffd600'};">${row.conf}%</td>
+                      <td style="padding:6px;text-align:right;white-space:nowrap;">
+                        <a href="${rMan}" class="btn ghost" style="padding:3px 8px;font-size:10.5px;border-radius:6px;margin-right:4px;">Trade →</a>
+                        <button type="button" class="btn ghost lb-watch-bot" data-idx="${idx}" style="padding:3px 8px;font-size:10.5px;border-radius:6px;margin-right:4px;color:#00ffa3;border-color:rgba(0,255,163,0.35);cursor:pointer;">🎯 Save &amp; Watch</button>
+                        <a href="${rBot}" class="btn ghost" style="padding:3px 8px;font-size:10.5px;border-radius:6px;color:#00b2ff;border-color:rgba(0,178,255,0.35);">🤖 Studio →</a>
+                      </td>
+                    </tr>`;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
           </div>
-          <div style="overflow-x:auto;">
-            <table style="width:100%;border-collapse:collapse;font-size:11.5px;text-align:left;">
-              <thead>
-                <tr style="color:#7d8aa5;border-bottom:1px solid rgba(255,255,255,0.1);font-size:10px;text-transform:uppercase;">
-                  <th style="padding:5px 6px;">Rank</th>
-                  <th style="padding:5px 6px;">Market</th>
-                  <th style="padding:5px 6px;">Pillar · Setup</th>
-                  <th style="padding:5px 6px;">Win / Edge</th>
-                  <th style="padding:5px 6px;">Conviction</th>
-                  <th style="padding:5px 6px;text-align:right;">Quick Launch</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${top5.map((row,idx)=>{
-                  const rs=row.bestPillar.setup;
-                  const rp=row.bestPillar.favourablePillar;
-                  const rContract=rs.best?rs.best.contract:(rp==='Over / Under'?(rs.action==='OVER'?'DIGITOVER':'DIGITUNDER'):rp==='Even / Odd'?(rs.action==='EVEN'?'DIGITEVEN':'DIGITODD'):rp==='Matches / Differs'?(rs.action==='MATCHES'?'DIGITMATCH':'DIGITDIFF'):(rs.action==='CALL'?'CALL':'PUT'));
-                  const rBarr=rs.barrier!=null?rs.barrier:(rs.digit!=null?rs.digit:2);
-                  const rSep=row.bestPillar.url.includes('?')?'&':'?';
-                  const rMan=`${row.bestPillar.url}${rSep}dur=5&unit=t${rs.action?'&type='+rs.action:''}${rs.barrier!=null?'&barrier='+rs.barrier:''}${rs.digit!=null?'&digit='+rs.digit:''}`;
-                  const rBot=`bots-library.html?symbol=${row.v.id}&contract=${rContract}&barrier=${rBarr}&name=${encodeURIComponent('AI '+row.v.name+' ('+rs.decision+')')}&dur=1&rule_kind=instant&mart=1&mart_mult=2.2&mart_steps=3&gate=${Math.max(48,Math.min(85,row.conf))}`;
-                  return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);${idx===0?'background:rgba(0,255,163,0.05);':''}">
-                    <td style="padding:6px;font-weight:900;color:${idx===0?'#00ffa3':'#9fb0cc'};">#${idx+1}</td>
-                    <td style="padding:6px;font-weight:700;color:#fff;">${TW.esc(row.v.name)} <span style="color:#7d8aa5;font-size:10px;">(${row.v.id})</span></td>
-                    <td style="padding:6px;color:#00b2ff;font-weight:800;">${TW.esc(rp)} · <span style="color:#ffd600;">${TW.esc(rs.decision)}</span></td>
-                    <td style="padding:6px;color:#cbd5e1;"><b>${rs.projectedWinPct}%</b> <span style="color:#00ffa3;">(+${rs.edgePts} pts)</span></td>
-                    <td style="padding:6px;font-weight:800;color:${row.conf>=85?'#00ffa3':'#ffd600'};">${row.conf}%</td>
-                    <td style="padding:6px;text-align:right;white-space:nowrap;">
-                      <a href="${rMan}" class="btn ghost" style="padding:3px 8px;font-size:10.5px;border-radius:6px;margin-right:4px;">Trade →</a>
-                      <a href="${rBot}" class="btn ghost" style="padding:3px 8px;font-size:10.5px;border-radius:6px;color:#00b2ff;border-color:rgba(0,178,255,0.35);">🤖 Bot →</a>
-                    </td>
-                  </tr>`;
-                }).join('')}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      `;
+        `;
+        const tBtn = document.getElementById('btnToggleAllLb');
+        if (tBtn) tBtn.onclick = () => { showAllLb = !showAllLb; drawLeaderboard(); };
+        lbBox.querySelectorAll('.lb-watch-bot').forEach(btn => {
+          btn.onclick = () => {
+            const row = list[+btn.dataset.idx];
+            if (!row || !TW.botStore) return;
+            const rs = row.bestPillar.setup, rp = row.bestPillar.favourablePillar;
+            const rContract = rs.best ? rs.best.contract : (rp==='Over / Under'?(rs.action==='OVER'?'DIGITOVER':'DIGITUNDER'):rp==='Even / Odd'?(rs.action==='EVEN'?'DIGITEVEN':'DIGITODD'):rp==='Matches / Differs'?(rs.action==='MATCHES'?'DIGITMATCH':'DIGITDIFF'):(rs.action==='CALL'?'CALL':'PUT'));
+            const rBarr = rs.barrier != null ? rs.barrier : (rs.digit != null ? rs.digit : 2);
+            const rRF = rContract === 'CALL' || rContract === 'PUT';
+            const rl = buildSpecialistRule(rContract, rs.action, rBarr);
+            const saved = TW.botStore.upsert({
+              name: specBotName(rContract, rBarr, row.v.id),
+              symbol: row.v.id, contract: rContract, barrier: rBarr, duration: rRF ? 5 : 1, stake: testStake || 1.0,
+              rule: rl,
+              mart: { on: rContract !== 'DIGITMATCH', mode: rRF ? 'split_recovery' : 'smart_barrier', mult: 1.05, steps: 4 },
+              aiMode: 'active',
+              aiGate: Math.max(48, Math.min(85, row.conf)), lossShield: true, coolSecs: 4, sl: 12, tp: 24
+            });
+            window.location.href = TW.botStore.marketUrl(saved);
+          };
+        });
+      }
+      drawLeaderboard();
     }
   }
 
@@ -844,7 +1155,7 @@ TW.ready(function(){
     if(!latestComputed.length){ TW.toast('Wait for scan results first…', 'mut', 2500); return; }
     out.style.display='block';
     out.textContent = mode === 'cross'
-      ? '🌐 Synthesizing 17-market Cross-Market AI Regime Matrix…'
+      ? '🌐 Synthesizing 20-market Cross-Market AI Regime Matrix…'
       : '🔮 Generating Incoming Market Projection Briefing…';
     const payloadList = latestComputed.map(m=>({
       symbol: m.v.id,

@@ -56,36 +56,63 @@
   TW.on = (n, f) => { (ev[n] = ev[n] || []).push(f); };
   const emit = (n, a) => (ev[n] || []).forEach(f => { try { f(a); } catch (e) { console.error(e); } });
 
+  // Verified against live Deriv Options WebSocket API (wss://api.derivws.com/trading/v1/options/ws/public).
+  // Discontinued (1HZ150V, 1HZ250V) and non-existent (1HZ200V, 1HZ300V) symbols are excluded.
   TW.VOLS = [
-    { id: 'R_10', name: 'Volatility 10 Index', digits: true, pip: 3 },
-    { id: 'R_25', name: 'Volatility 25 Index', digits: true, pip: 3 },
-    { id: 'R_50', name: 'Volatility 50 Index', digits: true, pip: 4 },
-    { id: 'R_75', name: 'Volatility 75 Index', digits: true, pip: 4 },
-    { id: 'R_100', name: 'Volatility 100 Index', digits: true, pip: 2 },
-    { id: '1HZ10V', name: 'Volatility 10 (1s) Index', digits: true, pip: 2 },
-    { id: '1HZ15V', name: 'Volatility 15 (1s) Index', digits: true, pip: 3 },
-    { id: '1HZ25V', name: 'Volatility 25 (1s) Index', digits: true, pip: 2 },
-    { id: '1HZ30V', name: 'Volatility 30 (1s) Index', digits: true, pip: 3 },
-    { id: '1HZ50V', name: 'Volatility 50 (1s) Index', digits: true, pip: 2 },
-    { id: '1HZ75V', name: 'Volatility 75 (1s) Index', digits: true, pip: 2 },
-    { id: '1HZ90V', name: 'Volatility 90 (1s) Index', digits: true, pip: 3 },
-    { id: '1HZ100V', name: 'Volatility 100 (1s) Index', digits: true, pip: 2 },
-    { id: '1HZ150V', name: 'Volatility 150 (1s) Index', digits: true, pip: 2 },
-    { id: '1HZ200V', name: 'Volatility 200 (1s) Index', digits: true, pip: 2 },
-    { id: '1HZ250V', name: 'Volatility 250 (1s) Index', digits: true, pip: 2 },
-    { id: '1HZ300V', name: 'Volatility 300 (1s) Index', digits: true, pip: 2 },
-    { id: 'BOOM300', name: 'Boom 300 Index', pip: 2 },
-    { id: 'BOOM500', name: 'Boom 500 Index', pip: 2 },
-    { id: 'BOOM1000', name: 'Boom 1000 Index', pip: 2 },
-    { id: 'CRASH300', name: 'Crash 300 Index', pip: 2 },
-    { id: 'CRASH500', name: 'Crash 500 Index', pip: 2 },
-    { id: 'CRASH1000', name: 'Crash 1000 Index', pip: 2 },
-    { id: 'STEPINDEX', name: 'Step Index', pip: 2 },
-    { id: 'JD10', name: 'Jump 10 Index', pip: 2 },
-    { id: 'JD50', name: 'Jump 50 Index', pip: 2 },
-    { id: 'JD100', name: 'Jump 100 Index', pip: 2 },
-    { id: 'RDBULL', name: 'Bull Market Index', pip: 2 },
-    { id: 'RDBEAR', name: 'Bear Market Index', pip: 2 }
+    // Continuous Volatility Indices (2-second ticks) — Digits + Rise/Fall
+    { id: 'R_10', name: 'Volatility 10 Index', digits: true, rf: true, vol: true, pip: 3 },
+    { id: 'R_25', name: 'Volatility 25 Index', digits: true, rf: true, vol: true, pip: 3 },
+    { id: 'R_50', name: 'Volatility 50 Index', digits: true, rf: true, vol: true, pip: 4 },
+    { id: 'R_75', name: 'Volatility 75 Index', digits: true, rf: true, vol: true, pip: 4 },
+    { id: 'R_100', name: 'Volatility 100 Index', digits: true, rf: true, vol: true, pip: 2 },
+    // High-Speed 1-Second Volatility Indices — Digits + Rise/Fall
+    { id: '1HZ10V', name: 'Volatility 10 (1s) Index', digits: true, rf: true, vol: true, pip: 2 },
+    { id: '1HZ15V', name: 'Volatility 15 (1s) Index', digits: true, rf: true, vol: true, pip: 3 },
+    { id: '1HZ25V', name: 'Volatility 25 (1s) Index', digits: true, rf: true, vol: true, pip: 2 },
+    { id: '1HZ30V', name: 'Volatility 30 (1s) Index', digits: true, rf: true, vol: true, pip: 3 },
+    { id: '1HZ50V', name: 'Volatility 50 (1s) Index', digits: true, rf: true, vol: true, pip: 2 },
+    { id: '1HZ75V', name: 'Volatility 75 (1s) Index', digits: true, rf: true, vol: true, pip: 2 },
+    { id: '1HZ90V', name: 'Volatility 90 (1s) Index', digits: true, rf: true, vol: true, pip: 3 },
+    { id: '1HZ100V', name: 'Volatility 100 (1s) Index', digits: true, rf: true, vol: true, pip: 2 },
+    // Jump Indices — Digits + Rise/Fall
+    { id: 'JD10', name: 'Jump 10 Index', digits: true, rf: true, pip: 2 },
+    { id: 'JD25', name: 'Jump 25 Index', digits: true, rf: true, pip: 2 },
+    { id: 'JD50', name: 'Jump 50 Index', digits: true, rf: true, pip: 2 },
+    { id: 'JD75', name: 'Jump 75 Index', digits: true, rf: true, pip: 2 },
+    { id: 'JD100', name: 'Jump 100 Index', digits: true, rf: true, pip: 2 },
+    // Daily Reset Indices — Digits + Rise/Fall
+    { id: 'RDBULL', name: 'Bull Market Index', digits: true, rf: true, pip: 4 },
+    { id: 'RDBEAR', name: 'Bear Market Index', digits: true, rf: true, pip: 4 },
+    // Step Indices — Rise/Fall + Multipliers
+    { id: 'stpRNG', name: 'Step Index 100', rf: true, pip: 1 },
+    { id: 'stpRNG2', name: 'Step Index 200', rf: true, pip: 1 },
+    { id: 'stpRNG3', name: 'Step Index 300', rf: true, pip: 1 },
+    { id: 'stpRNG4', name: 'Step Index 400', rf: true, pip: 1 },
+    { id: 'stpRNG5', name: 'Step Index 500', rf: true, pip: 1 },
+    // Boom & Crash Indices (Accumulators/Multipliers; 150N & Crash600 also support Rise/Fall)
+    { id: 'BOOM150N', name: 'Boom 150 Index', rf: true, pip: 5 },
+    { id: 'BOOM300N', name: 'Boom 300 Index', pip: 3 },
+    { id: 'BOOM500', name: 'Boom 500 Index', pip: 3 },
+    { id: 'BOOM600', name: 'Boom 600 Index', pip: 3 },
+    { id: 'BOOM900', name: 'Boom 900 Index', pip: 3 },
+    { id: 'BOOM1000', name: 'Boom 1000 Index', pip: 3 },
+    { id: 'CRASH150N', name: 'Crash 150 Index', rf: true, pip: 5 },
+    { id: 'CRASH300N', name: 'Crash 300 Index', pip: 3 },
+    { id: 'CRASH500', name: 'Crash 500 Index', pip: 3 },
+    { id: 'CRASH600', name: 'Crash 600 Index', rf: true, pip: 3 },
+    { id: 'CRASH900', name: 'Crash 900 Index', pip: 3 },
+    { id: 'CRASH1000', name: 'Crash 1000 Index', pip: 3 },
+    // Verified Deriv Major/Minor Forex & Metals (Rise/Fall BUY CALL & SELL PUT; closes weekends)
+    { id: 'frxEURUSD', name: 'EUR/USD', fx: true, rf: true, digits: false, market: 'forex', pip: 5 },
+    { id: 'frxGBPUSD', name: 'GBP/USD', fx: true, rf: true, digits: false, market: 'forex', pip: 5 },
+    { id: 'frxUSDJPY', name: 'USD/JPY', fx: true, rf: true, digits: false, market: 'forex', pip: 3 },
+    { id: 'frxAUDUSD', name: 'AUD/USD', fx: true, rf: true, digits: false, market: 'forex', pip: 5 },
+    { id: 'frxUSDCAD', name: 'USD/CAD', fx: true, rf: true, digits: false, market: 'forex', pip: 5 },
+    { id: 'frxUSDCHF', name: 'USD/CHF', fx: true, rf: true, digits: false, market: 'forex', pip: 5 },
+    { id: 'frxEURGBP', name: 'EUR/GBP', fx: true, rf: true, digits: false, market: 'forex', pip: 5 },
+    { id: 'frxEURJPY', name: 'EUR/JPY', fx: true, rf: true, digits: false, market: 'forex', pip: 3 },
+    { id: 'frxGBPJPY', name: 'GBP/JPY', fx: true, rf: true, digits: false, market: 'forex', pip: 3 },
+    { id: 'frxXAUUSD', name: 'Gold / USD (XAU/USD)', fx: true, rf: true, digits: false, market: 'forex', pip: 2 }
   ];
   TW.volName = id => (TW.VOLS.find(v => v.id === id) || { name: id }).name;
   TW.volPip = id => (TW.VOLS.find(v => v.id === id) || { pip: 2 }).pip || 2;
@@ -266,6 +293,7 @@
           if (st.prices.length > max) { st.prices.shift(); st.digits.shift(); st.epochs.shift(); }
           TW.tickPool[symbol] = { pip: st.pip, prices: st.prices.slice(-max), digits: st.digits.slice(-max), epochs: st.epochs.slice(-max), lastUpdated: Date.now() };
           h.onTick && h.onTick(st, { price, digit, epoch });
+          emit('tick', { symbol, price, digit, epoch, prices: st.prices, digits: st.digits, pip: st.pip });
           if (TW.onGlobalTick) TW.onGlobalTick(symbol, { price, digit, epoch });
           if (typeof paperTick === 'function') paperTick(symbol, { price, digit, epoch });
         }
@@ -274,6 +302,125 @@
     st.close = () => st.sock.close();
     if (h.primary !== false) TW.lastFeed = st;
     return st;
+  };
+
+  TW.scanMarkets = function (syms, opt) {
+    opt = opt || {};
+    const list = Array.isArray(syms) ? syms.slice() : [];
+    const count = Math.max(10, +opt.count || 100);
+    const style = opt.style === 'candles' ? 'candles' : 'ticks';
+    const gran = +opt.granularity || 900;
+    const isDeep = !!opt.isDeep || count >= 500;
+    const concurrency = Math.max(1, Math.min(4, +opt.concurrency || (list.length > 6 ? 3 : 2)));
+    const timeoutMs = +opt.timeoutMs || (isDeep ? 9500 : 5500);
+    const cacheTtlMs = +opt.cacheTtlMs || 18000;
+    const minCacheLen = Math.floor(count * 0.95);
+    const t0 = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+
+    const resultsMap = new Map();
+    const pending = [];
+    const now = Date.now();
+
+    list.forEach(v => {
+      const pool = style === 'ticks' ? TW.tickPool[v.id] : null;
+      if (!opt.forceFresh && pool && Array.isArray(pool.prices) && pool.prices.length >= minCacheLen && (now - (pool.lastUpdated || 0)) < cacheTtlMs) {
+        const prices = pool.prices.slice(-count);
+        const dg = (pool.digits && pool.digits.length >= prices.length) ? pool.digits.slice(-prices.length) : prices.map(p => TW.digitOf(p, v.pip || pool.pip || 2));
+        resultsMap.set(v.id, { v, prices, dg, gran: style === 'candles' ? gran : 0, cached: true });
+      } else {
+        pending.push(v);
+      }
+    });
+
+    let settled = false;
+    const socks = [];
+    let got = resultsMap.size;
+
+    const buildItems = () => list.map(v => resultsMap.get(v.id)).filter(Boolean);
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(hardTimer);
+      socks.forEach(s => { try { s.close(); } catch (e) {} });
+      const items = buildItems();
+      const elapsedMs = Math.max(1, Math.round(((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) - t0));
+      const lens = items.map(x => (x.dg || x.prices || []).length);
+      const totalTicks = lens.reduce((a, b) => a + b, 0);
+      const meta = {
+        requestedCount: count,
+        isDeep,
+        totalMarkets: list.length,
+        receivedMarkets: items.length,
+        minSample: lens.length ? Math.min(...lens) : 0,
+        maxSample: lens.length ? Math.max(...lens) : 0,
+        totalTicks,
+        elapsedMs
+      };
+      opt.onDone && opt.onDone(items, meta);
+    };
+
+    if (!pending.length) {
+      queueMicrotask(finish);
+      return { cancel: () => { settled = true; } };
+    }
+
+    const buckets = Array.from({ length: Math.min(concurrency, pending.length) }, () => []);
+    pending.forEach((v, idx) => buckets[idx % buckets.length].push(v));
+    const reqMap = new Map();
+    let seq = 1;
+
+    const hardTimer = setTimeout(finish, timeoutMs);
+
+    buckets.forEach(bucket => {
+      const sock = new TW.Socket({
+        url: TW.tickUrl(),
+        onOpen: s => {
+          bucket.forEach(v => {
+            const id = seq++;
+            reqMap.set(id, v);
+            if (style === 'candles') {
+              s.send({ ticks_history: v.id, end: 'latest', count, granularity: gran, style: 'candles', req_id: id });
+            } else {
+              s.send({ ticks_history: v.id, end: 'latest', count, style: 'ticks', req_id: id });
+            }
+          });
+        },
+        onMessage: d => {
+          if (settled || !d.req_id) return;
+          const v = reqMap.get(d.req_id);
+          if (!v) return;
+          got++;
+
+          if (style === 'candles' && d.candles && d.candles.length) {
+            const prices = d.candles.map(c => +c.close);
+            const dg = prices.map(p => TW.digitOf(p, v.pip || 4));
+            resultsMap.set(v.id, { v, prices, dg, gran });
+          } else if (d.history && Array.isArray(d.history.prices) && d.history.prices.length) {
+            const prices = d.history.prices.map(Number);
+            const pip = v.pip || d.pip_size || TW.volPip(v.id) || 2;
+            const dg = prices.map(p => TW.digitOf(p, pip));
+            resultsMap.set(v.id, { v, prices, dg, gran: 0 });
+            TW.tickPool[v.id] = { pip, prices: prices.slice(-Math.max(1000, count)), digits: dg.slice(-Math.max(1000, count)), epochs: (d.history.times || []).slice(-Math.max(1000, count)), lastUpdated: Date.now() };
+          } else if (d.error) {
+            resultsMap.set(v.id, { v, prices: [], dg: [], err: d.error.message || 'Unavailable' });
+          }
+
+          opt.onProgress && opt.onProgress(got, list.length, buildItems());
+          if (got >= list.length) finish();
+        },
+        onError: () => {}
+      });
+      socks.push(sock);
+    });
+
+    return {
+      cancel: () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(hardTimer);
+        socks.forEach(s => { try { s.close(); } catch (e) {} });
+      }
+    };
   };
 
   TW.analyze = function (digits) {
@@ -640,8 +787,16 @@
   function onPOC(c) {
     const w = watch[c.contract_id]; if (!w) return;
     const t = w.trade; t.spot = c.current_spot;
+    const pip = TW.volPip(t.symbol) || 2;
+    if (c.entry_tick != null || c.entry_spot != null) {
+      const ep = +(c.entry_tick != null ? c.entry_tick : c.entry_spot);
+      if (Number.isFinite(ep)) { t.entry = ep; t.entryDigit = TW.digitOf(ep, pip); }
+    }
     if (c.is_sold || c.status === 'won' || c.status === 'lost') {
-      t.exit = c.exit_tick || c.sell_spot; delete watch[c.contract_id];
+      const xp = +(c.exit_tick != null ? c.exit_tick : c.sell_spot);
+      t.exit = Number.isFinite(xp) ? xp : (c.exit_tick || c.sell_spot);
+      if (Number.isFinite(xp)) t.exitDigit = TW.digitOf(xp, pip);
+      delete watch[c.contract_id];
       if (c.id && tsock) tsock.send({ forget: c.id });
       settle(t, +c.profit || 0);
     } else emit('trade', t);
@@ -724,14 +879,17 @@
     const b = +barrier;
     if (type === 'DIGITOVER') return +(stake / (Math.max(1, 9 - b) / 10) * 0.95).toFixed(2);
     if (type === 'DIGITUNDER') return +(stake / (Math.max(1, b) / 10) * 0.95).toFixed(2);
-    if (type === 'DIGITMATCH') return +(stake * 9.5).toFixed(2);
-    if (type === 'DIGITDIFF') return +(stake * 1.09).toFixed(2);
+    if (type === 'DIGITMATCH') return +(stake * 9.0).toFixed(2);
+    if (type === 'DIGITDIFF') return +(stake * 1.098).toFixed(2);
     return +(stake * 1.95).toFixed(2);
   }
   TW.estimatePayout = estimatePayout;
 
+  const paperQuoteRatioCache = {};
+
   TW.trade = async function (p, o) {
     o = o || {};
+    const dispatchStart = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
     if (!o.silent) TW.fx.click();
     const s = TW.settings, mode = TW.mode(), amount = +(+p.amount).toFixed(2);
     if (!(amount >= 0.35)) throw err('Minimum stake is 0.35.');
@@ -739,7 +897,7 @@
     if (s.stopLoss > 0 && TW.session.pnl <= -s.stopLoss) throw err(`Session stop-loss reached (-${s.stopLoss}). Trading is paused — reset the session in Settings.`);
     if (mode === 'paper' && amount > TW.paper.balance) throw err('Not enough paper balance. Reset it in Settings.');
     const params = { contract_type: p.contract_type, symbol: p.symbol, duration: +p.duration, duration_unit: p.duration_unit || 't', amount, barrier: p.barrier };
-    
+
     // Live modal confirmation if required
     if (mode === 'live' && !o.silent && s.confirm) {
       const q = await TW.quote(params);
@@ -754,23 +912,31 @@
     if (mode === 'live') {
       const par = { amount, basis: 'stake', contract_type: params.contract_type, currency: TW.account.currency, duration: params.duration, duration_unit: params.duration_unit, [TW.symKey()]: params.symbol };
       if (params.barrier != null && params.barrier !== '') par.barrier = String(params.barrier);
-      // Direct buy request without extra proposal roundtrip for instant execution speed
+      // Direct 1-trip WebSocket buy without extra proposal round-trip
       const r = await req({ buy: 1, price: amount, parameters: par }, 20000);
       if (!r || !r.buy) throw err((r && r.error && r.error.message) || 'Deriv rejected or failed to confirm contract.');
-      const b = r.buy, t = newTrade(p, 'live', { id: b.contract_id, payout: b.payout, stake: b.buy_price, longcode: b.longcode, silent: !!o.silent });
+      const b = r.buy;
+      const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
+      const t = newTrade(p, 'live', { id: b.contract_id, payout: b.payout, stake: b.buy_price, longcode: b.longcode, silent: !!o.silent, latencyMs: Math.max(1, Math.round(nowMs - dispatchStart)) });
       watch[b.contract_id] = { trade: t };
       tsock.send({ proposal_open_contract: 1, contract_id: b.contract_id, subscribe: 1 });
       emit('trade', t); return t;
     }
 
-    // Paper trade: instant local execution with mathematical payout or live quote
-    const estPayout = estimatePayout(params.contract_type, params.barrier, amount);
+    // Paper trade: zero-latency dispatch with 30s cached real quote multiplier
+    const cacheKey = `${params.symbol}:${params.contract_type}:${params.barrier ?? ''}:${params.duration}:${params.duration_unit}`;
+    const cached = paperQuoteRatioCache[cacheKey];
+    const hasFreshCache = cached && (Date.now() - cached.ts) < 30000;
+    const estPayout = hasFreshCache
+      ? +(amount * cached.ratio).toFixed(2)
+      : estimatePayout(params.contract_type, params.barrier, amount);
     const pool = TW.tickPool[params.symbol];
     const curPrice = (pool && pool.prices && pool.prices.length) ? pool.prices[pool.prices.length - 1] : null;
     const curDigit = (pool && pool.digits && pool.digits.length) ? pool.digits[pool.digits.length - 1] : null;
+    const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
 
     const t = newTrade(p, 'paper', {
-      id: 'P' + Date.now().toString(36),
+      id: 'P' + Date.now().toString(36) + Math.random().toString(36).slice(2, 4),
       payout: estPayout,
       count: 0,
       ticksElapsed: 0,
@@ -778,7 +944,8 @@
       entryDigit: curDigit,
       entryEpoch: Math.floor(Date.now() / 1000),
       longcode: p.label || p.contract_type,
-      silent: !!o.silent
+      silent: !!o.silent,
+      latencyMs: Math.max(1, Math.round(nowMs - dispatchStart))
     });
 
     paperOpen.push(t);
@@ -801,8 +968,16 @@
       }
     }, maxWaitMs);
 
-    // Background quote refinement (non-blocking)
-    TW.quote(params).then(q => { if (q && q.payout) t.payout = +q.payout; }).catch(() => {});
+    // Refresh real payout multiplier only once per 30s per contract configuration
+    if (!hasFreshCache) {
+      TW.quote(params).then(q => {
+        if (q && q.payout && amount > 0) {
+          const ratio = +q.payout / amount;
+          paperQuoteRatioCache[cacheKey] = { ratio, ts: Date.now() };
+          if (t.status === 'open') t.payout = +q.payout;
+        }
+      }).catch(() => {});
+    }
     return t;
   };
 
@@ -912,7 +1087,7 @@
   }
   TW.on('trade', renderTradeHud);
 
-  const PAGES = [['index.html', 'Home'], ['rise-fall.html', 'Rise/Fall'], ['over-under.html', 'Over/Under'], ['even-odd.html', 'Even/Odd'], ['matches-differs.html', 'Matches/Differs'], ['analyzer.html', 'Analyzer'], ['strategies.html', 'Strategies'], ['bots-library.html', 'Bots'], ['playbook.html', 'Playbook'], ['insight.html', 'Insight Lab'], ['diagnostics.html', 'Diagnostics'], ['settings.html', 'Settings']];
+  const PAGES = [['index.html', 'Home'], ['rise-fall.html', 'Rise/Fall'], ['forex.html', 'Forex'], ['over-under.html', 'Over/Under'], ['even-odd.html', 'Even/Odd'], ['matches-differs.html', 'Matches/Differs'], ['analyzer.html', 'Analyzer'], ['strategies.html', 'Strategies'], ['bots-library.html', 'Bots'], ['playbook.html', 'Playbook'], ['insight.html', 'Insight Lab'], ['diagnostics.html', 'Diagnostics'], ['settings.html', 'Settings']];
   TW.setStatus = function (s, msg) {
     const d = $('#twDot'), t = $('#twStatus'); if (!d) return;
     d.className = 'dot ' + s;
@@ -965,8 +1140,19 @@
     el.innerHTML = `<div class="top-row"><a class="brand" href="index.html" aria-label="TickWealth home"><img src="logo-mark.svg" alt="" width="30" height="30"><span>Tick<b style="color:#00ffa3">Wealth</b></span></a>${o.symbols ? '<select class="sel" id="twSym" aria-label="Market"></select>' : ''}<span class="dot" id="twDot"></span><span class="mut" id="twStatus" style="font-size:11px"></span><span id="twPing" style="font-size:10.5px;color:#00ffa3;font-weight:800;background:rgba(0,255,163,0.08);padding:3px 8px;border-radius:6px;border:1px solid rgba(0,255,163,0.25);">⚡ <b>--ms</b></span><span class="spacer"></span><button type="button" class="pill" id="twSoundBtn" title="Toggle Sound FX" style="padding:4px 10px;font-size:11px;cursor:pointer;">${TW.fx.enabled?'🔊 FX':'🔇 FX'}</button><button type="button" class="pill" id="twKillBtn" title="Emergency Stop All Bots & Trades" style="padding:4px 8px;font-size:11px;font-weight:900;background:rgba(255,59,105,0.12);color:#ff3b69;border:1px solid rgba(255,59,105,0.4);cursor:pointer;">🚨 STOP</button><button class="pill" id="twAcc" title="Account & mode"></button></div><nav class="nav">${PAGES.map(p => `<a href="${p[0]}" class="${isAct(p) ? 'on' : ''}">${p[1]}</a>`).join('')}</nav>`;
     const out = { symbol: o.defaultSymbol || 'R_25' };
     if (o.symbols) {
-      const sel = $('#twSym'), list = TW.VOLS.filter(v => o.symbols === 'all' || v.digits);
-      sel.innerHTML = list.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+      const sel = $('#twSym'), list = TW.VOLS.filter(v => {
+        if (o.symbols === 'all') return true;
+        if (o.symbols === 'fx') return !!v.fx;
+        if (o.symbols === 'rf') return !!v.rf;
+        return !!v.digits;
+      });
+      const fxList = list.filter(v => v.fx);
+      const synList = list.filter(v => !v.fx);
+      if (fxList.length && synList.length) {
+        sel.innerHTML = `<optgroup label="Synthetic Indices">${synList.map(v => `<option value="${v.id}">${v.name}</option>`).join('')}</optgroup><optgroup label="Forex &amp; Gold (Buy/Sell)">${fxList.map(v => `<option value="${v.id}">${v.name}</option>`).join('')}</optgroup>`;
+      } else {
+        sel.innerHTML = list.map(v => `<option value="${v.id}">${v.name}</option>`).join('');
+      }
       const q = TW.qs().vol; out.symbol = list.some(v => v.id === q) ? q : (list.some(v => v.id === out.symbol) ? out.symbol : list[0].id);
       sel.value = out.symbol;
       sel.onchange = () => { out.symbol = sel.value; o.onSymbol && o.onSymbol(sel.value); };

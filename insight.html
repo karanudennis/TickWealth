@@ -77,7 +77,7 @@ TW.guard('Insight Lab', () => {
     table(c1, ['Test', 'Statistic (' + D.length + ' ticks)', 'Adjusted p', 'Verdict'], rows);
     drawDistChart(D, ds);
     const tt = TWS.truthTest(D, P); table(c2, ['Model', 'Hits / tries', 'Hit rate', 'Chance', 'Adjusted p', 'Verdict'], tt.map(r => [r.name, r.hits + ' / ' + r.n, (r.rate * 100).toFixed(1) + '%', (r.p0 * 100).toFixed(0) + '%', r.padj.toFixed(3), { t: r.padj < 0.01 && r.rate > r.p0 ? 'Above chance: verify on new ticks' : 'No better than chance', cls: r.padj < 0.01 && r.rate > r.p0 ? 'r' : 'g' }]));
-    const m = SYM.match(/^(BOOM|CRASH)(\d+)$/); c4.style.display = m ? '' : 'none';
+    const m = SYM.match(/^(BOOM|CRASH)(\d+)N?$/); c4.style.display = m ? '' : 'none';
     if (m) { const N = +m[2], mean = ch.reduce((a, b) => a + Math.abs(b), 0) / ch.length, sp = ch.filter(x => Math.abs(x) > 4 * mean).length;
       table(c4, ['Within the next', 'Chance of at least one spike'], [10, 50, 100, 500].map(k => [k + ' ticks', (TWS.spikeProb(N, k) * 100).toFixed(1) + '%']));
       c4.appendChild(el('div', 'pn', 'Designed average: 1 spike per ' + N + ' ticks. In the loaded ' + ch.length + ' ticks, ' + sp + ' moves were over 4 times the average (about 1 per ' + (sp ? Math.round(ch.length / sp) : '-') + ').')); }

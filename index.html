@@ -38,7 +38,7 @@
 .sec{padding:34px 0}.st{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
 .sn{padding:18px;border-radius:16px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04)}
 .sn b{display:block;font-size:30px}.stp{counter-reset:s}.stp .sn::before{counter-increment:s;content:"0" counter(s);color:#00b2ff;font:700 13px ui-monospace,monospace}
-.risk{border-left:3px solid #ff3b69;padding:12px 16px;background:rgba(255,59,105,.07);border-radius:10px;color:#d7e0f2;font-size:14px}
+.risk{border:1px solid rgba(255,59,105,.38);padding:12px 16px;background:rgba(255,59,105,.07);border-radius:12px;color:#d7e0f2;font-size:14px}
 .rv{opacity:0;transform:translateY(18px);transition:.7s}.rv.in{opacity:1;transform:none}
 footer.lpf{text-align:center;color:#7d8aa5;font-size:12px;padding:30px 18px}
 </style>
@@ -69,7 +69,7 @@ footer.lpf{text-align:center;color:#7d8aa5;font-size:12px;padding:30px 18px}
       <div>
         <div style="font-size:10.5px;font-weight:800;color:#00ffa3;letter-spacing:0.4px;">QUANTUM ALPHA RADAR · LIVE DERIV STREAM</div>
         <div id="lpAlphaTxt" style="font-size:13px;color:#fff;font-weight:800;margin-top:2px;">
-          Evaluating 17 Volatility Indices with Markov AI…
+          Scanning live Volatility Indices &amp; Forex markets with Markov AI…
         </div>
       </div>
     </div>
@@ -89,13 +89,14 @@ footer.lpf{text-align:center;color:#7d8aa5;font-size:12px;padding:30px 18px}
   <section class="sec rv"><h2>Everything you need, <span class="gr">one terminal</span></h2><p>Every page shares the same live data and the same risk limits.</p>
     <div class="grid">
       <a class="gc" href="rise-fall.html"><em>📈</em><b>Rise / Fall</b><span>Live candles and one-tap trades.</span></a>
+      <a class="gc" href="forex.html"><em>💱</em><b>Forex &amp; Gold</b><span>Live EUR/USD, GBP/USD, JPY &amp; XAU/USD BUY/SELL scanner with session timing.</span></a>
       <a class="gc" href="over-under.html"><em>🎯</em><b>Over / Under</b><span>Barrier odds with live payout.</span></a>
       <a class="gc" href="even-odd.html"><em>⚖️</em><b>Even / Odd</b><span>Parity share against the true 50%.</span></a>
       <a class="gc" href="matches-differs.html"><em>🔢</em><b>Matches / Differs</b><span>Digit frequency circles in real time.</span></a>
-      <a class="gc" href="analyzer.html"><em>🔬</em><b>Market Alpha Analyzer</b><span>Rapid (50t) &amp; Quantum Deep (1000t) scanner with single best market card and live validity timer.</span></a>
-      <a class="gc" href="strategies.html"><em>🏛️</em><b>Strategy Pillar</b><span>Independent rooms &amp; playbooks for Over 0–8, Under 1–9, Matches/Differs, Even/Odd &amp; Rise/Fall.</span></a>
+      <a class="gc" href="analyzer.html"><em>🔬</em><b>Market Alpha Analyzer</b><span>Scans 20 Volatility Indices + 10 Forex/Gold pairs for highest-conviction BUY/SELL &amp; digit signals.</span></a>
+      <a class="gc" href="strategies.html"><em>🏛️</em><b>Strategy Pillar</b><span>Dedicated strategy rooms for Over/Under, Matches/Differs, Even/Odd, Rise/Fall, Synthetics &amp; Forex/Gold.</span></a>
       <a class="gc" href="playbook.html"><em>📘</em><b>Playbook</b><span>10 entry rules with a countdown and a random-chance test.</span></a>
-      <a class="gc" href="bots-library.html"><em>🤖</em><b>AI Bots · Loss Guard</b><span>Rule-based bots with AI Confidence Gate (≥80%) and Adaptive Loss Shield to minimize losses.</span></a>
+      <a class="gc" href="bots-library.html"><em>🤖</em><b>Deriv DBot Studio</b><span>Specialist bots named by duty (Expert Under 7 Sniper, Expert Over 2 Reversion, Expert Forex Buyer) with Smart Recovery &amp; AI Gate.</span></a>
       <a class="gc" href="insight.html"><em>🧪</em><b>Insight Lab</b><span>Randomness tests, an AI Truth Test and a risk simulator.</span></a>
       <a class="gc" href="settings.html"><em>🛡️</em><b>Settings</b><span>Stake, stop-loss and account limits.</span></a>
     </div></section>
@@ -127,6 +128,15 @@ footer.lpf{text-align:center;color:#7d8aa5;font-size:12px;padding:30px 18px}
 TW.mountTop({active:'index'});
 const $=i=>document.getElementById(i), dg=$('lpDg');
 for(let i=0;i<10;i++){const e=document.createElement('i');e.textContent=i;dg.appendChild(e)}
+let radarLocked = false;
+function renderRadarLine(name, opt, conf, rf, extraNote){
+  const txt = $('lpAlphaTxt');
+  if(!txt || !opt) return;
+  const prob = opt.projectedProb != null ? opt.projectedProb : (opt.winRate != null ? opt.winRate : 50);
+  const edge = opt.edge != null ? opt.edge : 0;
+  const rfStr = rf ? ` · ${TW.esc(rf.hazard)} (H=${rf.hurst}, Chop ${Math.round(rf.chopIndex * 100)}%, Cap ${rf.kellyPct}%)` : '';
+  txt.innerHTML = `${extraNote || 'Top Live Setup'}: <b style="color:#00ffa3;">${TW.esc(name)}</b> · <b style="color:#00b2ff;">${TW.esc(opt.name)}</b> (${prob}% forward odds · ${edge>=0?'+':''}${edge} pts edge) · Markov2 Conviction: <b style="color:#00ffa3;">${conf}%</b>${rfStr}`;
+}
 function draw(f){
   const p=f.prices.slice(-60);if(p.length<2)return;
   const q=p[p.length-1],up=q>=p[p.length-2],lo=Math.min(...p),r=(Math.max(...p)-lo)||1;
@@ -136,21 +146,48 @@ function draw(f){
   pl.setAttribute('fill','none');pl.setAttribute('stroke',up?'#00ffa3':'#ff3b69');pl.setAttribute('stroke-width','2');
   $('lpSp').textContent='';$('lpSp').appendChild(pl);
   dg.querySelectorAll('.h').forEach(x=>x.classList.remove('h'));const d=dg.children[f.digits[f.digits.length-1]];void d.offsetWidth;d.classList.add('h');
-  
-  // Real-time Quantum Alpha evaluation on incoming tick
-  if(f.digits && f.digits.length >= 20 && window.TWS && TWS.projectMarket){
+
+  if(!radarLocked && f.digits && f.digits.length >= 20 && window.TWS && TWS.projectMarket){
     const proj = TWS.projectMarket(f.prices, f.digits);
     const opt = proj.optimalContract;
-    const txt = $('lpAlphaTxt');
-    if(txt && opt){
-      const prob = opt.projectedProb != null ? opt.projectedProb : (opt.winRate != null ? opt.winRate : 50);
-      const edge = opt.edge != null ? opt.edge : 0;
+    if(opt){
       const conf = TWS.calcConfidence ? TWS.calcConfidence({ contract: opt.type, barrier: opt.barrier, prices: f.prices, digits: f.digits }).score : 50;
-      txt.innerHTML = `Active: <b style="color:#00ffa3;">Volatility 100 Index</b> · Setup: <b style="color:#00b2ff;">${TW.esc(opt.name)}</b> (${prob}% forward odds · ${edge>=0?'+':''}${edge} pts edge) · Markov Conviction: <b style="color:#00ffa3;">${conf}%</b> · ⏱️ 5 Ticks`;
+      const rf = TWS.regimeFingerprint ? TWS.regimeFingerprint(f.prices, f.digits) : null;
+      renderRadarLine('Volatility 100 Index', opt, conf, rf, 'Streaming');
     }
   }
 }
 TW.tickFeed('R_100',{primary:false,count:80,onStatus:s=>{$('lpSt').textContent=s==='live'?'● live':s;TW.setStatus&&TW.setStatus(s)},onHistory:draw,onTick:draw});
+if(TW.scanMarkets && window.TWS){
+  const digSyms = TW.VOLS.filter(v => v.digits);
+  const txt = $('lpAlphaTxt');
+  if(txt) txt.textContent = `Evaluating ${digSyms.length} Volatility Indices & ${TW.VOLS.filter(v=>v.fx).length} FX pairs with Markov AI…`;
+  TW.scanMarkets(digSyms, {
+    count: 80,
+    concurrency: 3,
+    timeoutMs: 4500,
+    onDone: (items, meta) => {
+      const scored = [];
+      items.forEach(it => {
+        if(!it || !it.dg || it.dg.length < 25) return;
+        const proj = TWS.projectMarket(it.prices, it.dg);
+        const opt = proj && proj.optimalContract;
+        if(!opt) return;
+        const conf = TWS.calcConfidence ? TWS.calcConfidence({ contract: opt.type, barrier: opt.barrier, prices: it.prices, digits: it.dg }).score : 50;
+        const rf = TWS.regimeFingerprint ? TWS.regimeFingerprint(it.prices, it.dg) : null;
+        const pen = rf && rf.hazard === 'CHOP_TRAP' ? -15 : 0;
+        scored.push({ v: it.v, opt, conf, rf, score: (opt.edge || 0) * 2 + conf * 0.5 + pen });
+      });
+      if(scored.length){
+        scored.sort((a,b) => b.score - a.score);
+        const best = scored[0];
+        radarLocked = true;
+        const secStr = meta && meta.elapsedMs ? ` (${(meta.elapsedMs/1000).toFixed(2)}s · ${scored.length}/${digSyms.length} mkts)` : '';
+        renderRadarLine(best.v.name, best.opt, best.conf, best.rf, `Leader${secStr}`);
+      }
+    }
+  });
+}
 const io=new IntersectionObserver(es=>es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target)}}),{threshold:.12});
 document.querySelectorAll('.rv').forEach(e=>io.observe(e));
 </script>

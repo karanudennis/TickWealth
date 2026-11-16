@@ -37,6 +37,30 @@ const TWS = (() => {
       if (h) hit++; fin.push(b); ln += t; }
     fin.sort((a, b) => a - b); const q = f => fin[Math.min(fin.length - 1, Math.floor(fin.length * f))]; return { pHit: hit / o.runs, median: q(.5), p5: q(.05), p95: q(.95), avgTrades: ln / o.runs }; }
   function spikeProb(avgInterval, k) { return 1 - Math.exp(-k / (avgInterval || 1)); }
+  // Helper: EMA + RSI(14) directional oscillator for Rise/Fall & Momentum signals
+  function calcEmaRsi(P) {
+    if (!P || P.length < 15) return { ema5: 0, ema15: 0, rsi: 50, diffPct: 0 };
+    const sl = P.slice(-45);
+    let ema5 = sl[0], ema15 = sl[0];
+    const k5 = 2 / 6, k15 = 2 / 16;
+    for (let i = 1; i < sl.length; i++) {
+      ema5 = sl[i] * k5 + ema5 * (1 - k5);
+      ema15 = sl[i] * k15 + ema15 * (1 - k15);
+    }
+    let gains = 0, losses = 0;
+    const rsiStart = Math.max(1, sl.length - 14);
+    for (let i = rsiStart; i < sl.length; i++) {
+      const d = sl[i] - sl[i - 1];
+      if (d > 0) gains += d;
+      else losses -= d;
+    }
+    const rs = losses === 0 ? (gains > 0 ? 10 : 1) : (gains / losses);
+    const rsi = +(100 - 100 / (1 + rs)).toFixed(1);
+    const last = sl[sl.length - 1] || 1;
+    const diffPct = +(((ema5 - ema15) / last) * 100).toFixed(4);
+    return { ema5, ema15, rsi, diffPct };
+  }
+
   function calcConfidence(opts) {
     opts = opts || {};
     const contract = opts.contract || 'DIGITOVER';
@@ -55,15 +79,14 @@ const TWS = (() => {
     else if (contract === 'DIGITEVEN' || contract === 'DIGITODD') nullProb = 0.50;
     else if (contract === 'CALL' || contract === 'PUT') nullProb = 0.50;
 
-    // Default gate calibrated to realistic baseline expectation (permits active quant execution)
-    const defaultGate = Math.max(35, Math.min(85, Math.round(nullProb * 100 * 0.85)));
+    // Default gate calibrated to realistic baseline expectation
+    const defaultGate = Math.max(35, Math.min(86, Math.round(nullProb * 100 * 0.85)));
     const baseGate = opts.gate != null ? +opts.gate : defaultGate;
 
-    // Adaptive loss shield adds gentle +1% buffer per loss (capped so it never chokes trading)
-    const maxShield = Math.min(88, Math.round(nullProb * 100));
-    const shieldedGate = lossShield && consecutiveLosses > 0
-      ? Math.min(maxShield, baseGate + Math.min(3, consecutiveLosses * 1))
-      : baseGate;
+    // Adaptive loss shield raises threshold cleanly (+1.5% per consecutive loss up to +5%)
+    const shieldBoost = lossShield && consecutiveLosses > 0 ? Math.min(5, Math.round(consecutiveLosses * 1.5)) : 0;
+    const maxShield = Math.min(90, Math.round(nullProb * 100) + 2);
+    const shieldedGate = shieldBoost > 0 ? Math.min(maxShield, baseGate + shieldBoost) : baseGate;
 
     if (!D.length && !P.length) {
       const initScore = Math.round(nullProb * 100);
@@ -71,13 +94,15 @@ const TWS = (() => {
     }
 
     const currentDigit = D.length ? D[D.length - 1] : 5;
+    const rf = (D.length >= 15) ? regimeFingerprint(P, D) : null;
 
-    // 1. Markov Transition Probability from the current active digit
+    // 1. Blended 2nd-Order + 1st-Order Markov Transition Probability
     let markovWinPct = nullProb * 100;
     if (D.length >= 15) {
-      const mk = markovMatrix(D);
-      if (mk && mk.probs && mk.probs[currentDigit]) {
-        const trans = mk.probs[currentDigit];
+      const m2 = D.length >= 30 ? secondOrderMarkov(D) : null;
+      const m1 = markovMatrix(D);
+      const trans = (m2 && m2.probs) ? m2.probs : ((m1 && m1.probs && m1.probs[currentDigit]) ? m1.probs[currentDigit] : null);
+      if (trans) {
         let winSum = 0;
         if (contract === 'DIGITOVER') {
           for (let d = barrier + 1; d <= 9; d++) winSum += trans[d];
@@ -96,48 +121,77 @@ const TWS = (() => {
       }
     }
 
-    // 2. Recent Empirical Frequency Win Rate (last 50-100 ticks)
+    // 2. Full-Sample + Recency Blended Empirical Win Rate (uses full 1000t when provided)
     let empiricalWinPct = nullProb * 100;
     if (D.length >= 15) {
-      const sample = D.slice(-100);
-      let hits = 0;
-      if (contract === 'DIGITOVER') hits = sample.filter(d => d > barrier).length;
-      else if (contract === 'DIGITUNDER') hits = sample.filter(d => d < barrier).length;
-      else if (contract === 'DIGITEVEN') hits = sample.filter(d => d % 2 === 0).length;
-      else if (contract === 'DIGITODD') hits = sample.filter(d => d % 2 === 1).length;
-      else if (contract === 'DIGITMATCH') hits = sample.filter(d => d === barrier).length;
-      else if (contract === 'DIGITDIFF') hits = sample.filter(d => d !== barrier).length;
-      empiricalWinPct = (hits / sample.length) * 100;
-    }
-
-    // 3. Directional Momentum & Reversion Drift Bonus
-    let momentumBonus = 0;
-    if (P.length >= 8) {
-      const pSlice = P.slice(-15);
-      if (contract === 'CALL') {
-        const up = pSlice.filter((p, i) => i > 0 && p > pSlice[i - 1]).length / (pSlice.length - 1);
-        momentumBonus = Math.round((up - 0.5) * 25);
-      } else if (contract === 'PUT') {
-        const down = pSlice.filter((p, i) => i > 0 && p < pSlice[i - 1]).length / (pSlice.length - 1);
-        momentumBonus = Math.round((down - 0.5) * 25);
-      } else {
-        // Digit momentum: if low digit (0, 1, 2) hits on Over 2, mean-reversion pull gives +5% boost
-        if (contract === 'DIGITOVER' && currentDigit <= barrier) momentumBonus = 5;
-        if (contract === 'DIGITUNDER' && currentDigit >= barrier) momentumBonus = 5;
-        if (contract === 'DIGITEVEN' && currentDigit % 2 !== 0) momentumBonus = 4;
-        if (contract === 'DIGITODD' && currentDigit % 2 === 0) momentumBonus = 4;
+      const sample = D;
+      const sn = sample.length;
+      let wHits = 0, wTotal = 0, rawHits = 0;
+      for (let i = 0; i < sn; i++) {
+        const w = i >= sn - 25 ? 2.8 : (i >= sn - 100 ? 1.8 : 1.0);
+        const d = sample[i];
+        let hit = false;
+        if (contract === 'DIGITOVER') hit = d > barrier;
+        else if (contract === 'DIGITUNDER') hit = d < barrier;
+        else if (contract === 'DIGITEVEN') hit = d % 2 === 0;
+        else if (contract === 'DIGITODD') hit = d % 2 === 1;
+        else if (contract === 'DIGITMATCH') hit = d === barrier;
+        else if (contract === 'DIGITDIFF') hit = d !== barrier;
+        if (hit) { wHits += w; rawHits++; }
+        wTotal += w;
+      }
+      if (wTotal > 0) empiricalWinPct = (wHits / wTotal) * 100;
+      if (sn >= 200 && nullProb > 0 && nullProb < 1) {
+        const rawRate = rawHits / sn;
+        const z = (rawRate - nullProb) / Math.sqrt((nullProb * (1 - nullProb)) / sn);
+        if (z >= 1.65) empiricalWinPct += Math.min(3.5, z * 0.9);
       }
     }
 
-    // Blended composite forward conviction score
-    // 55% Markov transition from current spot + 30% empirical historical rate + 15% baseline + momentum
-    const rawScore = (markovWinPct * 0.55) + (empiricalWinPct * 0.30) + (nullProb * 100 * 0.15) + momentumBonus;
+    // 3. Directional Momentum (EMA5/EMA15 + RSI14 for CALL/PUT) & Reversion Pull for Digits
+    let momentumBonus = 0;
+    if (contract === 'CALL' || contract === 'PUT') {
+      if (P.length >= 15) {
+        const { ema5, ema15, rsi } = calcEmaRsi(P);
+        const pSlice = P.slice(-15);
+        const up = pSlice.filter((p, i) => i > 0 && p > pSlice[i - 1]).length / (pSlice.length - 1);
+        if (contract === 'CALL') {
+          const tickDrift = (up - 0.5) * 16;
+          const emaAlign = ema5 > ema15 ? 4 : -3;
+          const rsiPull = rsi < 38 ? 5 : (rsi > 74 ? -5 : (rsi > 52 ? 2 : 0));
+          momentumBonus = Math.round(tickDrift + emaAlign + rsiPull);
+        } else {
+          const down = 1 - up;
+          const tickDrift = (down - 0.5) * 16;
+          const emaAlign = ema5 < ema15 ? 4 : -3;
+          const rsiPull = rsi > 62 ? 5 : (rsi < 26 ? -5 : (rsi < 48 ? 2 : 0));
+          momentumBonus = Math.round(tickDrift + emaAlign + rsiPull);
+        }
+        if (rf && rf.hurst >= 0.58) momentumBonus += 2;
+      }
+    } else if (P.length >= 8) {
+      if (contract === 'DIGITOVER' && currentDigit <= barrier) momentumBonus = 5;
+      else if (contract === 'DIGITUNDER' && currentDigit >= barrier) momentumBonus = 5;
+      else if (contract === 'DIGITEVEN' && currentDigit % 2 !== 0) momentumBonus = 4;
+      else if (contract === 'DIGITODD' && currentDigit % 2 === 0) momentumBonus = 4;
+      else if (contract === 'DIGITMATCH' && rf && rf.droughtDigit === barrier && rf.droughtTicks >= 14) momentumBonus = 4;
+    }
+
+    // 4. Regime CHOP_TRAP Penalty (filters pure alternating flip noise on high-chop indices)
+    let chopPenalty = 0;
+    if (rf && rf.hazard === 'CHOP_TRAP') {
+      chopPenalty = rf.chopIndex >= 0.72 ? 9 : 5;
+      if (contract === 'CALL' || contract === 'PUT') chopPenalty += 4;
+    }
+
+    const rawScore = (markovWinPct * 0.55) + (empiricalWinPct * 0.30) + (nullProb * 100 * 0.15) + momentumBonus - chopPenalty;
     const score = Math.max(12, Math.min(98, Math.round(rawScore)));
 
     const passes = score >= shieldedGate;
+    const chopNote = chopPenalty > 0 ? `, Chop-${chopPenalty}%` : '';
     const reason = passes
-      ? `PASS: AI Conviction ${score}% ≥ ${shieldedGate}% gate (Markov: ${markovWinPct.toFixed(0)}%, Empirical: ${empiricalWinPct.toFixed(0)}%, Base: ${(nullProb * 100).toFixed(0)}%)`
-      : `FILTER: AI Conviction ${score}% < ${shieldedGate}% gate (${consecutiveLosses > 0 ? `Shield elevated +${consecutiveLosses * 3}%` : 'Sub-gate probability'})`;
+      ? `PASS: AI Conviction ${score}% ≥ ${shieldedGate}% gate (Markov2: ${markovWinPct.toFixed(0)}%, Recency: ${empiricalWinPct.toFixed(0)}%, Base: ${(nullProb * 100).toFixed(0)}%${chopNote})`
+      : `FILTER: AI Conviction ${score}% < ${shieldedGate}% gate (${shieldBoost > 0 ? `Shield +${shieldBoost}%` : (chopPenalty > 0 ? 'Chop-Trap penalty' : 'Sub-gate probability')})`;
 
     return {
       score,
@@ -145,9 +199,10 @@ const TWS = (() => {
       baseGate,
       passes,
       consecutiveLosses,
+      rf,
       reason,
       nullProb: +(nullProb * 100).toFixed(0),
-      breakdown: { markovWinPct, empiricalWinPct, momentumBonus }
+      breakdown: { markovWinPct, empiricalWinPct, momentumBonus, chopPenalty }
     };
   }
 
@@ -345,15 +400,30 @@ const TWS = (() => {
     };
   }
 
+  // Helper: recency-weighted empirical distribution across digits 0..9
+  function recencyDigitProbs(D) {
+    const n = D.length;
+    const recCount = Array(10).fill(0);
+    let recWeight = 0;
+    for (let i = 0; i < n; i++) {
+      const w = i >= n - 25 ? 2.5 : (i >= n - 80 ? 1.5 : 1);
+      if (D[i] >= 0 && D[i] <= 9) {
+        recCount[D[i]] += w;
+        recWeight += w;
+      }
+    }
+    return recCount.map(v => v / (recWeight || 1));
+  }
+
   // Quantitative Over/Under Decision Engine:
   // Evaluates every barrier 0..8 for OVER and 1..9 for UNDER using:
-  // 1. Past frequency over N real ticks (historical win %)
-  // 2. Forward Markov transition conditioned on current digit d_curr
-  // 3. Composite edge and institutional Kelly conviction
-  // Explicitly decides: "UNDER [X]" vs "OVER [X]", gives barrier X, past hit %, projected win %, and edge %.
+  // 1. Recency-weighted empirical frequency over real ticks
+  // 2. 2nd-order + 1st-order Markov transition conditioned on current digit flow
+  // 3. Regime Chop/Entropy penalty & Kelly cap
   function decideOverUnder(digits, prices, options) {
     options = options || {};
     const D = digits || [];
+    const P = prices || [];
     const n = D.length;
     if (n < 15) {
       return {
@@ -368,6 +438,8 @@ const TWS = (() => {
         conviction: 50,
         currentDigit: D[n - 1] ?? 5,
         sampleSize: n,
+        rf: null,
+        regimeLabel: 'Calibrating',
         best: { action: 'UNDER', barrier: 4, pastHitPct: 50, projectedWinPct: 50, nullPct: 50, edgePts: 0, pastEdge: 0 },
         candidates: [],
         reason: 'Insufficient tick history (need at least 15 real ticks to compute Markov transitions and empirical bias).'
@@ -375,32 +447,36 @@ const TWS = (() => {
     }
 
     const currentDigit = D[n - 1];
-    const mk = markovMatrix(D);
-    const markovProbs = mk && mk.probs[currentDigit] ? mk.probs[currentDigit] : Array(10).fill(0.1);
+    const m2 = n >= 30 ? secondOrderMarkov(D) : null;
+    const m1 = markovMatrix(D);
+    const markovProbs = (m2 && m2.probs) ? m2.probs : ((m1 && m1.probs && m1.probs[currentDigit]) ? m1.probs[currentDigit] : Array(10).fill(0.1));
+    const empProbs = recencyDigitProbs(D);
+    const rf = regimeFingerprint(P, D);
+    const chopPen = rf.hazard === 'CHOP_TRAP' ? 6 : 0;
 
     const candidates = [];
 
     // Evaluate all UNDER barriers (1 through 9)
-    // Under B wins if digit < B (digits 0..B-1)
     for (let b = 1; b <= 9; b++) {
       const pastHits = D.filter(d => d < b).length;
-      const pastHitPct = +( (pastHits / n) * 100 ).toFixed(1);
-      const nullPct = +( (b / 10) * 100 ).toFixed(1);
+      const pastHitPct = +((pastHits / n) * 100).toFixed(1);
+      let recHit = 0;
+      for (let d = 0; d < b; d++) recHit += empProbs[d];
+      const recHitPct = +(recHit * 100).toFixed(1);
+      const nullPct = +((b / 10) * 100).toFixed(1);
       const pastEdge = +(pastHitPct - nullPct).toFixed(1);
 
-      // Markov transition sum from current digit to winning set [0..b-1]
       let markovWinSum = 0;
       for (let d = 0; d < b; d++) markovWinSum += markovProbs[d];
       const markovWinPct = +(markovWinSum * 100).toFixed(1);
 
-      // Blended forward projection (65% Markov conditioned on current digit + 35% past empirical)
-      const projectedWinPct = +( (markovWinPct * 0.65) + (pastHitPct * 0.35) ).toFixed(1);
+      const projectedWinPct = +((markovWinPct * 0.60) + (recHitPct * 0.40)).toFixed(1);
       const projectedEdge = +(projectedWinPct - nullPct).toFixed(1);
 
       let winRateBonus = 0;
       if (projectedWinPct >= 65 && projectedWinPct <= 85) winRateBonus = 6;
       else if (projectedWinPct > 85) winRateBonus = 2;
-      const score = +(projectedEdge * 1.5 + pastEdge * 0.8 + winRateBonus).toFixed(1);
+      const score = +(projectedEdge * 1.5 + pastEdge * 0.7 + winRateBonus - chopPen * 0.5).toFixed(1);
 
       candidates.push({
         action: 'UNDER',
@@ -421,24 +497,26 @@ const TWS = (() => {
     }
 
     // Evaluate all OVER barriers (0 through 8)
-    // Over B wins if digit > B (digits B+1..9)
     for (let b = 0; b <= 8; b++) {
       const pastHits = D.filter(d => d > b).length;
-      const pastHitPct = +( (pastHits / n) * 100 ).toFixed(1);
-      const nullPct = +( ((9 - b) / 10) * 100 ).toFixed(1);
+      const pastHitPct = +((pastHits / n) * 100).toFixed(1);
+      let recHit = 0;
+      for (let d = b + 1; d <= 9; d++) recHit += empProbs[d];
+      const recHitPct = +(recHit * 100).toFixed(1);
+      const nullPct = +(((9 - b) / 10) * 100).toFixed(1);
       const pastEdge = +(pastHitPct - nullPct).toFixed(1);
 
       let markovWinSum = 0;
       for (let d = b + 1; d <= 9; d++) markovWinSum += markovProbs[d];
       const markovWinPct = +(markovWinSum * 100).toFixed(1);
 
-      const projectedWinPct = +( (markovWinPct * 0.65) + (pastHitPct * 0.35) ).toFixed(1);
+      const projectedWinPct = +((markovWinPct * 0.60) + (recHitPct * 0.40)).toFixed(1);
       const projectedEdge = +(projectedWinPct - nullPct).toFixed(1);
 
       let winRateBonus = 0;
       if (projectedWinPct >= 65 && projectedWinPct <= 85) winRateBonus = 6;
       else if (projectedWinPct > 85) winRateBonus = 2;
-      const score = +(projectedEdge * 1.5 + pastEdge * 0.8 + winRateBonus).toFixed(1);
+      const score = +(projectedEdge * 1.5 + pastEdge * 0.7 + winRateBonus - chopPen * 0.5).toFixed(1);
 
       candidates.push({
         action: 'OVER',
@@ -461,14 +539,35 @@ const TWS = (() => {
     candidates.sort((a, b) => b.score - a.score);
     const best = candidates[0];
 
+    // 1000-tick Deep Stability & Z-score check (compares 1st half vs 2nd half persistence)
+    let deepNote = '';
+    let stabAdj = 0;
+    if (n >= 200) {
+      const mid = Math.floor(n / 2);
+      const hitFn = best.action === 'UNDER' ? (d => d < best.barrier) : (d => d > best.barrier);
+      const h1 = D.slice(0, mid).filter(hitFn).length / mid;
+      const h2 = D.slice(mid).filter(hitFn).length / (n - mid);
+      const baseP = best.nullPct / 100;
+      const zFull = ((best.pastHitPct / 100) - baseP) / (Math.sqrt(baseP * (1 - baseP) / n) || 0.01);
+      const persistent = (h1 > baseP && h2 > baseP);
+      if (persistent && zFull >= 1.4) stabAdj = 5;
+      else if (h1 < baseP && h2 > baseP) stabAdj = 1;
+      else if (best.pastEdge <= 0 && n >= 500) stabAdj = -3;
+      deepNote = ` · ${n}t Z=${zFull >= 0 ? '+' : ''}${zFull.toFixed(2)} (${persistent ? 'Both Halves Aligned' : 'Recent Bias'})`;
+    }
+
     let conviction = 50;
-    if (best.projectedEdge > 0) conviction += Math.min(30, Math.round(best.projectedEdge * 2.2));
-    if (best.pastEdge > 0) conviction += Math.min(15, Math.round(best.pastEdge * 1.2));
-    if (n >= 100) conviction += 5;
+    if (best.projectedEdge > 0) conviction += Math.min(28, Math.round(best.projectedEdge * 2.1));
+    if (best.pastEdge > 0) conviction += Math.min(14, Math.round(best.pastEdge * 1.2));
+    if (n >= 100) conviction += 3;
+    if (n >= 500) conviction += 3;
+    conviction += stabAdj;
+    conviction -= chopPen;
     conviction = Math.max(20, Math.min(96, conviction));
 
     const winListStr = best.winningDigits.join(',');
-    const reason = `Current tick digit is ${currentDigit}. 1st-order Markov transition matrix conditioned on digit ${currentDigit} gives an ${best.markovWinPct}% probability of transitioning to digits [${winListStr}]. Blended forward projection estimates an ${best.projectedWinPct}% win rate vs ${best.nullPct}% normal odds (+${best.edgePts}% edge). Past ${n} ticks verify ${best.pastHitPct}% historical hit rate.`;
+    const orderTag = m2 ? `2nd-order Markov [${m2.pair[0]}→${m2.pair[1]}]` : `Markov [${currentDigit}]`;
+    const reason = `Digit ${currentDigit} (${rf.regimeLabel}): ${orderTag} + recency (${n}t) projects ${best.projectedWinPct}% on ${best.label} [${winListStr}] vs ${best.nullPct}% baseline (${best.edgePts >= 0 ? '+' : ''}${best.edgePts} pts edge${deepNote}).`;
 
     return {
       decision: `${best.action} ${best.barrier}`,
@@ -482,6 +581,8 @@ const TWS = (() => {
       conviction,
       currentDigit,
       sampleSize: n,
+      rf,
+      regimeLabel: rf.regimeLabel,
       best,
       candidates: candidates.slice(0, 6),
       reason
@@ -489,8 +590,9 @@ const TWS = (() => {
   }
 
   // Quantitative Matches/Differs Decision Engine across digits 0..9
-  function decideMatchesDiffers(digits) {
+  function decideMatchesDiffers(digits, prices) {
     const D = digits || [];
+    const P = prices || [];
     const n = D.length;
     if (n < 15) {
       return {
@@ -502,14 +604,20 @@ const TWS = (() => {
         nullPct: 90.0,
         edgePts: 0,
         conviction: 50,
+        rf: null,
+        regimeLabel: 'Calibrating',
         pillar: 'Matches / Differs',
         page: 'matches-differs.html',
         reason: 'Calibrating tick history'
       };
     }
     const currentDigit = D[n - 1];
-    const mk = markovMatrix(D);
-    const markovProbs = mk && mk.probs[currentDigit] ? mk.probs[currentDigit] : Array(10).fill(0.1);
+    const m2 = n >= 30 ? secondOrderMarkov(D) : null;
+    const m1 = markovMatrix(D);
+    const markovProbs = (m2 && m2.probs) ? m2.probs : ((m1 && m1.probs && m1.probs[currentDigit]) ? m1.probs[currentDigit] : Array(10).fill(0.1));
+    const empProbs = recencyDigitProbs(D);
+    const rf = regimeFingerprint(P, D);
+    const chopPen = rf.hazard === 'CHOP_TRAP' ? 6 : 0;
 
     const counts = Array(10).fill(0);
     D.forEach(d => { if (d >= 0 && d <= 9) counts[d]++; });
@@ -518,10 +626,11 @@ const TWS = (() => {
     for (let d = 0; d <= 9; d++) {
       // DIFFERS: wins when digit != d
       const diffHits = D.filter(x => x !== d).length;
-      const diffPastPct = +( (diffHits / n) * 100 ).toFixed(1);
-      const diffMarkovPct = +( (1 - markovProbs[d]) * 100 ).toFixed(1);
-      const diffProjPct = +( diffMarkovPct * 0.65 + diffPastPct * 0.35 ).toFixed(1);
-      const diffEdge = +( diffProjPct - 90.0 ).toFixed(1);
+      const diffPastPct = +((diffHits / n) * 100).toFixed(1);
+      const diffRecPct = +((1 - empProbs[d]) * 100).toFixed(1);
+      const diffMarkovPct = +((1 - markovProbs[d]) * 100).toFixed(1);
+      const diffProjPct = +(diffMarkovPct * 0.60 + diffRecPct * 0.40).toFixed(1);
+      const diffEdge = +(diffProjPct - 90.0).toFixed(1);
 
       candidates.push({
         decision: `DIFFERS ${d}`,
@@ -533,15 +642,16 @@ const TWS = (() => {
         edgePts: diffEdge,
         pillar: 'Matches / Differs',
         page: 'matches-differs.html',
-        score: +(diffEdge * 2.5 + (diffProjPct >= 92 ? 5 : 0)).toFixed(1)
+        score: +(diffEdge * 2.5 + (diffProjPct >= 92 ? 5 : 0) - chopPen * 0.4).toFixed(1)
       });
 
       // MATCHES: wins when digit == d
       const matchHits = counts[d];
-      const matchPastPct = +( (matchHits / n) * 100 ).toFixed(1);
-      const matchMarkovPct = +( markovProbs[d] * 100 ).toFixed(1);
-      const matchProjPct = +( matchMarkovPct * 0.65 + matchPastPct * 0.35 ).toFixed(1);
-      const matchEdge = +( matchProjPct - 10.0 ).toFixed(1);
+      const matchPastPct = +((matchHits / n) * 100).toFixed(1);
+      const matchRecPct = +(empProbs[d] * 100).toFixed(1);
+      const matchMarkovPct = +(markovProbs[d] * 100).toFixed(1);
+      const matchProjPct = +(matchMarkovPct * 0.60 + matchRecPct * 0.40).toFixed(1);
+      const matchEdge = +(matchProjPct - 10.0).toFixed(1);
 
       candidates.push({
         decision: `MATCHES ${d}`,
@@ -559,8 +669,8 @@ const TWS = (() => {
 
     candidates.sort((a, b) => b.score - a.score);
     const best = candidates[0];
-    const conviction = Math.max(50, Math.min(95, Math.round(50 + best.edgePts * 6)));
-    const reason = `Current digit is ${currentDigit}. Markov transition from digit ${currentDigit} gives ~${best.projectedWinPct}% forward probability on ${best.decision} (past hit: ${best.pastHitPct}% vs ${best.nullPct}% normal odds, edge +${best.edgePts}%).`;
+    const conviction = Math.max(45, Math.min(95, Math.round(50 + best.edgePts * 6 - chopPen)));
+    const reason = `Digit ${currentDigit} (${rf.regimeLabel}): Markov2 + recency projects ~${best.projectedWinPct}% on ${best.decision} (past ${best.pastHitPct}% vs ${best.nullPct}% baseline, ${best.edgePts >= 0 ? '+' : ''}${best.edgePts} pts edge).`;
 
     return {
       decision: best.decision,
@@ -573,6 +683,8 @@ const TWS = (() => {
       conviction,
       currentDigit,
       sampleSize: n,
+      rf,
+      regimeLabel: rf.regimeLabel,
       best,
       candidates: candidates.slice(0, 5),
       pillar: 'Matches / Differs',
@@ -582,8 +694,9 @@ const TWS = (() => {
   }
 
   // Quantitative Even/Odd Decision Engine
-  function decideEvenOdd(digits) {
+  function decideEvenOdd(digits, prices) {
     const D = digits || [];
+    const P = prices || [];
     const n = D.length;
     if (n < 15) {
       return {
@@ -594,34 +707,40 @@ const TWS = (() => {
         nullPct: 50.0,
         edgePts: 0,
         conviction: 50,
+        rf: null,
+        regimeLabel: 'Calibrating',
         pillar: 'Even / Odd',
         page: 'even-odd.html',
         reason: 'Calibrating tick history'
       };
     }
     const currentDigit = D[n - 1];
-    const mk = markovMatrix(D);
-    const markovProbs = mk && mk.probs[currentDigit] ? mk.probs[currentDigit] : Array(10).fill(0.1);
+    const m2 = n >= 30 ? secondOrderMarkov(D) : null;
+    const m1 = markovMatrix(D);
+    const markovProbs = (m2 && m2.probs) ? m2.probs : ((m1 && m1.probs && m1.probs[currentDigit]) ? m1.probs[currentDigit] : Array(10).fill(0.1));
+    const empProbs = recencyDigitProbs(D);
+    const rf = regimeFingerprint(P, D);
+    const chopPen = rf.hazard === 'CHOP_TRAP' ? 6 : 0;
 
     const evenHits = D.filter(d => d % 2 === 0).length;
-    const pastEvenPct = +( (evenHits / n) * 100 ).toFixed(1);
-    const pastOddPct = +( 100 - pastEvenPct ).toFixed(1);
+    const pastEvenPct = +((evenHits / n) * 100).toFixed(1);
+    const pastOddPct = +(100 - pastEvenPct).toFixed(1);
 
-    let markovEven = 0, markovOdd = 0;
+    let markovEven = 0, markovOdd = 0, recEven = 0, recOdd = 0;
     for (let d = 0; d <= 9; d++) {
-      if (d % 2 === 0) markovEven += markovProbs[d];
-      else markovOdd += markovProbs[d];
+      if (d % 2 === 0) { markovEven += markovProbs[d]; recEven += empProbs[d]; }
+      else { markovOdd += markovProbs[d]; recOdd += empProbs[d]; }
     }
-    const projEven = +( (markovEven * 0.65 + (pastEvenPct / 100) * 0.35) * 100 ).toFixed(1);
-    const projOdd = +( (markovOdd * 0.65 + (pastOddPct / 100) * 0.35) * 100 ).toFixed(1);
+    const projEven = +((markovEven * 0.60 + recEven * 0.40) * 100).toFixed(1);
+    const projOdd = +((markovOdd * 0.60 + recOdd * 0.40) * 100).toFixed(1);
 
     const pickEven = projEven >= projOdd;
     const action = pickEven ? 'EVEN' : 'ODD';
     const projWin = pickEven ? projEven : projOdd;
     const pastHit = pickEven ? pastEvenPct : pastOddPct;
     const edge = +(projWin - 50.0).toFixed(1);
-    const conviction = Math.max(50, Math.min(92, Math.round(50 + edge * 4)));
-    const reason = `Current digit ${currentDigit} transitions into ${action} digits with ${projWin}% projected forward win rate (past hit: ${pastHit}% vs 50% normal odds, edge +${edge}%).`;
+    const conviction = Math.max(45, Math.min(92, Math.round(50 + edge * 4 - chopPen)));
+    const reason = `Digit ${currentDigit} (${rf.regimeLabel}): Markov2 + recency projects ${projWin}% on ${action} (past ${pastHit}% vs 50% baseline, ${edge >= 0 ? '+' : ''}${edge} pts edge).`;
 
     return {
       decision: action,
@@ -633,6 +752,8 @@ const TWS = (() => {
       conviction,
       currentDigit,
       sampleSize: n,
+      rf,
+      regimeLabel: rf.regimeLabel,
       pillar: 'Even / Odd',
       page: 'even-odd.html',
       reason
@@ -641,35 +762,84 @@ const TWS = (() => {
 
   // Cross-Pillar Evaluator: Recommends which pillar to enter for a specific market
   function recommendBestPillar(symbol, prices, digits) {
-    const ou = decideOverUnder(digits, prices);
-    const md = decideMatchesDiffers(digits);
-    const eo = decideEvenOdd(digits);
+    const isFx = /^(frx|XAU|WLDAUD|WLDEUR|WLDGBP|WLDUSD)/i.test(symbol || '');
+    const rfData = regimeFingerprint(prices || [], isFx ? [] : (digits || []));
 
-    let rf = { decision: 'RISE', action: 'CALL', edgePts: 3.5, projectedWinPct: 53.5, pastHitPct: 52.0, pillar: 'Rise / Fall', page: 'rise-fall.html', conviction: 60 };
+    if (isFx) {
+      const fx = analyzeForex(prices || [], symbol);
+      const act = fx.action === 'PUT' ? 'PUT' : 'CALL';
+      const setup = {
+        decision: fx.signal === 'NEUTRAL / WAIT' ? (fx.biasSide === 'SELL' ? 'SELL (WEAK)' : 'BUY (WEAK)') : fx.signal,
+        action: act,
+        biasLabel: fx.biasLabel,
+        pastHitPct: fx.pastUpPct,
+        projectedWinPct: fx.winPct,
+        nullPct: 50.0,
+        edgePts: fx.edgePts,
+        conviction: fx.conviction,
+        horizon: fx.horizon,
+        duration: fx.duration,
+        durationUnit: fx.durationUnit,
+        entryTrigger: fx.entryTrigger,
+        reason: fx.reason,
+        rf: fx.rf,
+        regimeLabel: fx.regimeLabel,
+        fx
+      };
+      const fxScore = +(fx.edgePts * 1.9 + (fx.conviction >= 75 ? 6 : 0) - (fx.hazard === 'CHOP_TRAP' ? 6 : 0)).toFixed(1);
+      return {
+        symbol,
+        isFx: true,
+        favourablePillar: 'Forex Buy / Sell',
+        favourablePage: 'forex.html',
+        setup,
+        rf: fx.rf,
+        allPillars: [{ pillar: 'Forex Buy / Sell', page: 'forex.html', setup, score: fxScore }],
+        url: `forex.html?vol=${symbol}`
+      };
+    }
+
+    const ou = decideOverUnder(digits, prices);
+    const md = decideMatchesDiffers(digits, prices);
+    const eo = decideEvenOdd(digits, prices);
+
+    let rf = { decision: 'RISE', action: 'CALL', edgePts: 2.5, projectedWinPct: 52.5, pastHitPct: 50.0, pillar: 'Rise / Fall', page: 'rise-fall.html', conviction: 55, rf: rfData, regimeLabel: rfData.regimeLabel };
     if (prices && prices.length >= 20) {
       const pSlice = prices.slice(-20);
       let up = 0;
       for (let i = 1; i < pSlice.length; i++) if (pSlice[i] > pSlice[i - 1]) up++;
-      const isRise = up >= 10;
-      const rfProb = +(50 + (up / 20 - 0.5) * 40).toFixed(1);
+      const { ema5, ema15, rsi } = calcEmaRsi(prices);
+      const upRatio = up / (pSlice.length - 1);
+      // Composite score: tick drift + EMA5/EMA15 crossover + RSI(14) pressure + Hurst persistence
+      let riseBias = (upRatio - 0.5) * 32 + (ema5 > ema15 ? 4 : -4);
+      if (rsi < 36) riseBias += 4;
+      else if (rsi > 64) riseBias -= 4;
+      if (rfData.hurst >= 0.58) riseBias *= 1.15;
+      if (rfData.hazard === 'CHOP_TRAP') riseBias *= 0.45;
+      const isRise = riseBias >= 0;
+      const rfProb = +Math.max(50, Math.min(72, 50 + Math.abs(riseBias))).toFixed(1);
       const rfEdge = +(rfProb - 50).toFixed(1);
       rf = {
         decision: isRise ? 'RISE' : 'FALL',
         action: isRise ? 'CALL' : 'PUT',
-        edgePts: Math.abs(rfEdge),
-        projectedWinPct: isRise ? rfProb : +(100 - rfProb).toFixed(1),
-        pastHitPct: +( (up / 20) * 100 ).toFixed(1),
+        edgePts: rfEdge,
+        projectedWinPct: rfProb,
+        pastHitPct: +((up / (pSlice.length - 1)) * 100).toFixed(1),
         pillar: 'Rise / Fall',
         page: 'rise-fall.html',
-        conviction: Math.max(50, Math.min(90, Math.round(50 + Math.abs(rfEdge) * 3)))
+        conviction: Math.max(45, Math.min(90, Math.round(50 + rfEdge * 3 - (rfData.hazard === 'CHOP_TRAP' ? 8 : 0)))),
+        emaRsi: { ema5, ema15, rsi },
+        rf: rfData,
+        regimeLabel: rfData.regimeLabel
       };
     }
 
+    const chopPenalty = rfData.hazard === 'CHOP_TRAP' ? 6 : 0;
     const pillars = [
-      { pillar: 'Over / Under', page: 'over-under.html', setup: ou, score: ou.edgePts * 1.6 + (ou.projectedWinPct >= 75 ? 6 : 0) },
-      { pillar: 'Matches / Differs', page: 'matches-differs.html', setup: md, score: md.edgePts * 2.2 + (md.projectedWinPct >= 91 ? 8 : 0) },
-      { pillar: 'Even / Odd', page: 'even-odd.html', setup: eo, score: eo.edgePts * 1.8 },
-      { pillar: 'Rise / Fall', page: 'rise-fall.html', setup: rf, score: rf.edgePts * 1.5 }
+      { pillar: 'Over / Under', page: 'over-under.html', setup: ou, score: +(ou.edgePts * 1.6 + (ou.projectedWinPct >= 75 ? 6 : 0) - chopPenalty * 0.4).toFixed(1) },
+      { pillar: 'Matches / Differs', page: 'matches-differs.html', setup: md, score: +(md.edgePts * 2.2 + (md.projectedWinPct >= 91 ? 8 : 0) - chopPenalty * 0.3).toFixed(1) },
+      { pillar: 'Even / Odd', page: 'even-odd.html', setup: eo, score: +(eo.edgePts * 1.8 - chopPenalty * 0.4).toFixed(1) },
+      { pillar: 'Rise / Fall', page: 'rise-fall.html', setup: rf, score: +(rf.edgePts * 1.6 + (rfData.hurst >= 0.58 && rfData.chopIndex < 0.55 ? 5 : 0) - chopPenalty * 1.2).toFixed(1) }
     ];
 
     pillars.sort((a, b) => b.score - a.score);
@@ -680,6 +850,7 @@ const TWS = (() => {
       favourablePillar: topPillar.pillar,
       favourablePage: topPillar.page,
       setup: topPillar.setup,
+      rf: rfData,
       allPillars: pillars,
       url: `${topPillar.page}?vol=${symbol}`
     };
@@ -804,29 +975,33 @@ const TWS = (() => {
       }
     }
 
-    const contract = opt.contract || 'DIGITOVER';
-    const barrier = opt.barrier != null ? +opt.barrier : 2;
+    const baseContract = opt.contract || 'DIGITOVER';
+    const baseBarrier = opt.barrier != null ? +opt.barrier : 2;
     const dur = Math.max(1, +opt.duration || 1);
-    const stake = Math.max(0.35, +opt.stake || 1.0);
+    const baseStake = Math.max(0.35, +opt.stake || 1.0);
     const rule = opt.rule || {};
     const kind = rule.kind || (rule.cond || opt.cond ? 'streak' : 'instant');
     const condName = opt.cond || rule.cond || null;
     const reqStreak = Math.max(1, +(rule.n || opt.n || 1));
-    const cb = opt.cb != null ? +opt.cb : (rule.cb != null ? +rule.cb : barrier);
+    const cb = opt.cb != null ? +opt.cb : (rule.cb != null ? +rule.cb : baseBarrier);
+    const aiGate = opt.aiGate != null ? +opt.aiGate : null;
+    const aiMode = opt.aiMode || 'active';
+    const lossShield = opt.lossShield !== false;
+    const mart = opt.mart || null;
     const n = digits.length;
 
+    const roiFor = (c, b) => {
+      if (c === 'DIGITOVER') return Math.max(0.08, (1 / Math.max(0.1, (9 - b) / 10)) * 0.95 - 1);
+      if (c === 'DIGITUNDER') return Math.max(0.08, (1 / Math.max(0.1, b / 10)) * 0.95 - 1);
+      if (c === 'DIGITMATCH') return 8.5;
+      if (c === 'DIGITDIFF') return 0.09;
+      return 0.95;
+    };
+
     let totalTrades = 0, wins = 0, losses = 0, netPnl = 0;
-    let consecLoss = 0, maxConsecLoss = 0;
+    let grossWin = 0, grossLoss = 0, peakPnl = 0, maxDrawdown = 0;
+    let consecLoss = 0, maxConsecLoss = 0, lossPool = 0, martStep = 0;
     const winHistory = [];
-
-    let payoutMult = 1.95;
-    if (contract === 'DIGITOVER') payoutMult = (1 / Math.max(0.1, (9 - barrier) / 10)) * 0.95;
-    else if (contract === 'DIGITUNDER') payoutMult = (1 / Math.max(0.1, barrier / 10)) * 0.95;
-    else if (contract === 'DIGITMATCH') payoutMult = 9.5;
-    else if (contract === 'DIGITDIFF') payoutMult = 1.09;
-
-    const profitOnWin = +(stake * (payoutMult - 1)).toFixed(2);
-    const lossAmount = stake;
 
     const checkSingleCond = (idx) => {
       if (idx < 1) return false;
@@ -840,7 +1015,7 @@ const TWS = (() => {
       return true;
     };
 
-    let i = Math.max(10, reqStreak);
+    let i = Math.max(20, reqStreak);
     while (i < n - dur) {
       let trigger = false;
       if (kind === 'every') {
@@ -850,11 +1025,82 @@ const TWS = (() => {
         for (let s = 0; s < reqStreak; s++) {
           if (!checkSingleCond(i - s)) { trigger = false; break; }
         }
+      } else if (kind === 'ai_alpha') {
+        const subD = digits.slice(Math.max(0, i - 60), i + 1);
+        const subP = prices.slice(Math.max(0, i - 60), i + 1);
+        const prevD = subD[subD.length - 1];
+        if (baseContract === 'DIGITOVER') trigger = (prevD <= baseBarrier);
+        else if (baseContract === 'DIGITUNDER') trigger = (prevD >= baseBarrier);
+        else if (baseContract === 'DIGITDIFF') {
+          const rec = recencyDigitProbs(subD);
+          trigger = (rec[baseBarrier] <= 0.105 && prevD !== baseBarrier);
+        } else if (baseContract === 'DIGITEVEN') trigger = (prevD % 2 === 1);
+        else if (baseContract === 'DIGITODD') trigger = (prevD % 2 === 0);
+        else if (baseContract === 'CALL' || baseContract === 'PUT') {
+          const { ema5, ema15, rsi } = calcEmaRsi(subP);
+          trigger = baseContract === 'CALL' ? (ema5 >= ema15 && rsi < 74) : (ema5 <= ema15 && rsi > 26);
+        } else {
+          trigger = true;
+        }
       } else {
         trigger = true;
       }
 
       if (!trigger) { i++; continue; }
+
+      // Simulate active contract & Smart Recovery contract switching when applicable
+      let activeContract = baseContract;
+      let activeBarrier = baseBarrier;
+      const martMode = (mart && mart.on) ? (mart.mode || 'smart_barrier') : null;
+      const inRecovery = !!(martMode && lossPool > 0 && martStep > 0);
+      if (inRecovery && martMode === 'smart_barrier') {
+        if (baseContract === 'DIGITOVER' || baseContract === 'DIGITDIFF' || baseContract === 'DIGITEVEN') {
+          activeContract = 'DIGITOVER';
+          activeBarrier = 2;
+        } else if (baseContract === 'DIGITUNDER' || baseContract === 'DIGITODD') {
+          activeContract = 'DIGITUNDER';
+          activeBarrier = 7;
+        }
+      }
+
+      // Optional AI Confidence Gate & CHOP_TRAP filter (matches live botrunner logic)
+      if ((aiGate != null || kind === 'ai_alpha') && aiMode !== 'turbo') {
+        const winStart = Math.max(0, i - 60);
+        const slD = digits.slice(winStart, i + 1);
+        const slP = prices.slice(winStart, i + 1);
+        const rf = regimeFingerprint(slP, slD);
+        if (rf.hazard === 'CHOP_TRAP' && rf.chopIndex >= 0.74) { i++; continue; }
+        if (aiGate != null) {
+          const conf = calcConfidence({ contract: activeContract, barrier: activeBarrier, prices: slP, digits: slD, gate: aiGate, consecutiveLosses: consecLoss, lossShield });
+          if (!conf.passes) { i++; continue; }
+        }
+      }
+
+      // Compute recovery-adjusted stake with strict safety ceiling
+      let tradeStake = baseStake;
+      const roi = roiFor(activeContract, activeBarrier);
+      if (inRecovery) {
+        const maxSteps = Math.max(1, +(mart.steps || 4));
+        const mult = Math.max(1.0, +(mart.mult || 1.05));
+        if (martMode === 'smart_barrier') {
+          const need = (lossPool / roi) * mult;
+          tradeStake = Math.max(baseStake, +Math.min(baseStake * 4.5, need).toFixed(2));
+        } else if (martMode === 'split_recovery') {
+          const splitSteps = Math.min(2, Math.max(1, maxSteps - martStep + 1));
+          const need = ((lossPool / splitSteps) / roi) * mult;
+          tradeStake = Math.max(baseStake, +Math.min(baseStake * 3.5, need).toFixed(2));
+        } else if (martMode === 'payout_martingale') {
+          const need = ((lossPool + baseStake * 0.2) / roi) * mult;
+          tradeStake = Math.max(baseStake, +Math.min(baseStake * 5.0, need).toFixed(2));
+        } else if (martMode === 'dalembert') {
+          tradeStake = +(baseStake * (1 + Math.min(maxSteps, martStep) * 0.5)).toFixed(2);
+        } else if (martMode === 'fibonacci') {
+          const fib = [1, 1, 2, 3, 5, 8];
+          tradeStake = +(baseStake * fib[Math.min(fib.length - 1, martStep)]).toFixed(2);
+        } else {
+          tradeStake = +Math.min(baseStake * 6, baseStake * Math.pow(mult, Math.min(maxSteps, martStep))).toFixed(2);
+        }
+      }
 
       const entryPrice = prices[i] || 0;
       const exitPrice = prices[i + dur] || 0;
@@ -862,32 +1108,51 @@ const TWS = (() => {
 
       totalTrades++;
       let win = false;
-      if (contract === 'DIGITOVER') win = exitDigit > barrier;
-      else if (contract === 'DIGITUNDER') win = exitDigit < barrier;
-      else if (contract === 'DIGITEVEN') win = exitDigit % 2 === 0;
-      else if (contract === 'DIGITODD') win = exitDigit % 2 === 1;
-      else if (contract === 'DIGITMATCH') win = exitDigit === barrier;
-      else if (contract === 'DIGITDIFF') win = exitDigit !== barrier;
-      else if (contract === 'CALL') win = exitPrice > entryPrice;
-      else if (contract === 'PUT') win = exitPrice < entryPrice;
+      if (activeContract === 'DIGITOVER') win = exitDigit > activeBarrier;
+      else if (activeContract === 'DIGITUNDER') win = exitDigit < activeBarrier;
+      else if (activeContract === 'DIGITEVEN') win = exitDigit % 2 === 0;
+      else if (activeContract === 'DIGITODD') win = exitDigit % 2 === 1;
+      else if (activeContract === 'DIGITMATCH') win = exitDigit === activeBarrier;
+      else if (activeContract === 'DIGITDIFF') win = exitDigit !== activeBarrier;
+      else if (activeContract === 'CALL') win = exitPrice > entryPrice;
+      else if (activeContract === 'PUT') win = exitPrice < entryPrice;
 
       if (win) {
+        const prof = +(tradeStake * roi).toFixed(2);
         wins++;
-        netPnl += profitOnWin;
+        netPnl += prof;
+        grossWin += prof;
         consecLoss = 0;
+        if (martMode) {
+          lossPool = Math.max(0, +(lossPool - prof).toFixed(2));
+          if (lossPool <= 0.05) { lossPool = 0; martStep = 0; }
+        }
         winHistory.push('W');
       } else {
         losses++;
-        netPnl -= lossAmount;
+        netPnl -= tradeStake;
+        grossLoss += tradeStake;
         consecLoss++;
         if (consecLoss > maxConsecLoss) maxConsecLoss = consecLoss;
+        if (martMode) {
+          const maxSteps = Math.max(1, +(mart.steps || 4));
+          lossPool = +(lossPool + tradeStake).toFixed(2);
+          martStep++;
+          if (martStep > maxSteps) { lossPool = 0; martStep = 0; }
+        }
         winHistory.push('L');
       }
+
+      if (netPnl > peakPnl) peakPnl = netPnl;
+      const dd = peakPnl - netPnl;
+      if (dd > maxDrawdown) maxDrawdown = dd;
       i += dur;
     }
 
     const winRate = totalTrades > 0 ? +((wins / totalTrades) * 100).toFixed(1) : 0;
     netPnl = +netPnl.toFixed(2);
+    maxDrawdown = +maxDrawdown.toFixed(2);
+    const profitFactor = grossLoss > 0 ? +(grossWin / grossLoss).toFixed(2) : (grossWin > 0 ? 9.99 : 0);
 
     return {
       total: totalTrades,
@@ -899,6 +1164,8 @@ const TWS = (() => {
       netPnL: netPnl,
       maxConsecLoss,
       maxLossStreak: maxConsecLoss,
+      maxDrawdown,
+      profitFactor,
       totalTicks: n,
       sampleSize: n,
       recentStreak: winHistory.slice(-8),
@@ -969,14 +1236,24 @@ const TWS = (() => {
       if (gap > droughtTicks) { droughtTicks = gap; droughtDigit = d; }
     }
 
-    // Hurst & Price Chop Index (fraction of sign flips in last 25 moves)
-    let hurst = 0.50, chopIndex = 0.50;
+    // Hurst & Price Chop Index: fast 25t local chop + full-sample macro Hurst when n >= 120
+    let hurst = 0.50, macroHurst = 0.50, chopIndex = 0.50;
     if (P.length >= 16) {
       const sl = P.slice(-26);
       const rets = [];
       for (let i = 1; i < sl.length; i++) rets.push(sl[i] - sl[i - 1]);
       const ac = autocorr(rets, 1);
       hurst = +Math.max(0.1, Math.min(0.9, 0.5 + (ac.r || 0) * 0.35)).toFixed(2);
+      macroHurst = hurst;
+      if (P.length >= 120) {
+        const mRets = [];
+        const step = P.length > 500 ? 2 : 1;
+        for (let i = step; i < P.length; i += step) mRets.push(P[i] - P[i - step]);
+        if (mRets.length >= 30) {
+          const mac = autocorr(mRets, 1);
+          macroHurst = +Math.max(0.1, Math.min(0.9, 0.5 + (mac.r || 0) * 0.35)).toFixed(2);
+        }
+      }
       const signs = rets.map(r => Math.sign(r)).filter(s => s !== 0);
       if (signs.length >= 4) {
         let flips = 0;
@@ -1007,11 +1284,15 @@ const TWS = (() => {
     else if (maxDigitZ >= 2.0 && normEntropy < 0.98) kellyPct = 1.75;
     else if (hurst >= 0.6 && chopIndex < 0.5) kellyPct = 1.5;
 
-    const summary = `${regimeLabel} · H=${hurst} · Entropy=${normEntropy} · Chop=${Math.round(chopIndex * 100)}% · Drought D${droughtDigit} (${droughtTicks}t) · Cap=${kellyPct}%`;
+    const chiNote = n >= 200 ? ` · χ²p=${ds.p.toFixed(2)}` : '';
+    const summary = `${regimeLabel} · H=${hurst} · Entropy=${normEntropy} · Chop=${Math.round(chopIndex * 100)}%${chiNote} · Drought D${droughtDigit} (${droughtTicks}t) · Cap=${kellyPct}%`;
 
     return {
       normEntropy,
       hurst,
+      macroHurst,
+      chiP: +ds.p.toFixed(4),
+      sampleSize: n,
       maxDigitZ,
       chopIndex,
       droughtDigit,
@@ -1023,10 +1304,195 @@ const TWS = (() => {
     };
   }
 
+  function emaSeries(arr, period) {
+    const k = 2 / (period + 1);
+    const out = [];
+    let val = arr[0] || 0;
+    for (let i = 0; i < arr.length; i++) {
+      val = i === 0 ? arr[i] : arr[i] * k + val * (1 - k);
+      out.push(val);
+    }
+    return out;
+  }
+
+  function forexSessionContext(symbol, dateObj) {
+    const d = dateObj instanceof Date ? dateObj : new Date();
+    const day = d.getUTCDay(); // 0 Sun .. 6 Sat
+    const hr = d.getUTCHours() + d.getUTCMinutes() / 60;
+    // Forex closes Friday ~21:00 UTC to Sunday ~21:00 UTC
+    const isWeekendClosed = (day === 6) || (day === 5 && hr >= 21.5) || (day === 0 && hr < 21.0);
+    let sessionName = 'Asian / Sydney Session';
+    let sessionNote = 'Tighter ranges on EUR/GBP; watch JPY & AUD pairs for cleaner micro-swings.';
+    if (isWeekendClosed) {
+      sessionName = 'Weekend FX Exchange Closed';
+      sessionNote = 'Deriv Forex pairs reopen Sunday ~21:00 UTC. Synthetic Indices (24/7) remain live for trading now.';
+    } else if (hr >= 12 && hr < 16) {
+      sessionName = 'London / New York Overlap (Peak Liquidity)';
+      sessionNote = 'Highest institutional volume and cleanest directional breakouts across EUR/USD, GBP/USD, USD/JPY, and Gold.';
+    } else if (hr >= 7 && hr < 12) {
+      sessionName = 'London Session';
+      sessionNote = 'Strong European directional flows; favor trend alignment on EUR/USD, GBP/USD, EUR/GBP, and EUR/JPY.';
+    } else if (hr >= 16 && hr < 21) {
+      sessionName = 'New York Session';
+      sessionNote = 'Active USD and Gold momentum; monitor US macro volatility around data releases.';
+    }
+
+    const sym = String(symbol || 'frxEURUSD');
+    const pairTips = {
+      frxEURUSD: 'Tightest spread major pair; respects EMA 9/21 trend pullbacks cleanly during London/NY sessions.',
+      frxGBPUSD: 'Higher pip amplitude than EUR/USD; wait for chop < 62% to avoid London stop-hunt wicks.',
+      frxUSDJPY: 'Tracks US Treasury yield momentum; responsive to RSI overbought/oversold mean-reversion.',
+      frxAUDUSD: 'Commodity-linked major; steadier Asian/Pacific activity and smooth 15m swing structure.',
+      frxUSDCAD: 'Sensitive to oil & North American flows; performs best during New York hours (12–20 UTC).',
+      frxUSDCHF: 'Inverse EUR/USD mirror with steady safe-haven moves; validate trend slope before buying/selling.',
+      frxEURGBP: 'Slow, range-respecting cross; favor longer 15m–1h expiries or clear support/resistance bounces.',
+      frxEURJPY: 'High-beta carry cross; rides strong multi-bar momentum trends with brisk extensions.',
+      frxGBPJPY: 'Fastest FX cross ("The Beast"); widen timeframe (15m+) and enforce strict Chop-Trap veto.',
+      frxXAUUSD: 'Gold/USD carries sharp volatility bursts; stick to ≤1.5% capital per trade and 15m–1h horizon.'
+    };
+
+    return {
+      isOpen: !isWeekendClosed,
+      isWeekendClosed,
+      sessionName,
+      sessionNote,
+      pairTip: pairTips[sym] || 'Monitor EMA 9/21 trend alignment and avoid high-chop sessions.',
+      utcHour: +hr.toFixed(1)
+    };
+  }
+
+  function analyzeForex(prices, symbol) {
+    const P = Array.isArray(prices) ? prices.map(Number).filter(x => isFinite(x)) : [];
+    const rf = regimeFingerprint(P, []);
+    if (P.length < 20) {
+      return {
+        symbol: symbol || 'frxEURUSD',
+        signal: 'NEUTRAL / WAIT',
+        action: 'HOLD',
+        biasLabel: 'WAIT',
+        biasSide: 'BUY',
+        winPct: 50.0,
+        pastUpPct: 50.0,
+        edgePts: 0,
+        conviction: 48,
+        ema9: P[P.length - 1] || 0,
+        ema21: P[P.length - 1] || 0,
+        ema50: P[P.length - 1] || 0,
+        rsi: 50,
+        rangePct: 50,
+        rocPct: 0,
+        horizon: '15m',
+        duration: 15,
+        durationUnit: 'm',
+        hurst: rf.hurst,
+        chopIndex: rf.chopIndex,
+        hazard: rf.hazard,
+        regimeLabel: rf.regimeLabel,
+        rf,
+        entryTrigger: 'Buffering at least 20 live price points before issuing BUY or SELL.',
+        reason: 'Insufficient tick/candle history.'
+      };
+    }
+
+    const n = P.length;
+    const spot = P[n - 1];
+    const e9 = emaSeries(P, 9);
+    const e21 = emaSeries(P, 21);
+    const e50 = emaSeries(P, Math.min(50, n));
+    const ema9 = e9[n - 1], ema21 = e21[n - 1], ema50 = e50[n - 1];
+    const ema21Prev = e21[Math.max(0, n - 5)];
+    const { rsi } = calcEmaRsi(P);
+
+    const win50 = P.slice(-Math.min(50, n));
+    const hi50 = Math.max(...win50), lo50 = Math.min(...win50);
+    const span = hi50 - lo50;
+    const rangePct = span > 0 ? +(((spot - lo50) / span) * 100).toFixed(1) : 50;
+
+    const pBack = P[Math.max(0, n - 11)];
+    const rocPct = pBack ? +(((spot - pBack) / pBack) * 100).toFixed(3) : 0;
+
+    const p20 = P.slice(-20);
+    let upCnt = 0;
+    for (let i = 1; i < p20.length; i++) if (p20[i] > p20[i - 1]) upCnt++;
+    const pastUpPct = +((upCnt / Math.max(1, p20.length - 1)) * 100).toFixed(1);
+
+    let score = 0; // positive => BUY (CALL), negative => SELL (PUT)
+    if (ema9 > ema21) score += 8; else if (ema9 < ema21) score -= 8;
+    if (ema21 > ema50) score += 6; else if (ema21 < ema50) score -= 6;
+    if (spot > ema21) score += 4; else if (spot < ema21) score -= 4;
+    if (ema21 > ema21Prev) score += 4; else if (ema21 < ema21Prev) score -= 4;
+    score += ((pastUpPct - 50) / 50) * 10;
+
+    // RSI confirmation vs exhaustion
+    if (rsi >= 52 && rsi <= 68) score += 4;
+    else if (rsi <= 48 && rsi >= 32) score -= 4;
+    else if (rsi > 74) score -= 5; // overbought caution against fresh buys
+    else if (rsi < 26) score += 5; // oversold bounce caution against fresh sells
+
+    if (rf.hurst >= 0.57) score *= 1.15;
+    if (rf.hazard === 'CHOP_TRAP') score *= 0.45;
+
+    const absScore = Math.abs(score);
+    const biasSide = score >= 0 ? 'BUY' : 'SELL';
+    const isWait = (rf.hazard === 'CHOP_TRAP' && absScore < 14) || absScore < 7;
+    const signal = isWait
+      ? 'NEUTRAL / WAIT'
+      : (absScore >= 20 ? (score >= 0 ? 'STRONG BUY' : 'STRONG SELL') : (score >= 0 ? 'BUY' : 'SELL'));
+    const action = isWait ? 'HOLD' : (score >= 0 ? 'CALL' : 'PUT');
+    const biasLabel = isWait ? 'WAIT' : (score >= 0 ? 'BUY' : 'SELL');
+
+    const winPct = +Math.max(50, Math.min(72, 50 + absScore * 0.55)).toFixed(1);
+    const edgePts = +(winPct - 50).toFixed(1);
+    const conviction = Math.max(45, Math.min(93, Math.round(52 + absScore * 1.15 - (rf.hazard === 'CHOP_TRAP' ? 12 : 0))));
+
+    // Horizon selection based on Hurst & Chop
+    let horizon = '15m', duration = 15, durationUnit = 'm';
+    if (rf.hurst >= 0.60 && rf.chopIndex < 0.52) { horizon = '5m'; duration = 5; durationUnit = 'm'; }
+    else if (rf.chopIndex >= 0.60) { horizon = '30m'; duration = 30; durationUnit = 'm'; }
+
+    const trendTxt = ema9 >= ema21 ? 'EMA9 > EMA21 bullish alignment' : 'EMA9 < EMA21 bearish alignment';
+    const srTxt = rangePct >= 82 ? 'near 50-bar resistance' : (rangePct <= 18 ? 'near 50-bar support' : `${rangePct}% of 50-bar range`);
+    const entryTrigger = isWait
+      ? `Hold flat — ${rf.hazard === 'CHOP_TRAP' ? 'high chop (' + Math.round(rf.chopIndex * 100) + '%)' : 'weak directional edge'}. Wait for EMA9/21 separation.`
+      : (score >= 0
+        ? `BUY (CALL ${horizon}) on slight pullback toward EMA9/EMA21 support while spot holds upward slope.`
+        : `SELL (PUT ${horizon}) on weak bounce into EMA9/EMA21 resistance with bearish momentum.`);
+    const reason = `${trendTxt}, RSI(14)=${rsi.toFixed(1)}, Hurst=${rf.hurst}, spot ${srTxt}.`;
+
+    return {
+      symbol: symbol || 'frxEURUSD',
+      signal,
+      action,
+      biasLabel,
+      biasSide,
+      winPct,
+      pastUpPct,
+      edgePts,
+      conviction,
+      ema9,
+      ema21,
+      ema50,
+      rsi: +rsi.toFixed(1),
+      rangePct,
+      rocPct,
+      horizon,
+      duration,
+      durationUnit,
+      hurst: rf.hurst,
+      chopIndex: rf.chopIndex,
+      hazard: rf.hazard,
+      regimeLabel: rf.regimeLabel,
+      rf,
+      entryTrigger,
+      reason
+    };
+  }
+
   const api = {
     normCdf, chiSqP, digitStats, runsTest, autocorr, wilson, beta, truthTest, riskSim, spikeProb,
     calcConfidence, markovMatrix, secondOrderMarkov, regimeFingerprint,
     projectMarket, decideOverUnder, decideMatchesDiffers, decideEvenOdd,
+    analyzeForex, forexSessionContext,
     recommendBestPillar, crossMarketAnalysis, quickBacktest
   };
   if (typeof window !== 'undefined') window.TWS = api;

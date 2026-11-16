@@ -1,9 +1,10 @@
 /* Pillar manifest and error boundary. Each pillar is its own page; if one fails it shows a notice and the rest keep working. */
 TW.PILLARS = [
-  { id: 'rise-fall', name: 'Rise/Fall', href: 'rise-fall.html' }, { id: 'over-under', name: 'Over/Under', href: 'over-under.html' },
-  { id: 'even-odd', name: 'Even/Odd', href: 'even-odd.html' }, { id: 'matches-differs', name: 'Matches/Differs', href: 'matches-differs.html' },
-  { id: 'analyzer', name: 'Analyzer', href: 'analyzer.html' }, { id: 'playbook', name: 'Playbook', href: 'playbook.html' },
-  { id: 'insight', name: 'Insight Lab', href: 'insight.html' }, { id: 'bots', name: 'Bots', href: 'bots-library.html' }, { id: 'diagnostics', name: 'Diagnostics', href: 'diagnostics.html' }
+  { id: 'rise-fall', name: 'Rise/Fall', href: 'rise-fall.html' }, { id: 'forex', name: 'Forex', href: 'forex.html' },
+  { id: 'over-under', name: 'Over/Under', href: 'over-under.html' }, { id: 'even-odd', name: 'Even/Odd', href: 'even-odd.html' },
+  { id: 'matches-differs', name: 'Matches/Differs', href: 'matches-differs.html' }, { id: 'analyzer', name: 'Analyzer', href: 'analyzer.html' },
+  { id: 'playbook', name: 'Playbook', href: 'playbook.html' }, { id: 'insight', name: 'Insight Lab', href: 'insight.html' },
+  { id: 'bots', name: 'Bots', href: 'bots-library.html' }, { id: 'diagnostics', name: 'Diagnostics', href: 'diagnostics.html' }
 ];
 TW.guard = function (name, fn) {
   const fail = e => { console.error(name, e); const d = document.createElement('div'); d.setAttribute('role', 'alert');

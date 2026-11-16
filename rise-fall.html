@@ -79,7 +79,7 @@
             ⚡ ADVANCE AI MOMENTUM SUGGESTION · RISE / FALL
           </div>
           <div style="font-size:11px;color:#9fb0cc;margin-top:2px;">
-            Scans all 17 digit volatilities for highest directional momentum. Minimum 85% confidence recommended before trading.
+            Scans all live Deriv Rise/Fall markets for highest directional momentum. Minimum 85% confidence recommended before trading.
           </div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
@@ -124,7 +124,7 @@
         <button type="button" class="btn ghost qk-stk" data-v="half" style="padding:2px 7px;font-size:10px;border-radius:4px;cursor:pointer;">½</button>
       </div>
       <label class="switch" style="margin:4px 0 10px;display:flex;align-items:center;justify-content:space-between;">
-        <span style="font-size:11px;color:#9fb0cc;">Auto-2x Stake on Loss</span>
+        <span style="font-size:11px;color:#9fb0cc;">Smart Payout Recovery on Loss</span>
         <input type="checkbox" id="chkManualMart">
       </label>
       <div class="quote"><span id="qTxt">Payout …</span><span id="qProfit"></span></div>
@@ -164,6 +164,7 @@
 <script src="core.js"></script>
 <script src="stats.js"></script>
 <script src="coach.js"></script>
+<script src="botrunner.js"></script>
 <script>
 TW.ready(function(){
   const $=TW.$; let type='CALL', gran=60, feed=null, csock=null, scan=null, lastAuto=0, busy=false;
@@ -172,7 +173,7 @@ TW.ready(function(){
   $('#disc').textContent=TW.DISCLAIMER;
   $('#foot').textContent='Engineered & Owned by Dennis K.M · TickWealth is an independent tool and is not affiliated with Deriv.';
   const q=TW.qs();
-  const top=TW.mountTop({active:'rise-fall',symbols:'all',defaultSymbol:q.vol||'R_100',onSymbol:()=>restart()});
+  const top=TW.mountTop({active:'rise-fall',symbols:'rf',defaultSymbol:q.vol||'R_100',onSymbol:()=>restart()});
   const chart=TW.Chart($('#chartBox'));
   TW.mountLog($('#logPanel'));
 
@@ -207,7 +208,8 @@ TW.ready(function(){
       const borderStyle = isLatest
         ? (isUp ? 'border:2px solid #00ffa3;box-shadow:0 0 14px #00ffa3;' : 'border:2px solid #ff3b69;box-shadow:0 0 14px #ff3b69;')
         : `border:1px solid ${fg}55;`;
-      const pStr = typeof p === 'number' ? p.toFixed(2).slice(-4) : p;
+      const pip = feed && feed.pip != null ? feed.pip : TW.volPip(top.symbol);
+      const pStr = typeof p === 'number' ? p.toFixed(pip).slice(-5) : p;
       return `<span class="ticker-digit-chip ${blinkClass}" title="Tick: ${p}${isLatest ? ' (Latest Tick)' : ''}" style="display:inline-flex;align-items:center;gap:3px;padding:2px 7px;border-radius:6px;font-size:11px;font-weight:900;color:${fg};background:${bg};${borderStyle}">${arrow} ${pStr}</span>`;
     }).join('');
   }
@@ -252,11 +254,21 @@ TW.ready(function(){
   }
 
   function calcScan(){
-    if(!feed||feed.prices.length<30) return null; const p=feed.prices, n=p.length;
+    if(!feed||feed.prices.length<30) return null;
+    const p=feed.prices, d=feed.digits||[], n=p.length;
     const avg=a=>a.reduce((x,y)=>x+y,0)/a.length, s7=avg(p.slice(-7)), s21=avg(p.slice(-21));
+    let ema5=p[Math.max(0,n-30)], ema15=ema5;
+    for(let i=Math.max(1,n-29);i<n;i++){ ema5=p[i]*(2/6)+ema5*(4/6); ema15=p[i]*(2/16)+ema15*(14/16); }
+    let gains=0, losses=0;
+    for(let i=Math.max(1,n-14);i<n;i++){ const diff=p[i]-p[i-1]; if(diff>0)gains+=diff; else losses-=diff; }
+    const rsi = 100 - 100 / (1 + (losses===0 ? (gains>0?10:1) : gains/losses));
     let up=0; for(let i=n-20;i<n;i++) if(p[i]>p[i-1]) up++;
-    const x=(s7>s21?12:-12)+(up/20-.5)*60, strength=Math.max(50,Math.min(95,Math.round(50+Math.abs(x))));
-    return {dir:x>=0?'CALL':'PUT',strength,up,s7,s21};
+    const rf=(window.TWS&&TWS.regimeFingerprint)?TWS.regimeFingerprint(p,d):null;
+    let bias=(ema5>=ema15?10:-10)+(up/20-.5)*52+(rsi<36?6:rsi>64?-6:0);
+    if(rf&&rf.hurst>=0.58) bias*=1.12;
+    if(rf&&rf.hazard==='CHOP_TRAP') bias*=0.55;
+    const strength=Math.max(50,Math.min(95,Math.round(50+Math.abs(bias))));
+    return {dir:bias>=0?'CALL':'PUT',strength,up,s7,s21,rsi:+rsi.toFixed(1),rf};
   }
   let lastRfQuotePayout = null;
   function updateQtSpotAndProjection(){
@@ -399,7 +411,11 @@ TW.ready(function(){
   refreshQuote();
 
   let baseManualStake = +$('#stake').value || 1.0;
+  let manualLossPool = 0;
   $('#stake').addEventListener('change', () => { baseManualStake = +$('#stake').value || 1.0; syncQuickTradeControls(); });
+  if($('#chkManualMart')) $('#chkManualMart').addEventListener('change', e=>{
+    if(!e.target.checked){ manualLossPool=0; $('#stake').value=baseManualStake.toFixed(2); syncQuickTradeControls(); refreshQuote(); }
+  });
 
   document.querySelectorAll('.qk-stk').forEach(btn => {
     btn.onclick = () => {
@@ -427,7 +443,8 @@ TW.ready(function(){
   async function buy(opts){
     if(busy)return; setBusyBtns(true);
     try{
-      const t=await TW.trade(Object.assign(params(),{label:type==='CALL'?'Rise':'Fall'}),opts);
+      const p=params();
+      const t=await TW.trade(Object.assign(p,{label:type==='CALL'?'Rise':'Fall'}),opts);
       TW.toast('⚡ Dispatched '+(type==='CALL'?'Rise':'Fall')+' — waiting for result','ok');
       updateQtTradeState();
       t.done.then(r=>{
@@ -435,13 +452,25 @@ TW.ready(function(){
         const chkMart = $('#chkManualMart');
         if (chkMart && chkMart.checked) {
           const stkInput = $('#stake');
-          const maxStk = (TW.settings && TW.settings.maxStake) ? +TW.settings.maxStake : 500;
+          const maxStk = (TW.settings && TW.settings.maxStake) ? +TW.settings.maxStake : 25;
+          const roi = (lastRfQuotePayout && lastRfQuotePayout.stake > 0) ? Math.max(0.5, (lastRfQuotePayout.payout - lastRfQuotePayout.stake) / lastRfQuotePayout.stake) : 0.95;
           if (r.profit > 0) {
-            stkInput.value = baseManualStake.toFixed(2);
+            manualLossPool = Math.max(0, +(manualLossPool - Number(r.profit)).toFixed(2));
+            if (manualLossPool <= 0.02) {
+              manualLossPool = 0;
+              stkInput.value = baseManualStake.toFixed(2);
+              TW.toast(`✅ Smart Recovery cleared — reset stake to $${baseManualStake.toFixed(2)}`, 'ok', 2800);
+            } else {
+              const need = Math.min(maxStk, Math.max(baseManualStake, +((manualLossPool / 1.5 + baseManualStake * 0.15) / roi).toFixed(2)));
+              stkInput.value = need.toFixed(2);
+              TW.toast(`🎯 Partial recovery · Remaining $${manualLossPool.toFixed(2)} → Next $${need.toFixed(2)}`, 'ok', 3000);
+            }
           } else {
-            const nextStk = Math.min(maxStk, +((parseFloat(stkInput.value) || 1) * 2).toFixed(2));
-            stkInput.value = nextStk.toFixed(2);
-            TW.toast(`⚠️ Auto-Martingale applied: Next stake $${nextStk.toFixed(2)}`, 'ok', 3000);
+            manualLossPool = +(manualLossPool + (Number(p.amount) || baseManualStake)).toFixed(2);
+            const capStk = Math.min(maxStk, baseManualStake * 3.5);
+            const need = Math.max(baseManualStake, Math.min(capStk, +(((manualLossPool / 1.5) + baseManualStake * 0.2) / roi).toFixed(2)));
+            stkInput.value = need.toFixed(2);
+            TW.toast(`🛡️ Smart Split-Recovery: Pool $${manualLossPool.toFixed(2)} → Next $${need.toFixed(2)}`, 'ok', 3200);
           }
           syncQuickTradeControls();
           refreshQuote();
@@ -519,14 +548,25 @@ TW.ready(function(){
     if(now-lastAuto<cooldownMs) return;
 
     const effectiveGate=baseGate+consecutiveLosses*5;
+    if(scan.rf && scan.rf.hazard==='CHOP_TRAP' && scan.rf.chopIndex>=0.72){
+      updateSentryUI(`
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <span style="color:#ff3b69;font-weight:700;">🛡️ CHOP-TRAP VETO</span>
+          <span style="color:#ffd600;">Chop: <b>${Math.round(scan.rf.chopIndex*100)}%</b> · H=${scan.rf.hurst}</span>
+        </div>
+        <div style="font-size:10.5px;color:#cbd5e1;margin-top:2px;">
+          Alternating direction noise detected. Auto-trader paused to protect capital.
+        </div>`);
+      return;
+    }
     if(scan.strength<effectiveGate){
       updateSentryUI(`
         <div style="display:flex;justify-content:space-between;align-items:center;">
           <span style="color:#ff3b69;font-weight:700;">🛡️ VETOED (LOSS SHIELD)</span>
-          <span style="color:#9fb0cc;">Strength: <b>${scan.strength}%</b> < Gate: <b>${effectiveGate}%</b></span>
+          <span style="color:#9fb0cc;">Strength: <b>${scan.strength}%</b> &lt; Gate: <b>${effectiveGate}%</b></span>
         </div>
         <div style="font-size:10.5px;color:#cbd5e1;margin-top:2px;">
-          Setup: <b>${scan.dir==='CALL'?'RISE':'FALL'}</b> — Momentum below gate. Capital preserved.
+          Setup: <b>${scan.dir==='CALL'?'RISE':'FALL'}</b> (RSI ${scan.rsi}) — Momentum below gate. Capital preserved.
         </div>`);
       return;
     }
@@ -594,100 +634,63 @@ TW.ready(function(){
   const btnRfScan=$('#btnRfScan');
   const btnRfDeepScan=$('#btnRfDeepScan');
   const rfAiSuggestionBox=$('#rfAiSuggestionBox');
-  const rfRunnerUps=$('#rfRunnerUps');
 
   if(btnRfScan) btnRfScan.onclick=()=>runRfAiScan(50,false);
+  let activeRfScan = null;
   if(btnRfDeepScan) btnRfDeepScan.onclick=()=>runRfAiScan(1000,true);
 
   function runRfAiScan(tickCount,isDeep){
+    if(activeRfScan && activeRfScan.cancel) activeRfScan.cancel();
     if(btnRfScan) btnRfScan.disabled=true;
     if(btnRfDeepScan) btnRfDeepScan.disabled=true;
     clearInterval(rfTimerInterval);
 
-    const syms=TW.VOLS.filter(v=>v.digits);
-    let rawResults=[];
-    let received=0;
-    let isDone=false;
-    let idleTimer=null;
+    const syms=TW.VOLS.filter(v=>v.rf);
 
-    syms.forEach(v=>{
-      if(TW.tickPool && TW.tickPool[v.id] && TW.tickPool[v.id].prices && TW.tickPool[v.id].prices.length>=20){
-        rawResults.push({v,prices:TW.tickPool[v.id].prices});
-      }
-    });
+    rfAiSuggestionBox.innerHTML=`
+      <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 8px;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#00ffa3;font-weight:700;">
+          <span class="dot live" style="width:10px;height:10px;background:#00ffa3;"></span>
+          <span>${isDeep?`⚛ PARALLEL 1000t DEEP SCAN ACROSS ${syms.length} MARKETS (${(syms.length*tickCount).toLocaleString()} TICKS)…`:`⚡ PARALLEL RAPID SCAN ACROSS ${syms.length} MARKETS (${tickCount}t)…`}</span>
+        </div>
+        <div id="rfProgSub" style="font-size:11px;color:#9fb0cc;">
+          Streaming live tick arrays over 3 concurrent Deriv channels · analyzing EMA(5)/EMA(15), macro Hurst &amp; Chop Index…
+        </div>
+      </div>`;
 
-    if(rawResults.length>=3){
-      processAndRenderBestRfCard(rawResults,isDeep);
-    } else {
-      rfAiSuggestionBox.innerHTML=`
-        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 8px;gap:8px;">
-          <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#00ffa3;font-weight:700;">
-            <span class="dot live" style="width:10px;height:10px;background:#00ffa3;"></span>
-            <span>${isDeep?`⚛ QUANTUM DEEP SCANNING ${syms.length} MARKETS (1000t)…`:`⚡ LIGHTNING RAPID SCAN ACROSS ${syms.length} MARKETS (${tickCount}t)…`}</span>
-          </div>
-          <div style="font-size:11px;color:#9fb0cc;">
-            Ingesting live tick streams across all ${syms.length} volatilities. Analyzing EMA(3) vs SMA(21) crossover, velocity, and linear regression slope…
-          </div>
-        </div>`;
-    }
-
-    const sock=new TW.Socket({
-      url:TW.tickUrl(),
-      onOpen:s=>{
-        syms.forEach((v,i)=>s.send({ticks_history:v.id,end:'latest',count:tickCount,style:'ticks',req_id:i+1}));
+    activeRfScan = TW.scanMarkets(syms, {
+      count: tickCount,
+      isDeep: !!isDeep,
+      concurrency: 3,
+      forceFresh: !!isDeep,
+      timeoutMs: isDeep ? 9500 : 5000,
+      onProgress: (got, total) => {
+        const sub = document.getElementById('rfProgSub');
+        if (sub) sub.textContent = `Ingesting ${tickCount}t streams: ${got}/${total} markets (${(got * tickCount).toLocaleString()} ticks buffered)…`;
       },
-      onMessage:d=>{
-        if(!d.req_id) return;
-        const v=syms[d.req_id-1];
-        if(!v) return;
-        received++;
+      onDone: (items, meta) => {
+        if(btnRfScan) btnRfScan.disabled=false;
+        if(btnRfDeepScan) btnRfDeepScan.disabled=false;
 
-        if(d.history&&d.history.prices){
-          const prices=d.history.prices;
-          const pip=v.pip||d.pip_size||TW.volPip(v.id)||2;
-          const dg=prices.map(p=>TW.digitOf(p,pip));
-          const exIdx=rawResults.findIndex(x=>x.v.id===v.id);
-          if(exIdx>=0) rawResults[exIdx]={v,prices};
-          else rawResults.push({v,prices});
-          if(TW.tickPool) TW.tickPool[v.id]={pip,prices,digits:dg,epochs:d.history.times||[],lastUpdated:Date.now()};
+        let rawResults = items.filter(x => x && x.prices && x.prices.length >= 20).map(x => ({ v: x.v, prices: x.prices }));
+        if(!rawResults.length && feed && feed.prices && feed.prices.length>=20){
+          rawResults.push({v:{id:top.symbol,name:TW.volName(top.symbol),pip:TW.volPip(top.symbol)}, prices:feed.prices});
         }
 
-        clearTimeout(idleTimer);
-        if(received>=Math.min(syms.length, 12) && rawResults.length>=10){
-          idleTimer=setTimeout(finish, 480);
+        if(!rawResults.length){
+          rfAiSuggestionBox.innerHTML=`
+            <div style="padding:16px;color:#ff3b69;font-size:12px;text-align:center;background:rgba(255,59,105,0.06);border:1px solid rgba(255,59,105,0.25);border-radius:10px;">
+              Scan timed out — Deriv public tick node was unreachable.
+              <button class="btn" onclick="document.getElementById('btnRfScan').click()" style="margin-top:8px;font-size:11px;padding:6px 14px;background:#00ffa3;color:#04101c;font-weight:800;border:0;border-radius:6px;cursor:pointer;">⚡ Retry Rapid Scan</button>
+            </div>`;
+          return;
         }
-        if(received>=syms.length) finish();
+        processAndRenderBestRfCard(rawResults, isDeep, meta);
       }
     });
-
-    const timer=setTimeout(finish, 10000);
-
-    function finish(){
-      if(isDone) return;
-      isDone=true;
-      clearTimeout(timer);
-      clearTimeout(idleTimer);
-      sock.close();
-      if(btnRfScan) btnRfScan.disabled=false;
-      if(btnRfDeepScan) btnRfDeepScan.disabled=false;
-
-      if(!rawResults.length && feed && feed.prices && feed.prices.length>=20){
-        rawResults.push({v:{id:top.symbol,name:TW.volName(top.symbol)}, prices:feed.prices});
-      }
-
-      if(!rawResults.length){
-        rfAiSuggestionBox.innerHTML=`
-          <div style="padding:16px;color:#ff3b69;font-size:12px;text-align:center;background:rgba(255,59,105,0.06);border:1px solid rgba(255,59,105,0.25);border-radius:10px;">
-            Scan timed out — Deriv public tick node was unreachable.
-            <button class="btn" onclick="document.getElementById('btnRfScan').click()" style="margin-top:8px;font-size:11px;padding:6px 14px;background:#00ffa3;color:#04101c;font-weight:800;border:0;border-radius:6px;cursor:pointer;">⚡ Retry Rapid Scan</button>
-          </div>`;
-        return;
-      }
-      processAndRenderBestRfCard(rawResults,isDeep);
-    }
   }
 
-  function processAndRenderBestRfCard(rawResults,isDeep){
+  function processAndRenderBestRfCard(rawResults, isDeep, scanMeta){
     const candidates=[];
 
     rawResults.forEach(item=>{
@@ -699,17 +702,34 @@ TW.ready(function(){
       let up=0;
       for(let i=1;i<pSlice.length;i++) if(pSlice[i]>pSlice[i-1]) up++;
 
-      const avg=a=>a.reduce((x,y)=>x+y,0)/a.length;
-      const s7=avg(pSlice.slice(-7)), s20=avg(pSlice);
-      const isRise=s7>=s20;
-      const x=(isRise?15:-15)+(up/20-.5)*50;
-      const strength=Math.max(50,Math.min(95,Math.round(50+Math.abs(x))));
+      let ema5=pSlice[0], ema15=pSlice[0];
+      for(let i=1;i<pSlice.length;i++){ ema5=pSlice[i]*(2/6)+ema5*(4/6); ema15=pSlice[i]*(2/16)+ema15*(14/16); }
+      let gains=0, losses=0;
+      for(let i=Math.max(1,n-14);i<n;i++){ const df=prices[i]-prices[i-1]; if(df>0)gains+=df; else losses-=df; }
+      const rsi=100-100/(1+(losses===0?(gains>0?10:1):gains/losses));
+      const d=prices.map(x=>TW.digitOf(x,v.pip||2));
+      const rf=(window.TWS&&TWS.regimeFingerprint)?TWS.regimeFingerprint(prices,d):{hurst:0.5,chopIndex:0.5,hazard:'BALANCED',regimeLabel:'Balanced',kellyPct:1.25};
+
+      // Blend macro directional persistence when 1000t deep history is available
+      let macroBias = 0;
+      if (n >= 150) {
+        const maShort = prices.slice(-50).reduce((a, c) => a + c, 0) / 50;
+        const maLong = prices.slice(-Math.min(400, n)).reduce((a, c) => a + c, 0) / Math.min(400, n);
+        macroBias = maShort > maLong ? 5 : maShort < maLong ? -5 : 0;
+        if (rf.macroHurst && rf.macroHurst >= 0.56) macroBias *= 1.5;
+      }
+
+      let bias=(ema5>=ema15?12:-12)+(up/20-.5)*48+(rsi<36?6:rsi>64?-6:0)+macroBias;
+      if(rf.hurst>=0.58) bias*=1.12;
+      if(rf.hazard==='CHOP_TRAP') bias*=0.5;
+      const isRise=bias>=0;
+      const strength=Math.max(50,Math.min(95,Math.round(50+Math.abs(bias))));
       const action=isRise?'CALL':'PUT';
       const label=isRise?'Rise (CALL)':'Fall (PUT)';
       const winPct=isRise?Math.round((up/20)*100):Math.round(((20-up)/20)*100);
       const edge=Math.max(0,+(winPct-50).toFixed(1));
 
-      candidates.push({v,prices,action,label,strength,winPct,edge,up,n});
+      candidates.push({v,prices,action,label,strength,winPct,edge,up,n,rsi:+rsi.toFixed(1),rf});
     });
 
     if(!candidates.length){
@@ -717,16 +737,19 @@ TW.ready(function(){
         const pSlice=feed.prices.slice(-20);
         let up=0; for(let i=1;i<pSlice.length;i++) if(pSlice[i]>pSlice[i-1]) up++;
         const isRise=up>=10;
+        const rf=(window.TWS&&TWS.regimeFingerprint)?TWS.regimeFingerprint(feed.prices,feed.digits||[]):{hurst:0.5,chopIndex:0.5,hazard:'BALANCED',regimeLabel:'Balanced',kellyPct:1.25};
         candidates.push({
           v:{id:top.symbol,name:TW.volName(top.symbol)},
           prices:feed.prices,
           action:isRise?'CALL':'PUT',
           label:isRise?'Rise (CALL)':'Fall (PUT)',
-          strength:85,
-          winPct:isRise?65:35,
-          edge:15,
+          strength:72,
+          winPct:isRise?60:40,
+          edge:10,
           up,
-          n:feed.prices.length
+          n:feed.prices.length,
+          rsi:50,
+          rf
         });
       }
     }
@@ -748,7 +771,7 @@ TW.ready(function(){
 
     const isCall=topBest.action==='CALL';
     rfAiSuggestionBox.innerHTML=`
-      <div style="border-left:4px solid ${isHighConfidence?'#00ffa3':'#ffd600'};background:linear-gradient(135deg,${isHighConfidence?'rgba(0,255,163,0.12),rgba(0,178,255,0.06)':'rgba(255,214,0,0.08),rgba(255,59,105,0.05)'});border:1.5px solid ${isHighConfidence?'rgba(0,255,163,0.45)':'rgba(255,214,0,0.4)'};padding:16px;border-radius:12px;box-shadow:0 0 20px ${isHighConfidence?'rgba(0,255,163,0.15)':'rgba(255,214,0,0.1)'};">
+      <div style="background:linear-gradient(135deg,${isHighConfidence?'rgba(0,255,163,0.12),rgba(0,178,255,0.06)':'rgba(255,214,0,0.08),rgba(255,59,105,0.05)'});border:1.5px solid ${isHighConfidence?'rgba(0,255,163,0.45)':'rgba(255,214,0,0.4)'};padding:16px;border-radius:12px;box-shadow:0 0 20px ${isHighConfidence?'rgba(0,255,163,0.15)':'rgba(255,214,0,0.1)'};">
         
         <!-- Top Badges & Live Dynamic 3-Color Blinking Validity Timer Badge -->
         <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -756,7 +779,7 @@ TW.ready(function(){
             <span style="font-size:10px;font-weight:900;color:#04101c;background:${isHighConfidence?'#00ffa3':'#ffd600'};padding:3px 8px;border-radius:4px;letter-spacing:0.4px;">
               👑 #1 SINGLE MOST SUITABLE SUGGESTION (RISE / FALL)
             </span>
-            <span style="font-size:11px;color:#00b2ff;font-weight:700;">${isDeep?'1000t Quantum Deep Calibrated':'50t Lightning Rapid Calibrated'}</span>
+            <span style="font-size:11px;color:#00b2ff;font-weight:700;">${topBest.n}t ${isDeep?'Quantum Deep Verified':'Rapid Verified'}${scanMeta && scanMeta.elapsedMs ? ` · ${(scanMeta.elapsedMs/1000).toFixed(2)}s (${scanMeta.receivedMarkets}/${scanMeta.totalMarkets} mkts)` : ''}</span>
           </div>
 
           <!-- Dynamic Blinking Timer Badge -->
@@ -768,7 +791,7 @@ TW.ready(function(){
         ${!isHighConfidence ? `
         <!-- Caution notice if conviction < 85% -->
         <div style="margin-top:10px;background:rgba(255,214,0,0.1);border:1px solid rgba(255,214,0,0.3);border-radius:8px;padding:8px 12px;font-size:11.5px;color:#ffd600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-          <span>🛡️ <b>AI SAFETY NOTICE:</b> Momentum Conviction is <b>${topBest.strength}%</b> (<85% Gate). Suggestion is displayed below. Run 1000t Quantum Deep Scan to verify regime.</span>
+          <span>🛡️ <b>AI SAFETY NOTICE:</b> Momentum Conviction is <b>${topBest.strength}%</b> (&lt;85% Gate). Suggestion is displayed below. Run 1000t Quantum Deep Scan to verify regime.</span>
           <button type="button" id="btnNoticeDeepRf" class="btn" style="padding:4px 10px;background:#ffd600;color:#04101c;font-weight:900;font-size:10.5px;border:0;border-radius:5px;cursor:pointer;">⚛ Deep Scan (1000t)</button>
         </div>` : ''}
 
@@ -797,14 +820,21 @@ TW.ready(function(){
             <b style="color:#fff;font-size:15px;">${topBest.up}/20</b>
           </div>
           <div>
-            <span style="font-size:10px;color:#8e9ab3;font-weight:700;display:block;">NET STAT EDGE</span>
-            <b style="color:#00b2ff;font-size:15px;">+${topBest.edge} pts</b>
+            <span style="font-size:10px;color:#8e9ab3;font-weight:700;display:block;">RSI(14) / EDGE</span>
+            <b style="color:#00b2ff;font-size:15px;">${topBest.rsi||'50'} · +${topBest.edge}</b>
           </div>
           <div>
             <span style="font-size:10px;color:#8e9ab3;font-weight:700;display:block;">SAMPLE SIZE</span>
             <b style="color:#7d8aa5;font-size:15px;">${topBest.n} ticks</b>
           </div>
         </div>
+        ${topBest.rf ? `
+        <div style="margin-top:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;background:rgba(0,0,0,0.3);padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);font-size:10.5px;color:#9fb0cc;">
+          <span>Regime: <b style="color:${topBest.rf.hazard==='CHOP_TRAP'?'#ff3b69':'#00b2ff'};">${topBest.rf.hazard.replace('_',' ')}</b> (${TW.esc(topBest.rf.regimeLabel)})</span>
+          <span>Hurst: <b>${topBest.rf.hurst}</b></span>
+          <span>Chop: <b>${Math.round((topBest.rf.chopIndex||0.5)*100)}%</b></span>
+          <span>Kelly Cap: <b style="color:#00ffa3;">${topBest.rf.kellyPct}% eq</b></span>
+        </div>` : ''}
 
         <!-- Suggested Duration Chips -->
         <div style="margin-top:12px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
@@ -823,7 +853,7 @@ TW.ready(function(){
           <button type="button" id="btnApplySuggestedRfControls" class="btn" style="flex:1;min-width:min(100%,130px);padding:11px 12px;font-size:11.5px;font-weight:800;background:#141e33;border:1px solid rgba(0,255,163,0.4);color:#00ffa3;border-radius:8px;cursor:pointer;">
             🎯 APPLY TO PANEL
           </button>
-          <a href="bots-library.html?symbol=${topBest.v.id}&contract=${topBest.action}&name=${encodeURIComponent('AI Momentum '+topBest.v.name+' ('+topBest.action+')')}&dur=5&rule_kind=ai_alpha&mart=0&gate=${Math.max(48,Math.min(85,topBest.strength))}" class="btn" style="flex:1;min-width:min(100%,135px);padding:11px 12px;font-size:11.5px;font-weight:800;background:#0b1730;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;text-align:center;text-decoration:none;">
+          <a href="bots-library.html?symbol=${topBest.v.id}&contract=${topBest.action}&stake=${Math.max(0.35, +($('#stake')&&$('#stake').value)||1)}&name=${encodeURIComponent('AI Momentum '+topBest.v.name+' ('+topBest.action+')')}&dur=5&rule_kind=ai_alpha&rule_cond=${topBest.action==='CALL'?'rise':'fall'}&rule_n=1&mart=1&mart_mode=split_recovery&mart_mult=1.05&mart_steps=4&shield=1&gate=${Math.max(48,Math.min(85,topBest.strength))}" class="btn" style="flex:1;min-width:min(100%,135px);padding:11px 12px;font-size:11.5px;font-weight:800;background:#0b1730;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;text-align:center;text-decoration:none;">
             🤖 LAUNCH IN BOT →
           </a>
           <button type="button" id="btnRfRescanCard" class="btn" style="flex:0.8;min-width:100px;padding:11px 12px;font-size:11px;font-weight:800;background:#1e293b;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;cursor:pointer;">
@@ -876,6 +906,15 @@ TW.ready(function(){
       }
     },1000);
 
+    function updateRfSugLabel(){
+      const b=$('#btnPlaceSuggestedRfBet');
+      if(!b) return;
+      const dirTxt=topBest.action==='CALL'?'RISE':'FALL';
+      const uTxt=selectedUnit==='t'?(selectedDur===1?'TICK':'TICKS'):selectedUnit==='s'?'SEC':'MIN';
+      b.textContent=`⚡ 1-CLICK BET (${dirTxt} · ${selectedDur} ${uTxt})`;
+    }
+    updateRfSugLabel();
+
     document.querySelectorAll('.rf-dur-chip').forEach(chip=>{
       chip.onclick=()=>{
         document.querySelectorAll('.rf-dur-chip').forEach(c=>{
@@ -890,6 +929,7 @@ TW.ready(function(){
         chip.style.borderColor='#00ffa3';
         selectedDur=+chip.dataset.d;
         selectedUnit=chip.dataset.u;
+        updateRfSugLabel();
       };
     });
 
@@ -976,6 +1016,55 @@ TW.ready(function(){
     else if(k === 'b'){ e.preventDefault(); if($('#qtBetAiBtn')) $('#qtBetAiBtn').click(); }
     else if(k === 's'){ e.preventDefault(); runRfAiScan(50, false); }
   });
+
+  // Mount Saved DBot Live Market Runner dock right below Quick Trade
+  if (TW.mountBotRunner) {
+    TW.mountBotRunner({
+      anchor: '#chartQuickTrade',
+      pillar: 'rise-fall',
+      getSymbol: () => top.symbol,
+      getCurrentSetup: () => ({
+        symbol: top.symbol,
+        contract: type,
+        barrier: 0,
+        duration: $('#unit').value === 't' ? Math.max(1, Math.min(10, +$('#dur').value || 5)) : 5,
+        stake: Math.max(0.35, +$('#stake').value || 1),
+        auto2x: !!($('#chkManualMart') && $('#chkManualMart').checked)
+      }),
+      onSelectBot: (b, silent) => {
+        if (!b) return;
+        const symChanged = b.symbol && b.symbol !== top.symbol;
+        if (symChanged) {
+          top.symbol = b.symbol;
+          const selEl = $('#twSym');
+          if (selEl) selEl.value = b.symbol;
+        }
+        if (b.contract === 'CALL' || b.contract === 'PUT') setType(b.contract);
+        if (b.duration) {
+          const uKey = (b.durationUnit && UNITS[b.durationUnit]) ? b.durationUnit : 't';
+          const uCfg = UNITS[uKey];
+          $('#unit').value = uKey;
+          $('#dur').min = uCfg.min; $('#dur').max = uCfg.max; $('#durU').textContent = uCfg.l;
+          $('#dur').value = Math.max(uCfg.min, Math.min(uCfg.max, +b.duration || uCfg.def));
+        }
+        if (b.stake) {
+          const nv = Math.max(0.35, +b.stake).toFixed(2);
+          $('#stake').value = nv;
+          baseManualStake = +nv;
+        }
+        syncQuickTradeControls();
+        if (symChanged) restart();
+        else refreshQuote();
+        if (!silent) TW.toast(`Loaded bot "${b.name}" onto ${TW.volName(top.symbol)} — watch live candles & click ▶ RUN BOT NOW at entry.`, 'ok', 3600);
+      },
+      onBeforeStart: () => {
+        if (autoOn && autoOn.checked) {
+          autoOn.checked = false;
+          updateSentryUI();
+        }
+      }
+    });
+  }
 
   setType(q.type==='PUT'?'PUT':'CALL');
   restart();

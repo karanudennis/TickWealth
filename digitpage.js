@@ -90,7 +90,7 @@ TW.digitPage = function (cfg) {
                 ⚡ ADVANCE AI MARKET SCANNER · ${cfg.title}
               </div>
               <div style="font-size:11px;color:#9fb0cc;margin-top:2px;">
-                Calculates real-data Markov transition probabilities & suggestions across all 17 volatilities for ${cfg.title}.
+                Calculates real-data Markov transition probabilities & suggestions across all ${TW.VOLS.filter(v => v.digits).length} live Deriv markets for ${cfg.title}.
               </div>
             </div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
@@ -135,7 +135,7 @@ TW.digitPage = function (cfg) {
             <button type="button" class="btn ghost qk-stk" data-v="half" style="padding:2px 7px;font-size:10px;border-radius:4px;cursor:pointer;">½</button>
           </div>
           <label class="switch" style="margin:4px 0 10px;display:flex;align-items:center;justify-content:space-between;">
-            <span style="font-size:11px;color:#9fb0cc;">Auto-2x Stake on Loss</span>
+            <span style="font-size:11px;color:#9fb0cc;">Smart Payout Recovery on Loss</span>
             <input type="checkbox" id="chkManualMart">
           </label>
           <div class="quote"><span id="qTxt">Payout …</span><span id="qProfit"></span></div>
@@ -427,7 +427,11 @@ TW.digitPage = function (cfg) {
     }
 
     let baseManualStake = +$('#stake').value || 1.0;
+    let manualLossPool = 0;
     $('#stake').addEventListener('change', () => { baseManualStake = +$('#stake').value || 1.0; syncQuickTradeUI(); });
+    if ($('#chkManualMart')) $('#chkManualMart').addEventListener('change', e => {
+      if (!e.target.checked) { manualLossPool = 0; $('#stake').value = baseManualStake.toFixed(2); syncQuickTradeUI(); refreshQuote(); }
+    });
 
     document.querySelectorAll('.qk-stk').forEach(btn => {
       btn.onclick = () => {
@@ -462,13 +466,28 @@ TW.digitPage = function (cfg) {
           const chkMart = $('#chkManualMart');
           if (chkMart && chkMart.checked) {
             const stkInput = $('#stake');
-            const maxStk = (TW.settings && TW.settings.maxStake) ? +TW.settings.maxStake : 500;
+            const maxStk = (TW.settings && TW.settings.maxStake) ? +TW.settings.maxStake : 25;
             if (r.profit > 0) {
-              stkInput.value = baseManualStake.toFixed(2);
+              manualLossPool = Math.max(0, +(manualLossPool - Number(r.profit)).toFixed(2));
+              if (manualLossPool <= 0.02) {
+                manualLossPool = 0;
+                stkInput.value = baseManualStake.toFixed(2);
+                TW.toast(`✅ Smart Recovery cleared — reset stake to $${baseManualStake.toFixed(2)}`, 'ok', 2800);
+              } else {
+                const estRet = (TW.estimatePayout ? (TW.estimatePayout(p.contract_type, p.barrier, 1) - 1) : 0.40);
+                const roi = Math.max(0.08, estRet);
+                const need = Math.min(maxStk, Math.max(baseManualStake, +((manualLossPool + baseManualStake * 0.15) / roi).toFixed(2)));
+                stkInput.value = need.toFixed(2);
+                TW.toast(`🎯 Partial recovery · Remaining $${manualLossPool.toFixed(2)} → Next $${need.toFixed(2)}`, 'ok', 3000);
+              }
             } else {
-              const nextStk = Math.min(maxStk, +((parseFloat(stkInput.value) || 1) * 2).toFixed(2));
+              manualLossPool = +(manualLossPool + (Number(p.amount) || baseManualStake)).toFixed(2);
+              const estRet = (TW.estimatePayout ? (TW.estimatePayout(p.contract_type, p.barrier, 1) - 1) : 0.40);
+              const roi = Math.max(0.08, estRet);
+              const capStk = Math.min(maxStk, baseManualStake * 4.5);
+              const nextStk = Math.max(baseManualStake, Math.min(capStk, +((manualLossPool + baseManualStake * 0.2) / roi).toFixed(2)));
               stkInput.value = nextStk.toFixed(2);
-              TW.toast(`⚠️ Auto-Martingale applied: Next stake $${nextStk.toFixed(2)}`, 'ok', 3000);
+              TW.toast(`🛡️ Smart Recovery: Pool $${manualLossPool.toFixed(2)} → Next $${nextStk.toFixed(2)} (capped)`, 'ok', 3200);
             }
             syncQuickTradeUI();
             refreshQuote();
@@ -564,14 +583,26 @@ TW.digitPage = function (cfg) {
       if (now - lastAutoTradeTime < cooldownMs) return;
 
       const effectiveGate = baseGate + consecutiveLosses * 5;
+      const rf = (window.TWS && TWS.regimeFingerprint) ? TWS.regimeFingerprint(feed.prices, feed.digits) : null;
+      if (rf && rf.hazard === 'CHOP_TRAP' && rf.chopIndex >= 0.72) {
+        updateSentryUI(`
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span style="color:#ff3b69;font-weight:700;">🛡️ CHOP-TRAP VETO</span>
+            <span style="color:#ffd600;">Chop: <b>${Math.round(rf.chopIndex * 100)}%</b> · H=${rf.hurst}</span>
+          </div>
+          <div style="font-size:10.5px;color:#cbd5e1;margin-top:2px;">
+            Paused during high alternating noise. Capital preserved until regime stabilizes.
+          </div>`);
+        return;
+      }
 
       let signal = null;
       if (cfg.active === 'over-under') {
         signal = (window.TWS && TWS.decideOverUnder) ? TWS.decideOverUnder(feed.digits, feed.prices) : null;
       } else if (cfg.active === 'matches-differs') {
-        signal = (window.TWS && TWS.decideMatchesDiffers) ? TWS.decideMatchesDiffers(feed.digits) : null;
+        signal = (window.TWS && TWS.decideMatchesDiffers) ? TWS.decideMatchesDiffers(feed.digits, feed.prices) : null;
       } else if (cfg.active === 'even-odd') {
-        signal = (window.TWS && TWS.decideEvenOdd) ? TWS.decideEvenOdd(feed.digits) : null;
+        signal = (window.TWS && TWS.decideEvenOdd) ? TWS.decideEvenOdd(feed.digits, feed.prices) : null;
       }
       if (!signal) return;
 
@@ -581,10 +612,10 @@ TW.digitPage = function (cfg) {
         updateSentryUI(`
           <div style="display:flex;justify-content:space-between;align-items:center;">
             <span style="color:#ff3b69;font-weight:700;">🛡️ VETOED (LOSS SHIELD)</span>
-            <span style="color:#9fb0cc;">Conviction: <b>${conviction}%</b> < Gate: <b>${effectiveGate}%</b></span>
+            <span style="color:#9fb0cc;">Conviction: <b>${conviction}%</b> &lt; Gate: <b>${effectiveGate}%</b></span>
           </div>
           <div style="font-size:10.5px;color:#cbd5e1;margin-top:2px;">
-            Setup: <b>${signal.decision}</b> — Insufficient edge in current regime. Capital preserved.
+            Setup: <b>${signal.decision}</b>${rf ? ` (${rf.hazard}, Chop ${Math.round(rf.chopIndex * 100)}%)` : ''} — Insufficient edge. Capital preserved.
           </div>`);
         return;
       }
@@ -654,6 +685,7 @@ TW.digitPage = function (cfg) {
      * ========================================================================= */
     let computedPillarCandidates = [];
     let currentTopHighlight = null;
+    let lastScanMeta = null;
     let timerCountdown = 30;
     let timerInterval = null;
 
@@ -662,106 +694,62 @@ TW.digitPage = function (cfg) {
     const aiTopSuggestionBox = $('#aiTopSuggestionBox');
     const scanStatusTxt = $('#scanStatusTxt');
 
+    let activeScanJob = null;
     if (btnPillarScan) btnPillarScan.onclick = () => runPillarAiScan(100, false);
     if (btnPillarDeepScan) btnPillarDeepScan.onclick = () => runPillarAiScan(1000, true);
 
     function runPillarAiScan(tickCount, isDeep) {
+      if (activeScanJob && activeScanJob.cancel) activeScanJob.cancel();
       if (btnPillarScan) btnPillarScan.disabled = true;
       if (btnPillarDeepScan) btnPillarDeepScan.disabled = true;
       clearInterval(timerInterval);
       const syms = TW.VOLS.filter(v => v.digits);
-      if (scanStatusTxt) scanStatusTxt.textContent = `Scanning ${syms.length} markets (${tickCount}t)…`;
+      if (scanStatusTxt) scanStatusTxt.textContent = `Parallel scan across ${syms.length} markets (${tickCount}t each)…`;
 
-      let rawResults = [];
-      let received = 0;
-      let isDone = false;
-      let idleTimer = null;
+      aiTopSuggestionBox.innerHTML = `
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 8px;gap:8px;">
+          <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#00ffa3;font-weight:700;">
+            <span class="dot live" style="width:10px;height:10px;background:#00ffa3;"></span>
+            <span>${isDeep ? `⚛ PARALLEL 1000t DEEP SCAN ACROSS ALL ${syms.length} MARKETS (${(syms.length * tickCount).toLocaleString()} TICKS)…` : `⚡ PARALLEL RAPID SCAN ACROSS ${syms.length} MARKETS (${tickCount}t)…`}</span>
+          </div>
+          <div id="pillarProgSub" style="font-size:11px;color:#9fb0cc;">
+            Streaming live ticks over 3 concurrent Deriv channels · computing Markov2, split-half stability &amp; Chi-Square…
+          </div>
+        </div>`;
 
-      // Zero-latency cache hydration from shared TW.tickPool
-      syms.forEach(v => {
-        if (TW.tickPool && TW.tickPool[v.id] && TW.tickPool[v.id].prices && TW.tickPool[v.id].prices.length >= 20) {
-          rawResults.push({ v, prices: TW.tickPool[v.id].prices, dg: TW.tickPool[v.id].digits });
-        }
-      });
-
-      if (rawResults.length >= 3) {
-        processPillarResults(rawResults, isDeep, tickCount);
-      } else {
-        aiTopSuggestionBox.innerHTML = `
-          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 8px;gap:8px;">
-            <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:#00ffa3;font-weight:700;">
-              <span class="dot live" style="width:10px;height:10px;background:#00ffa3;"></span>
-              <span>${isDeep ? `⚛ INGESTING 1000 TICKS ACROSS ALL ${syms.length} MARKETS (QUANTUM DEEP SCAN)…` : `⚡ LIGHTNING RAPID SCAN ACROSS ALL ${syms.length} MARKETS (${tickCount} TICKS)…`}</span>
-            </div>
-            <div style="font-size:11px;color:#9fb0cc;">
-              Calculating empirical distributions, 1st-order Markov matrices, and selecting the single most suitable market…
-            </div>
-          </div>`;
-      }
-
-      const sock = new TW.Socket({
-        url: TW.tickUrl(),
-        onOpen: s => {
-          syms.forEach((v, i) => s.send({ ticks_history: v.id, end: 'latest', count: tickCount, style: 'ticks', req_id: i + 1 }));
+      activeScanJob = TW.scanMarkets(syms, {
+        count: tickCount,
+        isDeep,
+        concurrency: 3,
+        forceFresh: !!isDeep,
+        timeoutMs: isDeep ? 9500 : 5000,
+        onProgress: (got, total) => {
+          if (scanStatusTxt) scanStatusTxt.textContent = `Ingesting ${tickCount}t streams: ${got}/${total} markets…`;
+          const sub = document.getElementById('pillarProgSub');
+          if (sub) sub.textContent = `Received ${got}/${total} live feeds (${(got * tickCount).toLocaleString()} ticks buffered)…`;
         },
-        onMessage: d => {
-          if (!d.req_id) return;
-          const v = syms[d.req_id - 1];
-          if (!v) return;
-          received++;
+        onDone: (items, meta) => {
+          if (btnPillarScan) btnPillarScan.disabled = false;
+          if (btnPillarDeepScan) btnPillarDeepScan.disabled = false;
 
-          if (d.history && d.history.prices) {
-            const prices = d.history.prices;
-            const pip = v.pip || d.pip_size || TW.volPip(v.id) || 2;
-            const dg = prices.map(p => TW.digitOf(p, pip));
-            const exIdx = rawResults.findIndex(x => x.v.id === v.id);
-            if (exIdx >= 0) rawResults[exIdx] = { v, prices, dg };
-            else rawResults.push({ v, prices, dg });
-            if (TW.tickPool) TW.tickPool[v.id] = { pip, prices, digits: dg, epochs: d.history.times || [], lastUpdated: Date.now() };
+          let valid = items.filter(x => x && x.dg && x.dg.length >= 15);
+          if (!valid.length && feed && feed.digits && feed.digits.length >= 15) {
+            valid = [{ v: { id: top.symbol, name: TW.volName(top.symbol) }, prices: feed.prices, dg: feed.digits }];
           }
-
-          if (scanStatusTxt) scanStatusTxt.textContent = `Received ${received}/${syms.length}…`;
-
-          clearTimeout(idleTimer);
-          if (received >= Math.min(syms.length, 12) && rawResults.length >= 10) {
-            idleTimer = setTimeout(finish, 480);
+          if (!valid.length) {
+            aiTopSuggestionBox.innerHTML = `
+              <div style="padding:16px;color:#ff3b69;font-size:12px;text-align:center;background:rgba(255,59,105,0.06);border:1px solid rgba(255,59,105,0.25);border-radius:10px;">
+                Scan timed out — Deriv public tick node was unreachable.
+                <button class="btn" onclick="document.getElementById('btnPillarScan').click()" style="margin-top:8px;font-size:11px;padding:6px 14px;background:#00ffa3;color:#04101c;font-weight:800;border:0;border-radius:6px;cursor:pointer;">⚡ Retry Rapid Scan</button>
+              </div>`;
+            return;
           }
-          if (received >= syms.length) finish();
+          processPillarResults(valid, isDeep, tickCount, meta);
         }
       });
-
-      const timer = setTimeout(finish, 10000);
-
-      function finish() {
-        if (isDone) return;
-        isDone = true;
-        clearTimeout(timer);
-        clearTimeout(idleTimer);
-        sock.close();
-        if (btnPillarScan) btnPillarScan.disabled = false;
-        if (btnPillarDeepScan) btnPillarDeepScan.disabled = false;
-
-        if (!rawResults.length && feed && feed.digits && feed.digits.length >= 15) {
-          rawResults.push({
-            v: { id: top.symbol, name: TW.volName(top.symbol) },
-            prices: feed.prices,
-            dg: feed.digits
-          });
-        }
-
-        if (!rawResults.length) {
-          aiTopSuggestionBox.innerHTML = `
-            <div style="padding:16px;color:#ff3b69;font-size:12px;text-align:center;background:rgba(255,59,105,0.06);border:1px solid rgba(255,59,105,0.25);border-radius:10px;">
-              Scan timed out — Deriv public tick node was unreachable.
-              <button class="btn" onclick="document.getElementById('btnPillarScan').click()" style="margin-top:8px;font-size:11px;padding:6px 14px;background:#00ffa3;color:#04101c;font-weight:800;border:0;border-radius:6px;cursor:pointer;">⚡ Retry Rapid Scan</button>
-            </div>`;
-          return;
-        }
-        processPillarResults(rawResults, isDeep, tickCount);
-      }
     }
 
-    function processPillarResults(rawResults, isDeep, tickCount) {
+    function processPillarResults(rawResults, isDeep, tickCount, meta) {
       const candidates = [];
 
       rawResults.forEach(item => {
@@ -806,16 +794,23 @@ TW.digitPage = function (cfg) {
       // Sort by edge and conviction to choose the SINGLE MOST SUITABLE result
       candidates.sort((a, b) => b.score - a.score);
       computedPillarCandidates = candidates;
-      if (scanStatusTxt) scanStatusTxt.textContent = `Completed (${tickCount}t calibration)`;
+      if (scanStatusTxt) {
+        const secTxt = meta && meta.elapsedMs ? ` in ${(meta.elapsedMs / 1000).toFixed(2)}s` : '';
+        const totTxt = meta && meta.totalTicks ? ` · ${meta.totalTicks.toLocaleString()} total ticks across ${candidates.length} markets` : '';
+        scanStatusTxt.textContent = `Verified ${candidates[0].dg.length}t/${tickCount}t${totTxt}${secTxt}`;
+      }
 
       // Render the Single Most Suitable Result Card
-      renderTopHighlightCard(candidates[0], isDeep, tickCount);
+      renderTopHighlightCard(candidates[0], isDeep, tickCount, meta);
     }
 
-    function renderTopHighlightCard(topBest, isDeep, tickCount) {
+    function renderTopHighlightCard(topBest, isDeep, tickCount, meta) {
+      if (meta) lastScanMeta = meta;
+      const effMeta = meta || lastScanMeta;
       currentTopHighlight = topBest;
       updateQtProjectionBar();
       const dec = topBest.dec;
+      const actualN = (topBest.dg && topBest.dg.length) || tickCount || 100;
       const isHighConfidence = dec.conviction >= 85;
 
       timerCountdown = isDeep ? 45 : 30;
@@ -825,11 +820,30 @@ TW.digitPage = function (cfg) {
       let selectedUnit = 't';
       const botContract = dec.best && dec.best.contract ? dec.best.contract : (cfg.active === 'over-under' ? (dec.action === 'OVER' ? 'DIGITOVER' : 'DIGITUNDER') : cfg.active === 'even-odd' ? (dec.action === 'EVEN' ? 'DIGITEVEN' : 'DIGITODD') : (dec.action === 'MATCHES' ? 'DIGITMATCH' : 'DIGITDIFF'));
       const botBarr = dec.barrier != null ? dec.barrier : (dec.digit != null ? dec.digit : 2);
-      const botHref = `bots-library.html?symbol=${topBest.v.id}&contract=${botContract}&barrier=${botBarr}&name=${encodeURIComponent('AI ' + topBest.v.name + ' (' + dec.decision + ')')}&dur=1&rule_kind=instant&mart=1&mart_mult=2.2&mart_steps=3&gate=${Math.max(48, Math.min(85, dec.conviction || 55))}`;
+      const curStakeVal = Math.max(0.35, +($('#stake') && $('#stake').value) || 1);
+      const rKind = (cfg.active === 'over-under' || cfg.active === 'even-odd') ? 'streak' : 'ai_alpha';
+      const rCond = botContract === 'DIGITUNDER' ? 'over' : botContract === 'DIGITOVER' ? 'under' : botContract === 'DIGITEVEN' ? 'odd' : 'even';
+      const rCb = botContract === 'DIGITUNDER' ? Math.max(1, botBarr - 1) : botContract === 'DIGITOVER' ? Math.min(8, botBarr + 1) : 0;
+      const rN = (cfg.active === 'even-odd') ? 2 : 1;
+      const isMatch = botContract === 'DIGITMATCH';
+      const rfCard = dec.rf || (window.TWS && TWS.regimeFingerprint && topBest.prices && topBest.dg ? TWS.regimeFingerprint(topBest.prices, topBest.dg) : null);
+      const botHref = `bots-library.html?symbol=${topBest.v.id}&contract=${botContract}&barrier=${botBarr}&stake=${curStakeVal}&name=${encodeURIComponent('AI ' + topBest.v.name + ' (' + dec.decision + ')')}&dur=1&rule_kind=${rKind}&rule_cond=${rCond}&rule_cb=${rCb}&rule_n=${rN}&mart=${isMatch ? 0 : 1}&mart_mode=smart_barrier&mart_mult=1.05&mart_steps=4&shield=1&gate=${Math.max(48, Math.min(85, dec.conviction || 55))}`;
       const runnerUps = (computedPillarCandidates || []).slice(1, 3);
+      const speedBadge = effMeta && effMeta.elapsedMs ? ` · ${(effMeta.elapsedMs / 1000).toFixed(2)}s` : '';
+      const entryTriggerTxt = dec.action === 'UNDER'
+        ? `Wait for pullback digit ≥ ${Math.max(1, botBarr)} (7/8/9 flush) then execute ${dec.decision}`
+        : dec.action === 'OVER'
+        ? `Wait for low digit ≤ ${Math.min(8, botBarr)} (0/1/2 flush) then execute ${dec.decision}`
+        : dec.action === 'EVEN'
+        ? `Enter after 2+ Odd digits in a row (Parity Reversion)`
+        : dec.action === 'ODD'
+        ? `Enter after 2+ Even digits in a row (Parity Reversion)`
+        : dec.action === 'DIFFERS'
+        ? `Target coldest digit ${botBarr} while recent frequency stays ≤ 8%`
+        : `Enter when hottest digit ${botBarr} spikes ≥ 14% over last 100t`;
 
       aiTopSuggestionBox.innerHTML = `
-        <div style="border-left:4px solid ${isHighConfidence?'#00ffa3':'#ffd600'};background:linear-gradient(135deg,${isHighConfidence?'rgba(0,255,163,0.12),rgba(0,178,255,0.06)':'rgba(255,214,0,0.08),rgba(255,59,105,0.05)'});border:1.5px solid ${isHighConfidence?'rgba(0,255,163,0.45)':'rgba(255,214,0,0.4)'};padding:16px;border-radius:12px;box-shadow:0 0 20px ${isHighConfidence?'rgba(0,255,163,0.15)':'rgba(255,214,0,0.1)'};">
+        <div style="background:linear-gradient(135deg,${isHighConfidence?'rgba(0,255,163,0.12),rgba(0,178,255,0.06)':'rgba(255,214,0,0.08),rgba(255,59,105,0.05)'});border:1.5px solid ${isHighConfidence?'rgba(0,255,163,0.45)':'rgba(255,214,0,0.4)'};padding:16px;border-radius:12px;box-shadow:0 0 20px ${isHighConfidence?'rgba(0,255,163,0.15)':'rgba(255,214,0,0.1)'};">
           
           <!-- Top Badges & Dynamic 3-Color Blinking Validity Timer Badge -->
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
@@ -837,7 +851,7 @@ TW.digitPage = function (cfg) {
               <span style="font-size:10px;font-weight:900;color:#04101c;background:${isHighConfidence?'#00ffa3':'#ffd600'};padding:3px 8px;border-radius:4px;letter-spacing:0.4px;">
                 👑 #1 SINGLE MOST SUITABLE RECOMMENDATION IN ${cfg.title.toUpperCase()}
               </span>
-              <span style="font-size:11px;color:#00b2ff;font-weight:700;">${isDeep ? '1000t Quantum Deep Calibrated' : (tickCount || 100) + 't Lightning Rapid Calibrated'}</span>
+              <span style="font-size:11px;color:#00b2ff;font-weight:700;">${actualN}t ${isDeep ? 'Quantum Deep' : 'Lightning Rapid'} Verified${speedBadge}</span>
             </div>
 
             <!-- Dynamic Blinking Timer Badge -->
@@ -849,7 +863,7 @@ TW.digitPage = function (cfg) {
           ${!isHighConfidence ? `
           <!-- Caution notice if conviction < 85% -->
           <div style="margin-top:10px;background:rgba(255,214,0,0.1);border:1px solid rgba(255,214,0,0.3);border-radius:8px;padding:8px 12px;font-size:11.5px;color:#ffd600;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;">
-            <span>🛡️ <b>AI SAFETY NOTICE:</b> Conviction is <b>${dec.conviction}%</b> (<85% Gate). Suggestion is displayed below. Run 1000t Quantum Deep Scan to verify regime.</span>
+            <span>🛡️ <b>AI SAFETY NOTICE:</b> Conviction is <b>${dec.conviction}%</b> (&lt;85% Gate). Suggestion is displayed below. Run 1000t Quantum Deep Scan to verify regime.</span>
             <button type="button" id="btnNoticeDeepPillar" class="btn" style="padding:4px 10px;background:#ffd600;color:#04101c;font-weight:900;font-size:10.5px;border:0;border-radius:5px;cursor:pointer;">⚛ Deep Scan (1000t)</button>
           </div>` : ''}
 
@@ -879,13 +893,21 @@ TW.digitPage = function (cfg) {
             </div>
             <div>
               <span style="font-size:10px;color:#8e9ab3;font-weight:700;display:block;">NET STAT EDGE</span>
-              <b style="color:#00b2ff;font-size:15px;">+${dec.edgePts} pts</b>
+              <b style="color:#00b2ff;font-size:15px;">${dec.edgePts >= 0 ? '+' : ''}${dec.edgePts} pts</b>
             </div>
             <div>
               <span style="font-size:10px;color:#8e9ab3;font-weight:700;display:block;">BROKER ODDS</span>
               <b style="color:#7d8aa5;font-size:15px;">${dec.nullPct}%</b>
             </div>
           </div>
+
+          ${rfCard ? `
+          <div style="margin-top:8px;display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;background:rgba(0,0,0,0.3);padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.06);font-size:10.5px;color:#9fb0cc;">
+            <span>Regime: <b style="color:${rfCard.hazard==='CHOP_TRAP'?'#ff3b69':rfCard.hazard==='SKEW_SPIKE'?'#00ffa3':'#00b2ff'};">${rfCard.hazard.replace('_',' ')}</b> (${TW.esc(rfCard.regimeLabel)})</span>
+            <span>Chop: <b>${Math.round((rfCard.chopIndex||0.5)*100)}%</b></span>
+            <span>Drought: <b>D${rfCard.droughtDigit} (${rfCard.droughtTicks}t)</b></span>
+            <span>Kelly Cap: <b style="color:#00ffa3;">${rfCard.kellyPct}% eq</b></span>
+          </div>` : ''}
 
           <!-- DEDICATED CARD: PERFECT ENTRY SIGNAL & EXACT TIMING DIRECTIVE -->
           <div style="margin-top:12px;background:rgba(0,0,0,0.35);border:1px solid rgba(0,255,163,0.35);border-radius:10px;padding:12px;">
@@ -896,11 +918,11 @@ TW.digitPage = function (cfg) {
             <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,210px),1fr));gap:8px;font-size:11px;">
               <div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);">
                 <span style="color:#8e9ab3;font-weight:700;display:block;">ENTRY TRIGGER:</span>
-                <b style="color:#fff;">Enter immediately on live signal (${dec.decision})</b>
+                <b style="color:#fff;">${TW.esc(entryTriggerTxt)}</b>
               </div>
               <div style="background:rgba(255,255,255,0.02);padding:8px;border-radius:6px;border:1px solid rgba(255,255,255,0.06);">
                 <span style="color:#8e9ab3;font-weight:700;display:block;">TIMING DIRECTIVE:</span>
-                <b style="color:#00ffa3;">USE 5 TICKS (~5s) · DIGIT CONTRACTS REQUIRE TICKS</b>
+                <b id="topTimingDirective" style="color:#00ffa3;">USE 5 TICKS (~5s) · DIGIT CONTRACTS REQUIRE TICKS</b>
               </div>
             </div>
 
@@ -976,10 +998,15 @@ TW.digitPage = function (cfg) {
       }, 1000);
 
       function updateBetButtonLabel() {
+        const uLabel = selectedUnit === 't' ? (selectedDur === 1 ? 'TICK' : 'TICKS') : selectedUnit === 's' ? 'SEC' : 'MIN';
         const btn = document.getElementById('btnPlaceTopBet');
         if (btn) {
-          const uLabel = selectedUnit === 't' ? 'TICKS' : selectedUnit === 's' ? 'SEC' : 'MIN';
           btn.textContent = `⚡ 1-CLICK BET (${dec.decision} · USE ${selectedDur} ${uLabel})`;
+        }
+        const td = document.getElementById('topTimingDirective');
+        if (td) {
+          const secHint = selectedUnit === 't' ? `~${selectedDur}s` : '';
+          td.textContent = `USE ${selectedDur} ${uLabel}${secHint ? ' (' + secHint + ')' : ''} · DIGIT CONTRACTS SETTLE BY TICK`;
         }
       }
 
@@ -1019,7 +1046,7 @@ TW.digitPage = function (cfg) {
       aiTopSuggestionBox.querySelectorAll('.ru-pick').forEach(btn => {
         btn.onclick = () => {
           const cand = computedPillarCandidates[+btn.dataset.ru];
-          if (cand) renderTopHighlightCard(cand, isDeep, tickCount);
+          if (cand) renderTopHighlightCard(cand, isDeep, tickCount, effMeta);
         };
       });
     }
@@ -1093,6 +1120,57 @@ TW.digitPage = function (cfg) {
       else if (k === 'b') { e.preventDefault(); if ($('#qtBetAiBtn')) $('#qtBetAiBtn').click(); }
       else if (k === 's') { e.preventDefault(); runPillarAiScan(100, false); }
     });
+
+    // Mount Saved DBot Live Market Runner dock right below Quick Trade
+    const botRunner = (TW.mountBotRunner) ? TW.mountBotRunner({
+      anchor: '#digitQuickTrade',
+      pillar: cfg.active,
+      getSymbol: () => top.symbol,
+      getCurrentSetup: () => ({
+        symbol: top.symbol,
+        contract: cfg.contract(tab, pick),
+        barrier: cfg.picker ? pick : 0,
+        duration: Math.max(1, Math.min(10, +$('#dur').value || 1)),
+        stake: Math.max(0.35, +$('#stake').value || 1),
+        auto2x: !!($('#chkManualMart') && $('#chkManualMart').checked)
+      }),
+      onSelectBot: (b, silent) => {
+        if (!b) return;
+        const symChanged = b.symbol && b.symbol !== top.symbol;
+        if (symChanged) {
+          top.symbol = b.symbol;
+          const selEl = $('#twSym');
+          if (selEl) selEl.value = b.symbol;
+        }
+        if (cfg.active === 'over-under' && /OVER|UNDER/.test(b.contract)) {
+          tab = b.contract === 'DIGITOVER' ? 'OVER' : 'UNDER';
+          if (b.barrier != null) pick = b.barrier;
+        } else if (cfg.active === 'even-odd' && /EVEN|ODD/.test(b.contract)) {
+          tab = b.contract === 'DIGITEVEN' ? 'EVEN' : 'ODD';
+        } else if (cfg.active === 'matches-differs' && /MATCH|DIFF/.test(b.contract)) {
+          tab = b.contract === 'DIGITMATCH' ? 'MATCHES' : 'DIFFERS';
+          if (b.barrier != null) pick = b.barrier;
+        }
+        if (b.duration) {
+          dur = Math.max(1, Math.min(10, +b.duration || 1));
+          $('#dur').value = dur;
+        }
+        if (b.stake) {
+          const nv = Math.max(0.35, +b.stake).toFixed(2);
+          $('#stake').value = nv;
+          baseManualStake = +nv;
+        }
+        if (symChanged) restart();
+        else refresh();
+        if (!silent) TW.toast(`Loaded bot "${b.name}" onto ${TW.volName(top.symbol)} — watch live digits & click ▶ RUN BOT NOW at entry.`, 'ok', 3600);
+      },
+      onBeforeStart: () => {
+        if (aiAutoOn && aiAutoOn.checked) {
+          aiAutoOn.checked = false;
+          updateSentryUI();
+        }
+      }
+    }) : null;
 
     // Initialize market feed
     restart();

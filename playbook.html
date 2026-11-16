@@ -18,7 +18,7 @@
 .pbt small{opacity:.7;font-weight:500;margin-left:4px}
 .pb-s{margin:10px 0;padding:10px;border-radius:8px;border:1px dashed rgba(255,255,255,.2);font-size:13px}.pb-s.on{border:1px solid #00ffa3;color:#00ffa3}
 .pb-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}.pb-row input[type=number]{width:90px;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.35);color:#d7e0f2}
-.pb-v.good{color:#00ffa3}.pb-v.bad{color:#ff3b69}.pb-warn{border-left:3px solid #f5b83d;padding:10px 14px;border-radius:8px;background:rgba(245,184,61,.08);font-size:13px}
+.pb-v.good{color:#00ffa3}.pb-v.bad{color:#ff3b69}.pb-warn{border:1px solid rgba(245,184,61,.45);padding:10px 14px;border-radius:10px;background:rgba(245,184,61,.08);font-size:13px}
 </style>
 </head>
 <body>
@@ -72,15 +72,16 @@ const nav=el('div','pb-c');pb.appendChild(nav);const det=el('div','pb-c');pb.app
 function info(sym){let m;
  if(m=sym.match(/^R_(\d+)$/))return{n:'Volatility '+m[1]+' Index',t:2,fit:'d',w:'Constant '+m[1]+'% volatility. A new tick about every 2 seconds. A larger number means bigger tick moves, so Rise/Fall results swing more, while digit odds stay exactly the same.'};
  if(m=sym.match(/^1HZ(\d+)V$/))return{n:'Volatility '+m[1]+' (1s) Index',t:1,fit:'d',w:'Constant '+m[1]+'% volatility with a tick every second. Contracts finish twice as fast as on the 2-second indices, so a run of losses also arrives faster. Keep stakes small.'};
- if(m=sym.match(/^BOOM(\d+)$/))return{n:'Boom '+m[1]+' Index',t:1,fit:'b',w:'Slow downward drift with an upward spike about once every '+m[1]+' ticks on average. Spike timing is random, so a long wait does not make one due. A spike can wipe out a Fall position at once.'};
- if(m=sym.match(/^CRASH(\d+)$/))return{n:'Crash '+m[1]+' Index',t:1,fit:'b',w:'Slow upward drift with a downward spike about once every '+m[1]+' ticks on average. The mirror of Boom: a spike can wipe out a Rise position at once.'};
- if(sym==='STEPINDEX'||sym==='stpRNG')return{n:'Step Index',t:2,fit:'r',w:'Symmetric fixed-step random walk: each tick moves up or down by exactly 0.1000 with true 50/50 probability and zero jump skewness. Spread and payout margin govern long-run expectancy.'};
- if(m=sym.match(/^JD(\d+)$/))return{n:'Jump '+m[1]+' Index',t:1,fit:'r',w:'Baseline '+m[1]+'% annualised volatility punctuated by sudden random Poisson jumps (~30x normal tick size roughly every 20 minutes on average). Short-horizon Rise/Fall positions carry sudden jump-risk.'};
- if(sym==='RDBULL')return{n:'Bull Market Index',t:2,fit:'r',w:'Designed with an upward tendency and random variation. A tendency in the design does not decide the next contract. Check Deriv\'s description for its exact behaviour.'};
- if(sym==='RDBEAR')return{n:'Bear Market Index',t:2,fit:'r',w:'Designed with a downward tendency and random variation. A tendency in the design does not decide the next contract. Check Deriv\'s description for its exact behaviour.'};
+ if(m=sym.match(/^BOOM(\d+)N?$/))return{n:'Boom '+m[1]+' Index',t:1,fit:'b',w:'Slow downward drift with an upward spike about once every '+m[1]+' ticks on average. Spike timing is random, so a long wait does not make one due. A spike can wipe out a Fall position at once.'};
+ if(m=sym.match(/^CRASH(\d+)N?$/))return{n:'Crash '+m[1]+' Index',t:1,fit:'b',w:'Slow upward drift with a downward spike about once every '+m[1]+' ticks on average. The mirror of Boom: a spike can wipe out a Rise position at once.'};
+ if(m=sym.match(/^stpRNG(\d*)$/))return{n:'Step Index '+(m[1]?m[1]+'00':'100'),t:2,fit:'r',w:'Symmetric fixed-step random walk: each tick moves up or down by discrete fixed steps (0.1 to 0.5) with 50/50 probability and zero jump skewness. Spread and payout margin govern long-run expectancy.'};
+ if(m=sym.match(/^JD(\d+)$/))return{n:'Jump '+m[1]+' Index',t:1,fit:'d',w:'Baseline '+m[1]+'% annualised volatility punctuated by sudden random Poisson jumps (~30x normal tick size roughly every 20 minutes on average). Supports both Digits and Rise/Fall.'};
+ if(sym==='RDBULL')return{n:'Bull Market Index',t:2,fit:'d',w:'Designed with an upward tendency and random variation. Supports both Digits and Rise/Fall.'};
+ if(sym==='RDBEAR')return{n:'Bear Market Index',t:2,fit:'d',w:'Designed with a downward tendency and random variation. Supports both Digits and Rise/Fall.'};
+ if(/^(frx|XAU)/i.test(sym)){const fxMeta=TW.VOLS.find(v=>v.id===sym);return{n:fxMeta?fxMeta.name:sym,t:2,fit:'fx',w:'Real-world Forex / Metals spot feed driven by central-bank sessions and macro liquidity (closes weekends Fri ~21:30 UTC to Sun ~21:00 UTC). Trade 5m–30m Buy/Sell setups on the Forex & Gold Desk rather than tick-digits.'};}
  return{n:sym,t:2,fit:'r',w:'Synthetic random feed. Treat every tick as independent.'}}
 function setNote(sym){const x=info(sym);note.textContent='';note.appendChild(el('div','pb-t','NOTES FOR THIS MARKET'));note.appendChild(el('h3',0,x.n));
- const fit=x.fit==='d'?'The three digit topics (Over/Under, Even/Odd, Matches/Differs) and Rise/Fall all fit.':x.fit==='b'?'The Boom/Crash and Rise/Fall topics fit. Digit contracts are not offered on this market.':'The Rise/Fall topic fits. Digit contracts are not offered on this market.';
+ const fit=x.fit==='d'?'The three digit topics (Over/Under, Even/Odd, Matches/Differs) and Rise/Fall all fit.':x.fit==='b'?'The Boom/Crash and Rise/Fall topics fit. Digit contracts are not offered on this market.':x.fit==='fx'?'Rise / Fall (Buy/Sell) works on live FX quotes; for full 5m–30m candle signals and session guidance open the Forex & Gold Desk. Digit contracts are not offered on FX.':'The Rise/Fall topic fits. Digit contracts are not offered on this market.';
  [['What it is: '+x.w],['1000 ticks covers about '+(x.t*1000/60).toFixed(0)+' minutes of this market.'],['Topics that fit: '+fit],['Reminder: these notes describe how the market is built. They do not predict the next tick, and the true odds of every contract stay the same.']].forEach(l=>note.appendChild(el('div','pb-l',l[0])))}
 function save(){sessionStorage.setItem('tw_pb',JSON.stringify(sel))}
 function grp(label,items,isOn,pick){const g=el('div','pbg');if(label)g.appendChild(el('div','lb',label));items.forEach(it=>{const b=el('button','pbt',it.l);b.type='button';b.setAttribute('aria-pressed',isOn(it)?'true':'false');b.onclick=()=>pick(it);if(it.sm)b.appendChild(el('small',0,it.sm));g.appendChild(b)});return g}
@@ -118,7 +119,18 @@ function draw(){drawNav();det.textContent='';clearInterval(cdT);cd=0;cur=null;co
    else if(t.id==='eo'){rKind='streak';rN=v.k;rCond=sel.r==='fade'?(k.c==='EVEN'?'odd':'even'):(k.c==='EVEN'?'even':'odd');}
    else if(t.id==='rf'){rKind='streak';rN=3;rCond=sel.r==='momentum'?(k.c==='RISE'?'rise':'fall'):(k.c==='RISE'?'fall':'rise');}
    else if(t.id==='md'){rKind='ai_alpha';rN=1;}
-   const q=new URLSearchParams({symbol:SYM,contract:CTYPE[k.c],dur:k.dur,stake:st.value||'0.35',rule_kind:rKind,rule_cond:rCond,rule_cb:rCb,rule_n:rN,name:'Playbook: '+v.l});
+   const isMatchOrMoon=(k.c==='MATCH'||(k.c==='OVER'&&k.b>=8)||(k.c==='UNDER'&&k.b<=1));
+   const isDirectional=(t.id==='rf'||t.id==='eo');
+   const q=new URLSearchParams({
+     symbol:SYM,contract:CTYPE[k.c],dur:k.dur,stake:st.value||'0.35',
+     rule_kind:rKind,rule_cond:rCond,rule_cb:rCb,rule_n:rN,
+     mart:isMatchOrMoon?'0':'1',
+     mart_mode:isMatchOrMoon?'fixed':(isDirectional?'split_recovery':'smart_barrier'),
+     mart_mult:'1.05',
+     mart_steps:isMatchOrMoon?'1':'4',
+     shield:'1',
+     name:'Playbook: '+v.l
+   });
    if(hasB(k.c))q.set('barrier',k.b);
    location.href='bots-library.html?'+q.toString();
  };
