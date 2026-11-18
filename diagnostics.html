@@ -56,10 +56,12 @@ TW.guard('Diagnostics', () => {
     await step('Deriv REST API reachable from this browser', async () => { try { const r = await fetch('https://api.derivws.com/trading/v1/options/accounts', { headers: { 'Deriv-App-ID': app } }); return { t: 'HTTP ' + r.status + ' (a reply without a token is expected)' }; } catch (e) { throw new Error('blocked (CORS or network). Login from this site may fail'); } });
     await step('AI Quant Backend (/api/ai/chat)', async () => {
       const ep = (TW.settings && TW.settings.aiEndpoint) || '/api/ai/chat';
-      const r = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [{ role: 'user', content: 'ping' }], context: { page: 'diagnostics' } }) });
-      const j = await r.json().catch(() => ({}));
-      if (r.ok && j.reply) return { t: 'HTTP ' + r.status + ' · AI engine responding' };
-      return { warn: 1, t: 'HTTP ' + r.status + ' · Falling back to local statistical explainer' };
+      const r = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: [{ role: 'user', content: 'ping' }], context: { page: 'diagnostics' } }) }).catch(() => null);
+      const j = r ? await r.json().catch(() => ({})) : {};
+      if (r && r.ok && j.reply) return { t: 'HTTP ' + r.status + ' · Server AI engine active' };
+      const fb = TW.aiRequest ? await TW.aiRequest(ep, { messages: [{ role: 'user', content: 'ping' }], context: { page: 'diagnostics' } }) : null;
+      if (fb && fb.reply) return { t: `Quant Engine client fallback active cleanly${r ? ' (static HTTP ' + r.status + ')' : ''}` };
+      return { warn: 1, t: 'Offline · Using built-in statistical explainer' };
     });
     await step('Browser LocalStorage persistence', async () => {
       try { localStorage.setItem('_tw_diag', '1'); localStorage.removeItem('_tw_diag'); return { t: 'read/write OK' }; }

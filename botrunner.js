@@ -44,7 +44,7 @@
     if (contract === 'DIGITUNDER') { const b = barrier != null ? +barrier : 7; return b >= 7 ? 55 : b >= 5 ? 48 : 38; }
     if (contract === 'DIGITDIFF') return 80;
     if (contract === 'DIGITMATCH') return 12;
-    return 48;
+    return 50;
   }
 
   function cleanBot(b) {
@@ -55,9 +55,12 @@
     let contract = CT.includes(b.contract) ? b.contract : 'DIGITOVER';
     if (symObj && !symObj.digits && /^DIGIT/.test(contract)) contract = 'CALL';
     const barrier = num(b.barrier, 0, 9, contract === 'DIGITOVER' ? 2 : contract === 'DIGITUNDER' ? 7 : 4);
-    const durationUnit = ['t', 's', 'm', 'h'].includes(b.durationUnit) ? b.durationUnit : 't';
+    const isFx = /^(frx|XAU)/i.test(sym);
+    let durationUnit = ['t', 's', 'm', 'h'].includes(b.durationUnit) ? b.durationUnit : (isFx ? 'm' : 't');
+    if (isFx && durationUnit === 't') durationUnit = 'm';
     const maxDur = durationUnit === 't' ? 10 : 60;
-    const duration = num(b.duration, 1, maxDur, durationUnit === 't' ? 1 : 5);
+    let duration = num(b.duration, 1, maxDur, durationUnit === 't' ? 1 : (isFx ? 15 : 5));
+    if (/^frx(?!XAU)/i.test(sym) && durationUnit === 'm' && duration < 15) duration = 15;
     const defGate = defaultGate(contract, barrier);
     const martMode = ['smart_barrier', 'split_recovery', 'payout_martingale', 'martingale', 'dalembert', 'fibonacci', 'compounding'].includes(m.mode) ? m.mode : 'smart_barrier';
     return {
@@ -83,7 +86,7 @@
       notes: String(b.notes || '').replace(/^Role:\s*/i, '').slice(0, 280),
       aiMode: ['active', 'strict', 'turbo'].includes(b.aiMode) ? b.aiMode : 'active',
       speedMode: ['hft', 'balanced', 'guarded'].includes(b.speedMode) ? b.speedMode : 'hft',
-      aiGate: num(b.aiGate, 10, 95, defGate),
+      aiGate: (((!b.aiMode || b.aiMode === 'active') && defGate <= 60 && +b.aiGate >= 82) ? defGate : num(b.aiGate, 10, 95, defGate)),
       lossShield: b.lossShield !== false
     };
   }
@@ -93,9 +96,9 @@
     { id: 'preset_o2_25s', name: 'Expert Over 2 Reversion · Split Recovery', symbol: '1HZ25V', contract: 'DIGITOVER', barrier: 2, duration: 1, durationUnit: 't', rule: { kind: 'streak', cond: 'under', cb: 3, n: 1 }, aiGate: 58, aiMode: 'active', lossShield: true, coolSecs: 4, stake: 0.50, mart: { on: true, mode: 'split_recovery', mult: 1.0, steps: 5 }, sl: 10, tp: 20, notes: 'Best in Over 2: enters after low-digit flush (0/1/2). Splits recovery across 2 high-ROI (+90%) barrier shots so stake never explodes.' },
     { id: 'preset_md_cold', name: 'Expert Coldest Differs · High-ROI Switch', symbol: '1HZ10V', contract: 'DIGITDIFF', barrier: 0, duration: 1, durationUnit: 't', rule: { kind: 'ai_alpha' }, aiGate: 80, aiMode: 'active', lossShield: true, coolSecs: 5, stake: 1.00, mart: { on: true, mode: 'smart_barrier', mult: 1.05, steps: 4 }, sl: 10, tp: 20, notes: 'Best in Matches/Differs: targets coldest digit over 100 ticks (~90% odds). On rare loss, switches recovery to Under 5 / Over 4 (+90% ROI).' },
     { id: 'preset_ai_ou', name: 'Expert Over/Under Switcher · Payout Recovery', symbol: 'R_100', contract: 'DIGITOVER', barrier: 2, duration: 1, durationUnit: 't', rule: { kind: 'ai_alpha', cond: 'under', cb: 3, n: 1 }, aiGate: 58, aiMode: 'active', lossShield: true, coolSecs: 4, stake: 0.50, mart: { on: true, mode: 'payout_martingale', mult: 1.08, steps: 4 }, sl: 15, tp: 25, notes: 'Dynamic Over/Under specialist: switches between Over 2/3 & Under 6/7 using Markov skew; sizes recovery strictly to exact contract ROI.' },
-    { id: 'preset_eo_alt', name: 'Expert Even/Odd Parity · Step-Lock Recovery', symbol: 'R_50', contract: 'DIGITEVEN', barrier: 0, duration: 1, durationUnit: 't', rule: { kind: 'streak', cond: 'odd', cb: 0, n: 2 }, aiGate: 52, aiMode: 'active', lossShield: true, coolSecs: 5, stake: 0.50, mart: { on: true, mode: 'payout_martingale', mult: 1.05, steps: 4 }, sl: 10, tp: 15, notes: 'Best in Even/Odd: enters counter-parity after 2+ streak with runs-test filter & calibrated recovery + 5s cooldown after 2L.' },
-    { id: 'preset_rf_ema', name: 'Expert Rise/Fall Momentum · Cooldown Split', symbol: 'R_75', contract: 'CALL', barrier: 0, duration: 5, durationUnit: 't', rule: { kind: 'ai_alpha', cond: 'rise', n: 1 }, aiGate: 55, aiMode: 'active', lossShield: true, coolSecs: 6, stake: 0.50, mart: { on: true, mode: 'split_recovery', mult: 1.05, steps: 4 }, sl: 10, tp: 20, notes: 'Best in Rise/Fall: trades CALL/PUT on EMA5 vs EMA15 trend alignment; splits drawdown over 2 wins with 6s chop-cooldown.' },
-    { id: 'preset_fx_eur', name: 'Expert Forex Trend Buyer/Seller (EUR/USD)', symbol: 'frxEURUSD', contract: 'CALL', barrier: 0, duration: 5, durationUnit: 'm', rule: { kind: 'ai_alpha', cond: 'rise', n: 1 }, aiGate: 56, aiMode: 'active', lossShield: true, coolSecs: 8, stake: 1.00, mart: { on: true, mode: 'split_recovery', mult: 1.05, steps: 3 }, sl: 15, tp: 30, notes: 'Best in Forex Buy/Sell: dynamically selects BUY (CALL) or SELL (PUT) on EUR/USD using EMA9/21 trend & RSI(14) with 5m expiry.' }
+    { id: 'preset_eo_alt', name: 'Expert Even/Odd Parity · Step-Lock Recovery', symbol: 'R_50', contract: 'DIGITEVEN', barrier: 0, duration: 1, durationUnit: 't', rule: { kind: 'streak', cond: 'odd', cb: 0, n: 2 }, aiGate: 50, aiMode: 'active', lossShield: true, coolSecs: 5, stake: 0.50, mart: { on: true, mode: 'payout_martingale', mult: 1.05, steps: 4 }, sl: 10, tp: 15, notes: 'Best in Even/Odd: enters counter-parity after 2+ streak with runs-test filter & calibrated recovery + 5s cooldown after 2L.' },
+    { id: 'preset_rf_ema', name: 'Expert Rise/Fall Momentum · Cooldown Split', symbol: 'R_75', contract: 'CALL', barrier: 0, duration: 5, durationUnit: 't', rule: { kind: 'ai_alpha', cond: 'rise', n: 1 }, aiGate: 52, aiMode: 'active', lossShield: true, coolSecs: 6, stake: 0.50, mart: { on: true, mode: 'split_recovery', mult: 1.05, steps: 4 }, sl: 10, tp: 20, notes: 'Best in Rise/Fall: trades CALL/PUT on EMA5 vs EMA15 trend alignment; splits drawdown over 2 wins with 6s chop-cooldown.' },
+    { id: 'preset_fx_eur', name: 'Expert Forex Trend Buyer/Seller (EUR/USD)', symbol: 'frxEURUSD', contract: 'CALL', barrier: 0, duration: 15, durationUnit: 'm', rule: { kind: 'ai_alpha', cond: 'rise', n: 1 }, aiGate: 52, aiMode: 'active', lossShield: true, coolSecs: 8, stake: 1.00, mart: { on: true, mode: 'split_recovery', mult: 1.05, steps: 3 }, sl: 15, tp: 30, notes: 'Best in Forex Buy/Sell: dynamically selects BUY (CALL) or SELL (PUT) on EUR/USD using EMA9/21 trend & RSI(14) with 15m expiry.' }
   ];
 
   function loadBots() {
@@ -138,7 +141,7 @@
     const isFx = /^(frx|XAU)/i.test(String(b.symbol || ''));
     const unit = b.durationUnit || (isFx ? 'm' : 't');
     if (isFx) {
-      return `forex.html?vol=${enc(b.symbol)}&type=${c === 'PUT' ? 'PUT' : 'CALL'}&dur=${b.duration || 5}&unit=${enc(unit)}&bot=${enc(b.id)}`;
+      return `forex.html?vol=${enc(b.symbol)}&type=${c === 'PUT' ? 'PUT' : 'CALL'}&dur=${b.duration || 15}&unit=${enc(unit)}&bot=${enc(b.id)}`;
     }
     if (/OVER|UNDER/.test(c)) {
       const tp = c === 'DIGITOVER' ? 'OVER' : 'UNDER';
@@ -316,7 +319,7 @@
           </div>
           <div style="display:flex;align-items:center;gap:6px;">
             <span id="brMiniPnl" style="font-size:11px;font-weight:900;color:#9fb0cc;">Net: +$0.00</span>
-            <button type="button" id="brToggleDrawerBtn" class="br-btn ghost" style="padding:3px 8px;font-size:10px;">▾ Hide</button>
+            <button type="button" id="brToggleDrawerBtn" class="br-btn ghost" style="padding:3px 8px;font-size:10px;">▸ Show</button>
           </div>
         </div>
         <div id="brDrawerPane" class="br-pane"></div>
@@ -351,7 +354,7 @@
     let bots = loadBots();
     let activeId = null;
     let editOpen = false;
-    let drawerCollapsed = false;
+    let drawerCollapsed = true;
     let activeTab = 'summary';
     let _feedCheck = null;
     const jFilters = { err: true, not: true, suc: true };
@@ -551,7 +554,8 @@
         let nextDur = +editGrid.querySelector('#edDur').value;
         if (isNextFx) {
           if (!/^(CALL|PUT)$/.test(nextCt)) nextCt = 'CALL';
-          if (nextUnit === 't') { nextUnit = 'm'; nextDur = Math.max(5, nextDur || 5); }
+          if (nextUnit === 't') { nextUnit = 'm'; nextDur = Math.max(/^frx(?!XAU)/i.test(nextSym) ? 15 : 5, nextDur || 15); }
+          else if (/^frx(?!XAU)/i.test(nextSym) && nextUnit === 'm' && nextDur < 15) { nextDur = 15; }
         }
         const updated = upsertBot(Object.assign({}, cur, {
           symbol: nextSym,
@@ -719,10 +723,11 @@
       runBtn.textContent = on ? '⏹ Stop' : '▶ Run';
       runBtn.className = on ? 'br-btn stop' : 'br-btn run';
       sel.disabled = on;
+      dock.classList.toggle('armed', !!(on || q.bot));
 
       if (!on && runtime.n === 0 && !runtime.lastMsg) {
-        badgeEl.textContent = 'IDLE · WATCH ENTRY & CLICK RUN';
-        badgeEl.className = 'br-badge';
+        badgeEl.textContent = q.bot ? '★ BOT LOADED · WATCH ENTRY & CLICK ▶ RUN' : 'IDLE · WATCH ENTRY & CLICK ▶ RUN';
+        badgeEl.className = q.bot ? 'br-badge on' : 'br-badge';
         telemEl.style.display = 'none';
         renderDrawer();
         return;
@@ -780,16 +785,14 @@
     }
 
     async function confirmBotStart(b) {
-      const isLive = TW.mode() === 'live';
+      if (TW.mode() !== 'live') return true;
       const hasMart = b.mart && b.mart.on;
-      if (!isLive && !hasMart) return true;
-      const lines = [];
-      if (isLive) lines.push(`<div class="warn" style="margin-bottom:8px;">LIVE mode active (${TW.account.virtual ? 'Deriv DEMO' : 'REAL MONEY'}). Bot will auto-trade until SL, TP, or STOP is pressed.</div>`);
+      const lines = [`<div class="warn" style="margin-bottom:8px;">LIVE mode active (${TW.account.virtual ? 'Deriv DEMO' : 'REAL MONEY'}). Bot will auto-trade until SL, TP, or STOP is pressed.</div>`];
       if (hasMart) lines.push(`<div style="font-size:12.5px;color:#cbd5e1;line-height:1.5;">Recovery (${b.mart.mode}, ${b.mart.mult}× up to ${b.mart.steps} steps) is enabled on <b>${TW.esc(b.name)}</b>. Editable anytime via <b>⚙️ Edit Bot</b>.</div>`);
       return !!(await TW.modal({
-        title: isLive ? `⚠ Run "${b.name}" in LIVE mode?` : `Confirm Run: ${b.name}`,
+        title: `⚠ Run "${b.name}" in LIVE mode?`,
         html: lines.join(''),
-        buttons: [{ label: 'Cancel', cls: 'ghost', value: false }, { label: isLive ? 'Start Live Bot' : '▶ Run Bot Now', cls: isLive ? 'red' : '', value: true }]
+        buttons: [{ label: 'Cancel', cls: 'ghost', value: false }, { label: 'Start Live Bot', cls: 'red', value: true }]
       }));
     }
 
@@ -810,12 +813,19 @@
       renderTelemetry();
 
       try {
+        const isDig = /^DIGIT/.test(useContract);
+        let durUnit = isDig ? 't' : (b.durationUnit || 't');
+        let durVal = isDig ? Math.min(10, Math.max(1, b.duration || 1)) : Math.max(1, b.duration || 5);
+        if (/^frx(?!XAU)/i.test(b.symbol)) {
+          if (durUnit === 't') durUnit = 'm';
+          if (durUnit === 'm' && durVal < 15) durVal = 15;
+        }
         const t = await TW.trade({
           contract_type: useContract,
           symbol: b.symbol,
           amount: st,
-          duration: b.duration || 1,
-          duration_unit: b.durationUnit || 't',
+          duration: durVal,
+          duration_unit: durUnit,
           barrier: useBarrier,
           label: `${b.name}`,
           bot: b.name,
@@ -836,7 +846,7 @@
 
         runtime.transactions.unshift({
           id: runtime.n,
-          refId: t.cid || runtime.n,
+          refId: t.id || t.cid || runtime.n,
           time: nowTime(),
           market: TW.volName ? TW.volName(b.symbol) : b.symbol,
           contract: useContract + (plan.isRecovery ? ' ↺' : ''),
@@ -931,13 +941,17 @@
       }
       runtime.coolUntil = 0;
 
+      const isFxBot = /^(frx|XAU)/i.test(b.symbol);
+      const fxSeries = (isFxBot && runtime.fxCandles && runtime.fxCandles.length >= 20)
+        ? runtime.fxCandles.slice(-240).concat([P[i]])
+        : P;
       let dynContract = b.contract, dynBarrier = b.barrier, go = false;
       if (b.rule.kind === 'instant') {
         go = true;
-        } else if (b.rule.kind === 'ai_alpha') {
+      } else if (b.rule.kind === 'ai_alpha') {
         go = true;
-        if (/^(frx|XAU)/i.test(b.symbol) && window.TWS && TWS.analyzeForex && P.length >= 20) {
-          const fxSig = TWS.analyzeForex(P, b.symbol);
+        if (isFxBot && window.TWS && TWS.analyzeForex && fxSeries.length >= 20) {
+          const fxSig = TWS.analyzeForex(fxSeries, b.symbol);
           if (fxSig.action === 'HOLD') {
             if (b.aiMode === 'turbo') {
               dynContract = fxSig.ema9 >= fxSig.ema21 ? 'CALL' : 'PUT';
@@ -978,10 +992,11 @@
       const plan = planExecution(b, runtime, dynContract, dynBarrier, D);
       const evalContract = plan.contract;
       const evalBarrier = plan.barrier;
-      const gate = plan.switched ? defaultGate(evalContract, evalBarrier) : (b.aiGate || defaultGate(evalContract, evalBarrier));
-      const rf = (window.TWS && TWS.regimeFingerprint && P.length >= 20 && D.length >= 20) ? TWS.regimeFingerprint(P, D) : null;
+      const gate = (plan.switched || evalContract !== b.contract || evalBarrier !== b.barrier) ? defaultGate(evalContract, evalBarrier) : (b.aiGate || defaultGate(evalContract, evalBarrier));
+      const priceSeries = isFxBot ? fxSeries : P;
+      const rf = (window.TWS && TWS.regimeFingerprint && (priceSeries.length >= 20 || D.length >= 20)) ? TWS.regimeFingerprint(priceSeries, D) : null;
       const conf = (window.TWS && TWS.calcConfidence)
-        ? TWS.calcConfidence({ contract: evalContract, barrier: evalBarrier, prices: P, digits: D, consecutiveLosses: runtime.consecutiveLosses, gate, lossShield: b.lossShield !== false })
+        ? TWS.calcConfidence({ contract: evalContract, barrier: evalBarrier, symbol: b.symbol, prices: priceSeries, digits: D, consecutiveLosses: runtime.consecutiveLosses, gate, lossShield: b.lossShield !== false })
         : { score: 75, passes: true, gate };
       runtime.convPct = conf.score;
 
@@ -1036,12 +1051,33 @@
       renderTelemetry();
       TW.toast(`▶ Running DBot: ${b.name} on ${TW.volName(b.symbol)}`, 'ok', 3200);
 
+      runtime.fxCandles = null;
+      if (/^(frx|XAU)/i.test(b.symbol) && TW.scanMarkets) {
+        const fxMeta = TW.VOLS.find(v => v.id === b.symbol) || { id: b.symbol, name: TW.volName(b.symbol), fx: true };
+        TW.scanMarkets([fxMeta], {
+          count: 240, style: 'candles', granularity: 900, concurrency: 1, timeoutMs: 6500,
+          onDone: items => {
+            if (runtime.on && runtime.bot && runtime.bot.symbol === b.symbol && items && items[0] && items[0].prices && items[0].prices.length >= 20) {
+              runtime.fxCandles = items[0].prices;
+              evalTick(TW.tickPool[b.symbol] || { prices: runtime.fxCandles.slice(-80), digits: [] });
+            }
+          }
+        });
+      }
+
       const curSym = opt.getSymbol ? opt.getSymbol() : '';
+      const onFeedErr = msg => {
+        if (!runtime.on) return;
+        runtime.lastMsg = '⚠️ Feed: ' + msg;
+        addJournal(`⚠️ Market feed notice (${b.symbol}): ${msg}`, 'error');
+        renderTelemetry();
+      };
       if (b.symbol !== curSym) {
         runtime.feed = TW.tickFeed(b.symbol, {
           primary: false, count: 80,
           onHistory: fd => { if (runtime.on) evalTick(fd); },
-          onTick: fd => { if (runtime.on) evalTick(fd); }
+          onTick: fd => { if (runtime.on) evalTick(fd); },
+          onError: onFeedErr
         });
       } else {
         const pool = TW.tickPool[b.symbol];
@@ -1057,7 +1093,8 @@
           runtime.feed = TW.tickFeed(runtime.bot.symbol, {
             primary: false, count: 80,
             onHistory: fd => { if (runtime.on) evalTick(fd); },
-            onTick: fd => { if (runtime.on) evalTick(fd); }
+            onTick: fd => { if (runtime.on) evalTick(fd); },
+            onError: onFeedErr
           });
         }
       }, 1500);
@@ -1066,6 +1103,14 @@
     TW.onGlobalTick = (function (prev) {
       return function (sym, tk) {
         if (typeof prev === 'function') try { prev(sym, tk); } catch (e) {}
+        const b = runtime.bot || currentBot();
+        if (!runtime.on && runtime.n === 0 && !runtime.lastMsg && b && b.symbol === sym && tk) {
+          const isFxSym = /^(frx|XAU)/i.test(sym);
+          const cue = isFxSym && tk.price != null ? ('SPOT ' + tk.price) : (tk.digit != null ? ('DIGIT ' + tk.digit) : '');
+          if (cue) {
+            badgeEl.textContent = (q.bot ? '★ BOT LOADED · ' : 'IDLE · ') + cue + ' · CLICK ▶ RUN AT ENTRY';
+          }
+        }
         if (runtime.on && runtime.bot && runtime.bot.symbol === sym && !runtime.feed) {
           const pool = TW.tickPool[sym];
           if (pool) evalTick(pool);
@@ -1138,8 +1183,8 @@
         symbol: s.symbol,
         contract: c,
         barrier: bar,
-        duration: s.duration || (isRF ? 5 : 1),
-        durationUnit: s.durationUnit || ( /^(frx|XAU)/i.test(String(s.symbol || '')) ? 'm' : 't' ),
+        duration: s.duration || (/^(frx|XAU)/i.test(String(s.symbol || '')) ? 15 : (isRF ? 5 : 1)),
+        durationUnit: s.durationUnit || (/^(frx|XAU)/i.test(String(s.symbol || '')) ? 'm' : 't'),
         stake: stk,
         rule,
         mart: { on: martOn, mode: martMode, mult: 1.05, steps: 4 },
@@ -1187,7 +1232,8 @@
         addJournal(`Loaded "${b.name}" onto ${TW.volName(b.symbol)}. Watch circles/chart & click ▶ Run at entry.`, 'win');
         renderDrawer();
       }
-      badgeEl.textContent = '★ BOT LOADED · CLICK ▶ RUN AT ENTRY';
+      dock.classList.add('armed');
+      badgeEl.textContent = '★ BOT LOADED · WATCH ENTRY & CLICK ▶ RUN';
       badgeEl.className = 'br-badge on';
     }
 

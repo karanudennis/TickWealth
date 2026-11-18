@@ -16,7 +16,7 @@
     <div class="chartbox" id="chartBox"></div>
 
     <!-- LIVE 5 / 10 TICKER STREAM WITH BLINKING LIGHTS (RISE / FALL) -->
-    <div id="liveTickerBar" style="margin:8px 0 10px;background:#090d18;border:1px solid rgba(0,255,163,0.35);border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+    <div id="liveTickerBar" style="margin:6px 0 7px;background:#090d18;border:1px solid rgba(0,255,163,0.35);border-radius:10px;padding:6px 10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
         <span class="dot live" style="width:8px;height:8px;background:#00ffa3;"></span>
         <span style="font-size:11px;font-weight:900;color:#00ffa3;letter-spacing:0.5px;">LIVE TICKER LIGHTS:</span>
@@ -853,7 +853,7 @@ TW.ready(function(){
           <button type="button" id="btnApplySuggestedRfControls" class="btn" style="flex:1;min-width:min(100%,130px);padding:11px 12px;font-size:11.5px;font-weight:800;background:#141e33;border:1px solid rgba(0,255,163,0.4);color:#00ffa3;border-radius:8px;cursor:pointer;">
             🎯 APPLY TO PANEL
           </button>
-          <a href="bots-library.html?symbol=${topBest.v.id}&contract=${topBest.action}&stake=${Math.max(0.35, +($('#stake')&&$('#stake').value)||1)}&name=${encodeURIComponent('AI Momentum '+topBest.v.name+' ('+topBest.action+')')}&dur=5&rule_kind=ai_alpha&rule_cond=${topBest.action==='CALL'?'rise':'fall'}&rule_n=1&mart=1&mart_mode=split_recovery&mart_mult=1.05&mart_steps=4&shield=1&gate=${Math.max(48,Math.min(85,topBest.strength))}" class="btn" style="flex:1;min-width:min(100%,135px);padding:11px 12px;font-size:11.5px;font-weight:800;background:#0b1730;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;text-align:center;text-decoration:none;">
+          <a href="bots-library.html?symbol=${topBest.v.id}&contract=${topBest.action}&stake=${Math.max(0.35, +($('#stake')&&$('#stake').value)||1)}&name=${encodeURIComponent('AI Momentum '+topBest.v.name+' ('+topBest.action+')')}&dur=5&unit=t&rule_kind=ai_alpha&rule_cond=${topBest.action==='CALL'?'rise':'fall'}&rule_n=1&mart=1&mart_mode=split_recovery&mart_mult=1.05&mart_steps=4&shield=1&gate=${Math.max(48,Math.min(62,topBest.strength))}" class="btn" style="flex:1;min-width:min(100%,135px);padding:11px 12px;font-size:11.5px;font-weight:800;background:#0b1730;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;text-align:center;text-decoration:none;">
             🤖 LAUNCH IN BOT →
           </a>
           <button type="button" id="btnRfRescanCard" class="btn" style="flex:0.8;min-width:100px;padding:11px 12px;font-size:11px;font-weight:800;background:#1e293b;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;cursor:pointer;">
@@ -1027,7 +1027,8 @@ TW.ready(function(){
         symbol: top.symbol,
         contract: type,
         barrier: 0,
-        duration: $('#unit').value === 't' ? Math.max(1, Math.min(10, +$('#dur').value || 5)) : 5,
+        duration: Math.max(1, Math.min($('#unit').value === 't' ? 10 : 60, +$('#dur').value || 5)),
+        durationUnit: $('#unit').value || 't',
         stake: Math.max(0.35, +$('#stake').value || 1),
         auto2x: !!($('#chkManualMart') && $('#chkManualMart').checked)
       }),

@@ -26,7 +26,7 @@ TW.digitPage = function (cfg) {
         <div class="sub">${cfg.hint}</div>
 
         <!-- LIVE 5 / 10 TICKER STREAM WITH BLINKING LIGHTS -->
-        <div id="liveTickerBar" style="margin:8px 0 12px;background:#090d18;border:1px solid rgba(0,255,163,0.35);border-radius:10px;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+        <div id="liveTickerBar" style="margin:6px 0 7px;background:#090d18;border:1px solid rgba(0,255,163,0.35);border-radius:10px;padding:6px 10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
             <span class="dot live" style="width:8px;height:8px;background:#00ffa3;"></span>
             <span style="font-size:11px;font-weight:900;color:#00ffa3;letter-spacing:0.5px;">LIVE TICKER LIGHTS:</span>

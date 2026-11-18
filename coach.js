@@ -62,19 +62,24 @@
         const grossLoss = Math.abs(l.filter(t => t.profit <= 0).reduce((s, t) => s + t.profit, 0));
         let run = 0, peak = 0, maxDd = 0;
         l.slice().reverse().forEach(t => { run += t.profit; if (run > peak) peak = run; const dd = peak - run; if (dd > maxDd) maxDd = dd; });
-        const r = await fetch('/api/ai/session-audit', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ trades: l.length, wins, pnl: c.pnl, balance: c.balance, grossWin, grossLoss, maxDrawdown: maxDd, peakPnl: peak, recent: l.slice(0, 10).map(t => (t.profit > 0 ? 'W' : 'L')) })
-        });
-        const j = await r.json();
-        if (r.ok && j.audit) return (j.source === 'gemini' ? '✦ Gemini AI Audit\n' : '⚡ Quant Engine Audit\n') + j.audit;
+        const auditPayload = { trades: l.length, wins, pnl: c.pnl, balance: c.balance, grossWin, grossLoss, maxDrawdown: maxDd, peakPnl: peak, recent: l.slice(0, 10).map(t => (t.profit > 0 ? 'W' : 'L')) };
+        const j = TW.aiRequest ? await TW.aiRequest('/api/ai/session-audit', auditPayload) : await (async () => {
+          const r = await fetch('/api/ai/session-audit', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(auditPayload) });
+          return r.ok ? r.json() : {};
+        })();
+        if (j && j.audit) return (j.source === 'gemini' ? '✦ Gemini AI Audit\n' : '⚡ Quant Engine Audit\n') + j.audit;
       } catch (e) { /* fall back */ }
     }
     if (ep) {
       try {
-        const r = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ messages: hist.slice(-8), context: c }) });
-        const j = await r.json();
-        if (r.ok && j.reply) return (j.source === 'gemini' ? '✦ Gemini AI\n' : '') + j.reply;
+        const chatPayload = { messages: hist.slice(-8), context: c };
+        const j = (TW.aiRequest && ep.startsWith('/api/ai/'))
+          ? await TW.aiRequest(ep, chatPayload)
+          : await (async () => {
+            const r = await fetch(ep, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(chatPayload) });
+            return r.ok ? r.json() : {};
+          })();
+        if (j && j.reply && !j.fallback) return (j.source === 'gemini' ? '✦ Gemini AI\n' : '') + j.reply;
       } catch (e) { /* fall back */ }
     }
     return local(q);

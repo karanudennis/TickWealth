@@ -292,7 +292,7 @@ TW.ready(function(){
         const { v, prices } = item;
         const fx = (window.TWS && TWS.analyzeForex)
           ? TWS.analyzeForex(prices, v.id)
-          : { biasLabel: 'WAIT', action: 'HOLD', conviction: 50, winPct: 50, edgePts: 0, rsi: 50, hurst: 0.5, chopIndex: 0.5, duration: 5, durationUnit: 'm', entryTrigger: 'Awaiting trend', reason: 'Insufficient history' };
+          : { biasLabel: 'WAIT', action: 'HOLD', conviction: 50, winPct: 50, edgePts: 0, rsi: 50, hurst: 0.5, chopIndex: 0.5, duration: 15, durationUnit: 'm', entryTrigger: 'Awaiting trend', reason: 'Insufficient history' };
         const sess = (window.TWS && TWS.forexSessionContext) ? TWS.forexSessionContext(v.id) : { isOpen: true, sessionName: 'FX Market', pairTip: '' };
         const actionBonus = fx.action === 'HOLD' ? -15 : 15;
         const score = (fx.conviction * 1.3) + (fx.edgePts * 2.2) + actionBonus;
@@ -370,7 +370,7 @@ TW.ready(function(){
     const isSell = fx.action === 'PUT';
     const dirCol = isBuy ? '#00ffa3' : isSell ? '#ff3b69' : '#ffd600';
     const contract = isSell ? 'PUT' : 'CALL';
-    const durMin = fx.duration || 5;
+    const durMin = fx.duration || 15;
 
     if (fx.conviction >= 72 && fx.action !== 'HOLD' && TW.fx && shouldChime) TW.fx.alert();
 
@@ -528,10 +528,10 @@ TW.ready(function(){
                     <td style="padding:6px;font-weight:900;color:${c};">${TW.esc(f.biasLabel)}</td>
                     <td style="padding:6px;color:#9fb0cc;">RSI ${f.rsi} · H=${f.hurst}</td>
                     <td style="padding:6px;font-weight:800;color:${c};">${f.conviction}%</td>
-                    <td style="padding:6px;color:#cbd5e1;">${f.duration || 5}m</td>
+                    <td style="padding:6px;color:#cbd5e1;">${f.duration || 15}m</td>
                     <td style="padding:6px;text-align:right;white-space:nowrap;">
-                      <a href="forex.html?vol=${row.v.id}&type=${ct}&dur=${f.duration || 5}&unit=m" class="btn ghost" style="padding:3px 8px;font-size:10.5px;border-radius:6px;margin-right:4px;">Trade →</a>
-                      <a href="bots-library.html?symbol=${row.v.id}&contract=${ct}&barrier=0&name=${encodeURIComponent(bName)}&dur=${f.duration || 5}&unit=m&rule_kind=ai_alpha&rule_cond=${ct === 'PUT' ? 'fall' : 'rise'}&mart=1&mart_mode=split_recovery&gate=56" class="btn ghost" style="padding:3px 8px;font-size:10.5px;border-radius:6px;color:#00b2ff;">🤖 Bot →</a>
+                      <a href="forex.html?vol=${row.v.id}&type=${ct}&dur=${f.duration || 15}&unit=m" class="btn ghost" style="padding:3px 8px;font-size:10.5px;border-radius:6px;margin-right:4px;">Trade →</a>
+                      <a href="bots-library.html?symbol=${row.v.id}&contract=${ct}&barrier=0&name=${encodeURIComponent(bName)}&dur=${f.duration || 15}&unit=m&rule_kind=ai_alpha&rule_cond=${ct === 'PUT' ? 'fall' : 'rise'}&mart=1&mart_mode=split_recovery&gate=52" class="btn ghost" style="padding:3px 8px;font-size:10.5px;border-radius:6px;color:#00b2ff;">🤖 Bot →</a>
                     </td>
                   </tr>`;
                 }).join('')}
@@ -1023,7 +1023,7 @@ TW.ready(function(){
         if (!TW.botStore) { window.location.href = getBotUrl(); return; }
         const contract = setup.best ? setup.best.contract : (pillarName==='Over / Under'?(setup.action==='OVER'?'DIGITOVER':'DIGITUNDER'):pillarName==='Even / Odd'?(setup.action==='EVEN'?'DIGITEVEN':'DIGITODD'):pillarName==='Matches / Differs'?(setup.action==='MATCHES'?'DIGITMATCH':'DIGITDIFF'):(setup.action==='CALL'?'CALL':'PUT'));
         const barr = setup.barrier != null ? setup.barrier : (setup.digit != null ? setup.digit : 2);
-        const recGate = (contract==='DIGITOVER'&&barr<=2)?66:(contract==='DIGITUNDER'&&barr>=7)?66:contract==='DIGITDIFF'?82:contract==='DIGITMATCH'?16:54;
+        const recGate = (contract==='DIGITOVER'&&barr<=2)?60:(contract==='DIGITUNDER'&&barr>=7)?60:contract==='DIGITDIFF'?80:contract==='DIGITMATCH'?12:/EVEN|ODD|CALL|PUT/.test(contract)?50:48;
         const tickDur = selectedUnit === 't' ? Math.min(10, Math.max(1, selectedDur)) : 1;
         const isRFBot = contract === 'CALL' || contract === 'PUT';
         const rl = buildSpecialistRule(contract, setup.action, barr);
@@ -1096,7 +1096,8 @@ TW.ready(function(){
                     const rRF=rContract==='CALL'||rContract==='PUT';
                     const rMart=rContract==='DIGITMATCH'?0:1;
                     const rName=specBotName(rContract, rBarr, row.v.id);
-                    const rBot=`bots-library.html?symbol=${row.v.id}&contract=${rContract}&barrier=${rBarr}&name=${encodeURIComponent(rName)}&dur=${rRF?5:1}&rule_kind=${rl.kind}&rule_cond=${rl.cond}&rule_cb=${rl.cb}&rule_n=${rl.n}&mart=${rMart}&mart_mode=${rRF?'split_recovery':'smart_barrier'}&mart_mult=1.05&mart_steps=4&shield=1&gate=${Math.max(48,Math.min(85,row.conf))}`;
+                    const rGate = (rContract==='DIGITOVER'&&rBarr<=2)?60:(rContract==='DIGITUNDER'&&rBarr>=7)?60:rContract==='DIGITDIFF'?80:rContract==='DIGITMATCH'?12:/EVEN|ODD|CALL|PUT/.test(rContract)?50:48;
+                    const rBot=`bots-library.html?symbol=${row.v.id}&contract=${rContract}&barrier=${rBarr}&name=${encodeURIComponent(rName)}&dur=${rRF?5:1}&rule_kind=${rl.kind}&rule_cond=${rl.cond}&rule_cb=${rl.cb}&rule_n=${rl.n}&mart=${rMart}&mart_mode=${rRF?'split_recovery':'smart_barrier'}&mart_mult=1.05&mart_steps=4&shield=1&gate=${rGate}`;
                     const hazCol=row.rf&&row.rf.hazard==='CHOP_TRAP'?'#ff3b69':row.rf&&row.rf.hazard==='SKEW_SPIKE'?'#00ffa3':'#00b2ff';
                     return `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);${idx===0?'background:rgba(0,255,163,0.05);':''}">
                       <td style="padding:6px;font-weight:900;color:${idx===0?'#00ffa3':'#9fb0cc'};">#${idx+1}</td>
@@ -1129,13 +1130,14 @@ TW.ready(function(){
             const rBarr = rs.barrier != null ? rs.barrier : (rs.digit != null ? rs.digit : 2);
             const rRF = rContract === 'CALL' || rContract === 'PUT';
             const rl = buildSpecialistRule(rContract, rs.action, rBarr);
+            const rGate = (rContract==='DIGITOVER'&&rBarr<=2)?60:(rContract==='DIGITUNDER'&&rBarr>=7)?60:rContract==='DIGITDIFF'?80:rContract==='DIGITMATCH'?12:/EVEN|ODD|CALL|PUT/.test(rContract)?50:48;
             const saved = TW.botStore.upsert({
               name: specBotName(rContract, rBarr, row.v.id),
               symbol: row.v.id, contract: rContract, barrier: rBarr, duration: rRF ? 5 : 1, stake: testStake || 1.0,
               rule: rl,
               mart: { on: rContract !== 'DIGITMATCH', mode: rRF ? 'split_recovery' : 'smart_barrier', mult: 1.05, steps: 4 },
               aiMode: 'active',
-              aiGate: Math.max(48, Math.min(85, row.conf)), lossShield: true, coolSecs: 4, sl: 12, tp: 24
+              aiGate: rGate, lossShield: true, coolSecs: 4, sl: 12, tp: 24
             });
             window.location.href = TW.botStore.marketUrl(saved);
           };

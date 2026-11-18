@@ -94,57 +94,88 @@ const TWS = (() => {
     }
 
     const currentDigit = D.length ? D[D.length - 1] : 5;
-    const rf = (D.length >= 15) ? regimeFingerprint(P, D) : null;
+    const rf = (D.length >= 15 || P.length >= 16) ? regimeFingerprint(P, D) : null;
 
-    // 1. Blended 2nd-Order + 1st-Order Markov Transition Probability
+    // 1. Blended 2nd-Order + 1st-Order Markov Transition Probability (Digits) or Trend Projection (CALL/PUT)
     let markovWinPct = nullProb * 100;
-    if (D.length >= 15) {
-      const m2 = D.length >= 30 ? secondOrderMarkov(D) : null;
-      const m1 = markovMatrix(D);
-      const trans = (m2 && m2.probs) ? m2.probs : ((m1 && m1.probs && m1.probs[currentDigit]) ? m1.probs[currentDigit] : null);
-      if (trans) {
-        let winSum = 0;
-        if (contract === 'DIGITOVER') {
-          for (let d = barrier + 1; d <= 9; d++) winSum += trans[d];
-        } else if (contract === 'DIGITUNDER') {
-          for (let d = 0; d < barrier; d++) winSum += trans[d];
-        } else if (contract === 'DIGITEVEN') {
-          for (let d = 0; d < 10; d += 2) winSum += trans[d];
-        } else if (contract === 'DIGITODD') {
-          for (let d = 1; d < 10; d += 2) winSum += trans[d];
-        } else if (contract === 'DIGITMATCH') {
-          winSum = trans[barrier] || 0.1;
-        } else if (contract === 'DIGITDIFF') {
-          winSum = 1 - (trans[barrier] || 0.1);
-        }
-        if (winSum > 0) markovWinPct = winSum * 100;
-      }
-    }
-
-    // 2. Full-Sample + Recency Blended Empirical Win Rate (uses full 1000t when provided)
     let empiricalWinPct = nullProb * 100;
-    if (D.length >= 15) {
-      const sample = D;
-      const sn = sample.length;
-      let wHits = 0, wTotal = 0, rawHits = 0;
-      for (let i = 0; i < sn; i++) {
-        const w = i >= sn - 25 ? 2.8 : (i >= sn - 100 ? 1.8 : 1.0);
-        const d = sample[i];
-        let hit = false;
-        if (contract === 'DIGITOVER') hit = d > barrier;
-        else if (contract === 'DIGITUNDER') hit = d < barrier;
-        else if (contract === 'DIGITEVEN') hit = d % 2 === 0;
-        else if (contract === 'DIGITODD') hit = d % 2 === 1;
-        else if (contract === 'DIGITMATCH') hit = d === barrier;
-        else if (contract === 'DIGITDIFF') hit = d !== barrier;
-        if (hit) { wHits += w; rawHits++; }
-        wTotal += w;
+    if (contract === 'CALL' || contract === 'PUT') {
+      if (P.length >= 15) {
+        const { ema5, ema15, rsi } = calcEmaRsi(P);
+        const wSlice = P.slice(-30);
+        let wMatch = 0, wSum = 0;
+        for (let i = 1; i < wSlice.length; i++) {
+          if (wSlice[i] === wSlice[i - 1]) continue;
+          const w = i >= wSlice.length - 10 ? 2.2 : 1.0;
+          const okStep = contract === 'CALL' ? (wSlice[i] > wSlice[i - 1]) : (wSlice[i] < wSlice[i - 1]);
+          if (okStep) wMatch += w;
+          wSum += w;
+        }
+        const dirPct = wSum > 0 ? (wMatch / wSum) * 100 : 50;
+        empiricalWinPct = Math.max(42, Math.min(68, 50 + (dirPct - 50) * 0.75));
+        const trendAligned = contract === 'CALL' ? (ema5 >= ema15) : (ema5 <= ema15);
+        const rsiBoost = contract === 'CALL'
+          ? (rsi >= 51 && rsi <= 72 ? 4 : (rsi < 34 ? 4 : (rsi > 76 ? -4 : 0)))
+          : (rsi <= 49 && rsi >= 28 ? 4 : (rsi > 66 ? 4 : (rsi < 24 ? -4 : 0)));
+        markovWinPct = Math.max(42, Math.min(68, 50 + (trendAligned ? 5 : -3) + (dirPct - 50) * 0.45 + rsiBoost * 0.5));
+        if (opts.symbol && /^(frx|XAU)/i.test(opts.symbol) && P.length >= 20) {
+          const fxEval = analyzeForex(P, opts.symbol);
+          if (fxEval.action === contract) {
+            markovWinPct = Math.max(markovWinPct, Math.min(66, fxEval.winPct + 2));
+            empiricalWinPct = Math.max(empiricalWinPct, fxEval.winPct);
+          } else if (fxEval.action === 'HOLD') {
+            markovWinPct = Math.min(markovWinPct, 49);
+          }
+        }
       }
-      if (wTotal > 0) empiricalWinPct = (wHits / wTotal) * 100;
-      if (sn >= 200 && nullProb > 0 && nullProb < 1) {
-        const rawRate = rawHits / sn;
-        const z = (rawRate - nullProb) / Math.sqrt((nullProb * (1 - nullProb)) / sn);
-        if (z >= 1.65) empiricalWinPct += Math.min(3.5, z * 0.9);
+    } else {
+      if (D.length >= 15) {
+        const m2 = D.length >= 30 ? secondOrderMarkov(D) : null;
+        const m1 = markovMatrix(D);
+        const trans = (m2 && m2.probs) ? m2.probs : ((m1 && m1.probs && m1.probs[currentDigit]) ? m1.probs[currentDigit] : null);
+        if (trans) {
+          let winSum = 0;
+          if (contract === 'DIGITOVER') {
+            for (let d = barrier + 1; d <= 9; d++) winSum += trans[d];
+          } else if (contract === 'DIGITUNDER') {
+            for (let d = 0; d < barrier; d++) winSum += trans[d];
+          } else if (contract === 'DIGITEVEN') {
+            for (let d = 0; d < 10; d += 2) winSum += trans[d];
+          } else if (contract === 'DIGITODD') {
+            for (let d = 1; d < 10; d += 2) winSum += trans[d];
+          } else if (contract === 'DIGITMATCH') {
+            winSum = trans[barrier] || 0.1;
+          } else if (contract === 'DIGITDIFF') {
+            winSum = 1 - (trans[barrier] || 0.1);
+          }
+          if (winSum > 0) markovWinPct = winSum * 100;
+        }
+      }
+
+      // 2. Full-Sample + Recency Blended Empirical Win Rate (uses full 1000t when provided)
+      if (D.length >= 15) {
+        const sample = D;
+        const sn = sample.length;
+        let wHits = 0, wTotal = 0, rawHits = 0;
+        for (let i = 0; i < sn; i++) {
+          const w = i >= sn - 25 ? 2.8 : (i >= sn - 100 ? 1.8 : 1.0);
+          const d = sample[i];
+          let hit = false;
+          if (contract === 'DIGITOVER') hit = d > barrier;
+          else if (contract === 'DIGITUNDER') hit = d < barrier;
+          else if (contract === 'DIGITEVEN') hit = d % 2 === 0;
+          else if (contract === 'DIGITODD') hit = d % 2 === 1;
+          else if (contract === 'DIGITMATCH') hit = d === barrier;
+          else if (contract === 'DIGITDIFF') hit = d !== barrier;
+          if (hit) { wHits += w; rawHits++; }
+          wTotal += w;
+        }
+        if (wTotal > 0) empiricalWinPct = (wHits / wTotal) * 100;
+        if (sn >= 200 && nullProb > 0 && nullProb < 1) {
+          const rawRate = rawHits / sn;
+          const z = (rawRate - nullProb) / Math.sqrt((nullProb * (1 - nullProb)) / sn);
+          if (z >= 1.65) empiricalWinPct += Math.min(3.5, z * 0.9);
+        }
       }
     }
 
@@ -154,17 +185,23 @@ const TWS = (() => {
       if (P.length >= 15) {
         const { ema5, ema15, rsi } = calcEmaRsi(P);
         const pSlice = P.slice(-15);
-        const up = pSlice.filter((p, i) => i > 0 && p > pSlice[i - 1]).length / (pSlice.length - 1);
+        let mvUp = 0, mvCnt = 0;
+        for (let i = 1; i < pSlice.length; i++) {
+          if (pSlice[i] === pSlice[i - 1]) continue;
+          if (pSlice[i] > pSlice[i - 1]) mvUp++;
+          mvCnt++;
+        }
+        const up = mvCnt > 0 ? mvUp / mvCnt : 0.5;
         if (contract === 'CALL') {
-          const tickDrift = (up - 0.5) * 16;
-          const emaAlign = ema5 > ema15 ? 4 : -3;
-          const rsiPull = rsi < 38 ? 5 : (rsi > 74 ? -5 : (rsi > 52 ? 2 : 0));
+          const tickDrift = (up - 0.5) * 14;
+          const emaAlign = ema5 >= ema15 ? 4 : -2;
+          const rsiPull = rsi < 38 ? 4 : (rsi > 76 ? -4 : (rsi > 51 ? 2 : 0));
           momentumBonus = Math.round(tickDrift + emaAlign + rsiPull);
         } else {
           const down = 1 - up;
-          const tickDrift = (down - 0.5) * 16;
-          const emaAlign = ema5 < ema15 ? 4 : -3;
-          const rsiPull = rsi > 62 ? 5 : (rsi < 26 ? -5 : (rsi < 48 ? 2 : 0));
+          const tickDrift = (down - 0.5) * 14;
+          const emaAlign = ema5 <= ema15 ? 4 : -2;
+          const rsiPull = rsi > 62 ? 4 : (rsi < 24 ? -4 : (rsi < 49 ? 2 : 0));
           momentumBonus = Math.round(tickDrift + emaAlign + rsiPull);
         }
         if (rf && rf.hurst >= 0.58) momentumBonus += 2;
@@ -180,8 +217,11 @@ const TWS = (() => {
     // 4. Regime CHOP_TRAP Penalty (filters pure alternating flip noise on high-chop indices)
     let chopPenalty = 0;
     if (rf && rf.hazard === 'CHOP_TRAP') {
-      chopPenalty = rf.chopIndex >= 0.72 ? 9 : 5;
-      if (contract === 'CALL' || contract === 'PUT') chopPenalty += 4;
+      if (contract === 'CALL' || contract === 'PUT') {
+        if (rf.chopIndex >= 0.65) chopPenalty = (rf.chopIndex >= 0.72 ? 9 : 5) + 4;
+      } else {
+        chopPenalty = rf.chopIndex >= 0.72 ? 9 : 4;
+      }
     }
 
     const rawScore = (markovWinPct * 0.55) + (empiricalWinPct * 0.30) + (nullProb * 100 * 0.15) + momentumBonus - chopPenalty;
@@ -1018,6 +1058,7 @@ const TWS = (() => {
     let i = Math.max(20, reqStreak);
     while (i < n - dur) {
       let trigger = false;
+      let aiDirContract = baseContract;
       if (kind === 'every') {
         trigger = (i % reqStreak === 0);
       } else if (kind === 'streak' && condName) {
@@ -1037,8 +1078,17 @@ const TWS = (() => {
         } else if (baseContract === 'DIGITEVEN') trigger = (prevD % 2 === 1);
         else if (baseContract === 'DIGITODD') trigger = (prevD % 2 === 0);
         else if (baseContract === 'CALL' || baseContract === 'PUT') {
-          const { ema5, ema15, rsi } = calcEmaRsi(subP);
-          trigger = baseContract === 'CALL' ? (ema5 >= ema15 && rsi < 74) : (ema5 <= ema15 && rsi > 26);
+          if (/^(frx|XAU)/i.test(sym)) {
+            const fxEval = analyzeForex(subP, sym);
+            if (fxEval.action === 'CALL' || fxEval.action === 'PUT') {
+              aiDirContract = fxEval.action;
+              trigger = true;
+            }
+          } else {
+            const { ema5, ema15, rsi } = calcEmaRsi(subP);
+            aiDirContract = ema5 >= ema15 ? 'CALL' : 'PUT';
+            trigger = aiDirContract === 'CALL' ? rsi < 76 : rsi > 24;
+          }
         } else {
           trigger = true;
         }
@@ -1049,7 +1099,7 @@ const TWS = (() => {
       if (!trigger) { i++; continue; }
 
       // Simulate active contract & Smart Recovery contract switching when applicable
-      let activeContract = baseContract;
+      let activeContract = aiDirContract;
       let activeBarrier = baseBarrier;
       const martMode = (mart && mart.on) ? (mart.mode || 'smart_barrier') : null;
       const inRecovery = !!(martMode && lossPool > 0 && martStep > 0);
@@ -1071,7 +1121,7 @@ const TWS = (() => {
         const rf = regimeFingerprint(slP, slD);
         if (rf.hazard === 'CHOP_TRAP' && rf.chopIndex >= 0.74) { i++; continue; }
         if (aiGate != null) {
-          const conf = calcConfidence({ contract: activeContract, barrier: activeBarrier, prices: slP, digits: slD, gate: aiGate, consecutiveLosses: consecLoss, lossShield });
+          const conf = calcConfidence({ contract: activeContract, barrier: activeBarrier, symbol: sym, prices: slP, digits: slD, gate: aiGate, consecutiveLosses: consecLoss, lossShield });
           if (!conf.passes) { i++; continue; }
         }
       }
@@ -1202,7 +1252,7 @@ const TWS = (() => {
     const P = Array.isArray(prices) ? prices : [];
     const D = Array.isArray(digits) ? digits : [];
     const n = D.length;
-    if (n < 15) {
+    if (n < 15 && P.length < 16) {
       return {
         normEntropy: 0.99,
         hurst: 0.50,
@@ -1217,23 +1267,27 @@ const TWS = (() => {
       };
     }
 
-    const ds = digitStats(D);
-    const normEntropy = +(ds.entropy / (ds.maxEntropy || Math.log2(10))).toFixed(3);
-    const sd = Math.sqrt(0.09 * n) || 1;
+    const ds = n >= 15 ? digitStats(D) : { entropy: 0, maxEntropy: 1, counts: Array(10).fill(0), p: 1 };
+    const normEntropy = n >= 15 ? +(ds.entropy / (ds.maxEntropy || Math.log2(10))).toFixed(3) : 0.95;
+    const sd = n >= 15 ? (Math.sqrt(0.09 * n) || 1) : 1;
     let maxDigitZ = 0;
-    ds.counts.forEach(c => {
-      const z = Math.abs(c - 0.1 * n) / sd;
-      if (z > maxDigitZ) maxDigitZ = z;
-    });
+    if (n >= 15) {
+      ds.counts.forEach(c => {
+        const z = Math.abs(c - 0.1 * n) / sd;
+        if (z > maxDigitZ) maxDigitZ = z;
+      });
+    }
     maxDigitZ = +maxDigitZ.toFixed(2);
 
     // Longest active drought across digits 0-9
     const lastIdx = Array(10).fill(-1);
     for (let i = 0; i < n; i++) if (D[i] >= 0 && D[i] <= 9) lastIdx[D[i]] = i;
-    let droughtDigit = 0, droughtTicks = -1;
-    for (let d = 0; d <= 9; d++) {
-      const gap = lastIdx[d] >= 0 ? (n - 1 - lastIdx[d]) : n;
-      if (gap > droughtTicks) { droughtTicks = gap; droughtDigit = d; }
+    let droughtDigit = 0, droughtTicks = n >= 15 ? -1 : 0;
+    if (n >= 15) {
+      for (let d = 0; d <= 9; d++) {
+        const gap = lastIdx[d] >= 0 ? (n - 1 - lastIdx[d]) : n;
+        if (gap > droughtTicks) { droughtTicks = gap; droughtDigit = d; }
+      }
     }
 
     // Hurst & Price Chop Index: fast 25t local chop + full-sample macro Hurst when n >= 120
@@ -1264,7 +1318,7 @@ const TWS = (() => {
 
     let hazard = 'BALANCED';
     let regimeLabel = 'Stationary Balanced Flow';
-    if (chopIndex >= 0.68 || normEntropy >= 0.992) {
+    if (chopIndex >= 0.68 || (n >= 40 && normEntropy >= 0.996)) {
       hazard = 'CHOP_TRAP';
       regimeLabel = 'High-Chop / High-Entropy Noise';
     } else if (hurst >= 0.58) {
@@ -1445,10 +1499,9 @@ const TWS = (() => {
     const edgePts = +(winPct - 50).toFixed(1);
     const conviction = Math.max(45, Math.min(93, Math.round(52 + absScore * 1.15 - (rf.hazard === 'CHOP_TRAP' ? 12 : 0))));
 
-    // Horizon selection based on Hurst & Chop
+    // Horizon selection based on Hurst & Chop (Deriv FX pairs require >=15m expiry)
     let horizon = '15m', duration = 15, durationUnit = 'm';
-    if (rf.hurst >= 0.60 && rf.chopIndex < 0.52) { horizon = '5m'; duration = 5; durationUnit = 'm'; }
-    else if (rf.chopIndex >= 0.60) { horizon = '30m'; duration = 30; durationUnit = 'm'; }
+    if (rf.chopIndex >= 0.60) { horizon = '30m'; duration = 30; durationUnit = 'm'; }
 
     const trendTxt = ema9 >= ema21 ? 'EMA9 > EMA21 bullish alignment' : 'EMA9 < EMA21 bearish alignment';
     const srTxt = rangePct >= 82 ? 'near 50-bar resistance' : (rangePct <= 18 ? 'near 50-bar support' : `${rangePct}% of 50-bar range`);

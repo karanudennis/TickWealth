@@ -125,7 +125,7 @@ function draw(){drawNav();det.textContent='';clearInterval(cdT);cd=0;cur=null;co
      symbol:SYM,contract:CTYPE[k.c],dur:k.dur,stake:st.value||'0.35',
      rule_kind:rKind,rule_cond:rCond,rule_cb:rCb,rule_n:rN,
      mart:isMatchOrMoon?'0':'1',
-     mart_mode:isMatchOrMoon?'fixed':(isDirectional?'split_recovery':'smart_barrier'),
+     mart_mode:isMatchOrMoon?'smart_barrier':(isDirectional?'split_recovery':'smart_barrier'),
      mart_mult:'1.05',
      mart_steps:isMatchOrMoon?'1':'4',
      shield:'1',

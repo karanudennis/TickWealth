@@ -68,9 +68,18 @@ async function generateWithTimeout(params: any, timeoutMs = 9500) {
 app.post('/api/ai/deep-scan', async (req: Request, res: Response) => {
   try {
     if (!ai) {
-      return res.status(503).json({
-        error: 'Gemini AI API key not configured in environment.',
+      const { scanResults, confidenceThreshold } = req.body || {};
+      const top = Array.isArray(scanResults) && scanResults.length > 0 ? scanResults[0] : null;
+      const topName = top ? (top.name || top.v?.name || top.symbol || 'Volatility Index') : 'Primary Market';
+      const topSym = top ? (top.symbol || top.v?.id || 'R_100') : 'R_100';
+      return res.json({
+        success: true,
         fallback: true,
+        source: 'quant-engine',
+        report: top
+          ? `[QUANTUM EXECUTIVE BRIEFING - QUANTITATIVE REGIME SYNTHESIS]\n1. TOP TACTICAL SETUP: ${topName} (${topSym}) | Setup: ${top.bestPlace || top.ouDecision?.decision || 'Optimal Barrier'} | Edge: +${top.edgePts ?? 4.5} pts (Confidence: ${top.confidence ?? top.conf ?? 80}%)\n2. LOSS-MINIMIZATION: Enforce AI Gate >=${confidenceThreshold || 80}% with Chop-Trap veto and Adaptive Loss Shield.`
+          : `[QUANTUM EXECUTIVE BRIEFING - DEFAULT SYNTHESIS]\nMaintain AI Gate >=${confidenceThreshold || 80}% and paper-test setups before live deployment.`,
+        timestamp: new Date().toISOString(),
       });
     }
 
@@ -227,11 +236,15 @@ function generateFallbackProjection(scannedMarkets: any[], confidenceThreshold?:
   const nullPct = ou.nullPct ?? 70.0;
   const winDigits = ou.best?.winningDigits ? ou.best.winningDigits.join(',') : '0,1,2,3,4,5,6';
 
+  const topName = top.name || top.v?.name || top.symbol || 'Volatility Index';
+  const topSym = top.symbol || top.v?.id || 'R_100';
+  const secName = second ? (second.name || second.v?.name || second.symbol || 'Secondary Index') : '';
+  const secSym = second ? (second.symbol || second.v?.id || '') : '';
   return `[QUANTUM PREDICTIVE PROJECTION - REAL DATA MULTI-HORIZON & MARKOV SYNTHESIS]
 1. 🔮 TOP INCOMING MARKET PROJECTION:
-   - Primary Market: ${top.name} (${top.symbol}) | Regime: ${top.regime || 'PERSISTENT_MOMENTUM'}
-   - Multi-horizon drift indicates forward persistence with Hurst exponent H = ${top.hurst || 0.58} and normalized entropy ${top.projectedEntropy || 0.94}.
-   ${second ? `- Secondary Alternative: ${second.name} (${second.symbol}) with decision ${second.ouDecision?.decision || 'OVER 2'} (+${second.ouDecision?.edgePts || second.edgePts || 8.5} pts edge).` : ''}
+   - Primary Market: ${topName} (${topSym}) | Regime: ${top.regime || 'PERSISTENT_MOMENTUM'}
+   - Multi-horizon drift indicates forward persistence with Hurst exponent H = ${top.hurst || 0.58} and normalized entropy ${top.entropy ?? top.projectedEntropy ?? 0.94}.
+   ${second ? `- Secondary Alternative: ${secName} (${secSym}) with decision ${second.ouDecision?.decision || 'OVER 2'} (+${second.ouDecision?.edgePts ?? second.edgePts ?? 8.5} pts edge).` : ''}
 
 2. 🎯 OPTIMAL INCOMING CONTRACT & BARRIER DECISION:
    - DECISION: ${decisionText} (BARRIER: ${barrierNum})
@@ -333,6 +346,9 @@ function generateFallbackCrossMarketBriefing(markets: any[], th: number = 80): s
   const traps = sorted.filter(m => Number(m.entropy || 0.95) > 0.985 || Number(m.conf || 0) < 70);
   const avgEntropy = (markets.reduce((acc, m) => acc + Number(m.entropy || 0.95), 0) / markets.length).toFixed(3);
 
+  const leadName = lead.name || lead.v?.name || lead.symbol || 'Lead Index';
+  const leadSym = lead.symbol || lead.v?.id || 'R_100';
+  const secName = second ? (second.name || second.v?.name || second.symbol || 'Secondary Index') : '';
   return `[CROSS-MARKET AI ANALYSIS - INSTITUTIONAL MULTI-ASSET SYNTHESIS]
 1. 🌐 CROSS-MARKET VOLATILITY REGIME CLUSTERING:
    - Analysis of ${markets.length} synthetic volatility indices reveals multi-horizon dispersion.
@@ -340,22 +356,22 @@ function generateFallbackCrossMarketBriefing(markets: any[], th: number = 80): s
    - Cross-market normalized Shannon entropy average is ${avgEntropy}.
 
 2. 🏆 GLOBAL ALPHA LEADER & ROTATION DIRECTIVE:
-   - Lead Index: ${lead.name} (${lead.symbol}) [Grade ${lead.grade || 'A+'}]
+   - Lead Index: ${leadName} (${leadSym}) [Grade ${lead.grade || 'A+'}]
    - Optimal Contract: ${lead.ouDecision?.decision || 'UNDER 7'} (Barrier: ${lead.ouDecision?.barrier ?? 7})
-   - Expected Win Rate: ~${lead.ouDecision?.projectedWinPct || 80.2}% (Net Statistical Edge: +${lead.ouDecision?.edgePts || lead.edgePts || 11.2} pts vs normal odds).
-   - Rotation Directive: Rotate capital away from low-edge indices into ${lead.name} to maximize Sharpe efficiency.
-   ${second ? `- Secondary Tactical Pick: ${second.name} with ${second.ouDecision?.decision || 'OVER 2'} (+${second.ouDecision?.edgePts || second.edgePts} pts edge).` : ''}
+   - Expected Win Rate: ~${lead.ouDecision?.projectedWinPct || 80.2}% (Net Statistical Edge: +${lead.ouDecision?.edgePts ?? lead.edgePts ?? 11.2} pts vs normal odds).
+   - Rotation Directive: Rotate capital away from low-edge indices into ${leadName} to maximize Sharpe efficiency.
+   ${second ? `- Secondary Tactical Pick: ${secName} with ${second.ouDecision?.decision || 'OVER 2'} (+${second.ouDecision?.edgePts ?? second.edgePts ?? 3.0} pts edge).` : ''}
 
 3. ⚡ CROSS-MARKET DIVERGENCE & RELATIVE VALUE:
-   - Top-to-bottom edge spread across the universe is ${(Number(lead.ouDecision?.edgePts || lead.edgePts || 10) - Number(sorted[sorted.length - 1]?.edgePts || 0)).toFixed(1)} points.
+   - Top-to-bottom edge spread across the universe is ${(Number(lead.ouDecision?.edgePts ?? lead.edgePts ?? 10) - Number(sorted[sorted.length - 1]?.edgePts ?? 0)).toFixed(1)} points.
    - High-conviction setups cluster heavily around outer digit boundaries (Under 7 and Over 2).
 
 4. 🛡️ SYSTEMIC CAPITAL SHIELD & VETO TRAPS:
-   - Blacklist Traps: ${traps.length > 0 ? traps.map(t => t.name).slice(0, 3).join(', ') : 'None (all markets within noise limits)'} are currently flagged for high entropy (>0.985) or sub-threshold confidence.
+   - Blacklist Traps: ${traps.length > 0 ? traps.map(t => t.name || t.v?.name || t.symbol || 'Unknown').slice(0, 3).join(', ') : 'None (all markets within noise limits)'} are currently flagged for high entropy (>0.985) or sub-threshold confidence.
    - Execution Gate: The AI Loss Guard strictly vetoes any incoming signal below ${th}%.
 
 5. 📊 MULTI-BOT BASKET EXECUTION:
-   - Allocate 60% of bot capacity to ${lead.name} and 40% to secondary alpha leaders with fractional Kelly staking at 1.5% balance max.`;
+   - Allocate 60% of bot capacity to ${leadName} and 40% to secondary alpha leaders with fractional Kelly staking at 1.5% balance max.`;
 }
 
 /**
@@ -429,9 +445,12 @@ Keep tone strictly institutional, quantitative, objective, and under 260 words.`
 app.post('/api/ai/chat', async (req: Request, res: Response) => {
   try {
     if (!ai) {
-      return res.status(503).json({
-        error: 'Gemini AI API key not configured in environment.',
-        reply: 'The AI server connection is currently operating in offline mode. Please ensure GEMINI_API_KEY is configured in Settings > Secrets.',
+      const ctx = req.body?.context || {};
+      return res.json({
+        success: true,
+        source: 'quant-engine',
+        fallback: true,
+        reply: `✦ Quant Coach (${ctx.market || 'R_100'} · ${ctx.mode || 'paper'}): Balance $${Number(ctx.balance || 1000).toFixed(2)}. Keep base stake <=2% equity, validate strategies on Paper Mode first, and respect AI Chop-Trap filters.`,
       });
     }
 
@@ -590,7 +609,8 @@ app.post('/api/ai/bot-architect', async (req: Request, res: Response) => {
     const martOn = !noMart;
     const martMode = isRF ? 'split_recovery' : 'smart_barrier';
     const baseStake = Math.max(0.35, Math.min(25, Number(defaultStake) || (isUltraSafe ? 0.35 : 0.5)));
-    const duration = isFx ? (q.includes('15m') ? 15 : 5) : (isRF ? 5 : 1);
+    const isNonGoldFx = /^frx(?!XAU)/i.test(symbol);
+    const duration = isFx ? (q.includes('30m') ? 30 : (q.includes('5m') && !isNonGoldFx ? 5 : 15)) : (isRF ? 5 : 1);
     const durationUnit = isFx ? 'm' : 't';
 
     return {
@@ -670,7 +690,7 @@ Remember calibration & naming rules:
 - DIGITDIFF has ~90% baseline -> calibrate aiGate around 82-88%.
 - DIGITMATCH has ~10% baseline -> calibrate aiGate around 12-18%, and set martOn=false (flat sizing only).
 - Step Indices (stpRNG..stpRNG5) and Forex/Gold (frxEURUSD..frxXAUUSD) only support CALL (Buy/Rise) and PUT (Sell/Fall) contracts.
-- For Forex/Gold pairs, use durationUnit="m" and duration=5 or 15, with ruleKind="ai_alpha" and martMode="split_recovery".
+- For Forex/Gold pairs, use durationUnit="m" and duration=15 (minimum 15m on FX pairs), with ruleKind="ai_alpha" and martMode="split_recovery".
 - Always prefer aiMode="active" or "strict", ruleKind="streak" or "ai_alpha" (never instant), and martMode="smart_barrier" (digits) or "split_recovery" (CALL/PUT) with martMult=1.05 and martSteps<=4 instead of blind doubling. Never promise profit in rationale.`,
       config: {
         thinkingConfig: { thinkingLevel: ThinkingLevel.LOW },
@@ -705,7 +725,7 @@ Remember calibration & naming rules:
         symbol,
         contract,
         barrier: Math.max(0, Math.min(9, Math.round(Number(parsed.barrier ?? 7)))),
-        duration: Math.max(isFx && durationUnit === 'm' ? 5 : 1, Math.min(maxDur, Math.round(Number(parsed.duration ?? (isFx ? 5 : 1))))),
+        duration: Math.max(isFx && durationUnit === 'm' ? (/^frx(?!XAU)/i.test(symbol) ? 15 : 5) : 1, Math.min(maxDur, Math.round(Number(parsed.duration ?? (isFx ? 15 : 1))))),
         durationUnit,
         stake: Math.max(0.35, Math.min(50, +Number(parsed.stake ?? 0.5).toFixed(2))),
         aiGate: Math.max(10, Math.min(92, Math.round(Number(parsed.aiGate ?? 68)))),

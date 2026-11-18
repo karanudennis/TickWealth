@@ -718,9 +718,13 @@ function clean(b) {
   let contract = CT.includes(b.contract) ? b.contract : 'DIGITUNDER';
   if (symObj && !symObj.digits && /^DIGIT/.test(contract)) contract = 'CALL';
   const barrier = num(b.barrier, 0, 9, contract === 'DIGITOVER' ? 2 : contract === 'DIGITUNDER' ? 7 : 4);
-  const durationUnit = ['t', 's', 'm', 'h'].includes(b.durationUnit) ? b.durationUnit : (symObj && symObj.fx ? 'm' : 't');
+  const isFx = /^(frx|XAU)/i.test(symbol);
+  let durationUnit = ['t', 's', 'm', 'h'].includes(b.durationUnit) ? b.durationUnit : (isFx ? 'm' : 't');
+  if (isFx && durationUnit === 't') durationUnit = 'm';
   const maxDur = durationUnit === 't' ? 10 : 60;
-  const defDur = durationUnit === 't' ? 1 : 5;
+  const defDur = durationUnit === 't' ? 1 : (isFx ? 15 : 5);
+  let duration = num(b.duration, 1, maxDur, defDur);
+  if (/^frx(?!XAU)/i.test(symbol) && durationUnit === 'm' && duration < 15) duration = 15;
   const defGate = defaultBotGate(contract, barrier);
   const martMode = ['smart_barrier', 'split_recovery', 'payout_martingale', 'martingale', 'dalembert', 'fibonacci', 'compounding'].includes(m.mode) ? m.mode : 'smart_barrier';
   return {
@@ -729,7 +733,7 @@ function clean(b) {
     symbol,
     contract,
     barrier,
-    duration: num(b.duration, 1, maxDur, defDur),
+    duration,
     durationUnit,
     stake: num(b.stake, 0.35, 1000, 0.5),
     rule: {
@@ -746,7 +750,7 @@ function clean(b) {
     notes: String(b.notes || '').replace(/^Role:\s*/i, '').slice(0, 280),
     aiMode: ['active', 'strict', 'turbo'].includes(b.aiMode) ? b.aiMode : 'active',
     speedMode: ['hft', 'balanced', 'guarded'].includes(b.speedMode) ? b.speedMode : 'hft',
-    aiGate: num(b.aiGate, 10, 95, defGate),
+    aiGate: (((!b.aiMode || b.aiMode === 'active') && defGate <= 60 && +b.aiGate >= 82) ? defGate : num(b.aiGate, 10, 95, defGate)),
     lossShield: b.lossShield !== false
   };
 }
@@ -756,15 +760,22 @@ const EX = [
   { id: 'preset_o2_25s', name: 'Expert Over 2 Reversion · Split Recovery', symbol: '1HZ25V', contract: 'DIGITOVER', barrier: 2, duration: 1, durationUnit: 't', rule: { kind: 'streak', cond: 'under', cb: 3, n: 1 }, aiGate: 58, aiMode: 'active', lossShield: true, coolSecs: 4, stake: 0.50, mart: { on: true, mode: 'split_recovery', mult: 1.0, steps: 5 }, sl: 10, tp: 20, notes: 'Best in Over 2: enters after low-digit flush (0/1/2). Splits recovery across 2 high-ROI (+90%) barrier shots so stake never explodes.' },
   { id: 'preset_md_cold', name: 'Expert Coldest Differs · High-ROI Switch', symbol: '1HZ10V', contract: 'DIGITDIFF', barrier: 0, duration: 1, durationUnit: 't', rule: { kind: 'ai_alpha' }, aiGate: 80, aiMode: 'active', lossShield: true, coolSecs: 5, stake: 1.00, mart: { on: true, mode: 'smart_barrier', mult: 1.05, steps: 4 }, sl: 10, tp: 20, notes: 'Best in Matches/Differs: targets coldest digit over 100 ticks (~90% odds). On rare loss, switches recovery to Under 5 / Over 4 (+90% ROI).' },
   { id: 'preset_ai_ou', name: 'Expert Over/Under Switcher · Payout Recovery', symbol: 'R_100', contract: 'DIGITOVER', barrier: 2, duration: 1, durationUnit: 't', rule: { kind: 'ai_alpha', cond: 'under', cb: 3, n: 1 }, aiGate: 58, aiMode: 'active', lossShield: true, coolSecs: 4, stake: 0.50, mart: { on: true, mode: 'payout_martingale', mult: 1.08, steps: 4 }, sl: 15, tp: 25, notes: 'Dynamic Over/Under specialist: switches between Over 2/3 & Under 6/7 using Markov skew; sizes recovery strictly to exact contract ROI.' },
-  { id: 'preset_eo_alt', name: 'Expert Even/Odd Parity · Step-Lock Recovery', symbol: 'R_50', contract: 'DIGITEVEN', barrier: 0, duration: 1, durationUnit: 't', rule: { kind: 'streak', cond: 'odd', cb: 0, n: 2 }, aiGate: 52, aiMode: 'active', lossShield: true, coolSecs: 5, stake: 0.50, mart: { on: true, mode: 'payout_martingale', mult: 1.05, steps: 4 }, sl: 10, tp: 15, notes: 'Best in Even/Odd: enters counter-parity after 2+ streak with runs-test filter & calibrated recovery + 5s cooldown after 2L.' },
-  { id: 'preset_rf_ema', name: 'Expert Rise/Fall Momentum · Cooldown Split', symbol: 'R_75', contract: 'CALL', barrier: 0, duration: 5, durationUnit: 't', rule: { kind: 'ai_alpha', cond: 'rise', n: 1 }, aiGate: 55, aiMode: 'active', lossShield: true, coolSecs: 6, stake: 0.50, mart: { on: true, mode: 'split_recovery', mult: 1.05, steps: 4 }, sl: 10, tp: 20, notes: 'Best in Rise/Fall: trades CALL/PUT on EMA5 vs EMA15 trend alignment; splits drawdown over 2 wins with 6s chop-cooldown.' },
-  { id: 'preset_fx_eur', name: 'Expert Forex Trend Buyer/Seller (EUR/USD)', symbol: 'frxEURUSD', contract: 'CALL', barrier: 0, duration: 5, durationUnit: 'm', rule: { kind: 'ai_alpha', cond: 'rise', n: 1 }, aiGate: 56, aiMode: 'active', lossShield: true, coolSecs: 8, stake: 1.00, mart: { on: true, mode: 'split_recovery', mult: 1.05, steps: 3 }, sl: 15, tp: 30, notes: 'Best in Forex Buy/Sell: dynamically selects BUY (CALL) or SELL (PUT) on EUR/USD using EMA9/21 trend & RSI(14) with 5m expiry.' }
+  { id: 'preset_eo_alt', name: 'Expert Even/Odd Parity · Step-Lock Recovery', symbol: 'R_50', contract: 'DIGITEVEN', barrier: 0, duration: 1, durationUnit: 't', rule: { kind: 'streak', cond: 'odd', cb: 0, n: 2 }, aiGate: 50, aiMode: 'active', lossShield: true, coolSecs: 5, stake: 0.50, mart: { on: true, mode: 'payout_martingale', mult: 1.05, steps: 4 }, sl: 10, tp: 15, notes: 'Best in Even/Odd: enters counter-parity after 2+ streak with runs-test filter & calibrated recovery + 5s cooldown after 2L.' },
+  { id: 'preset_rf_ema', name: 'Expert Rise/Fall Momentum · Cooldown Split', symbol: 'R_75', contract: 'CALL', barrier: 0, duration: 5, durationUnit: 't', rule: { kind: 'ai_alpha', cond: 'rise', n: 1 }, aiGate: 52, aiMode: 'active', lossShield: true, coolSecs: 6, stake: 0.50, mart: { on: true, mode: 'split_recovery', mult: 1.05, steps: 4 }, sl: 10, tp: 20, notes: 'Best in Rise/Fall: trades CALL/PUT on EMA5 vs EMA15 trend alignment; splits drawdown over 2 wins with 6s chop-cooldown.' },
+  { id: 'preset_fx_eur', name: 'Expert Forex Trend Buyer/Seller (EUR/USD)', symbol: 'frxEURUSD', contract: 'CALL', barrier: 0, duration: 15, durationUnit: 'm', rule: { kind: 'ai_alpha', cond: 'rise', n: 1 }, aiGate: 52, aiMode: 'active', lossShield: true, coolSecs: 8, stake: 1.00, mart: { on: true, mode: 'split_recovery', mult: 1.05, steps: 3 }, sl: 15, tp: 30, notes: 'Best in Forex Buy/Sell: dynamically selects BUY (CALL) or SELL (PUT) on EUR/USD using EMA9/21 trend & RSI(14) with 15m expiry.' }
 ];
 
 function load() {
   try {
     const a = JSON.parse(localStorage.getItem(BOTKEY));
-    if (Array.isArray(a) && a.length) return a.map(clean).map((b, i) => Object.assign(b, { id: a[i].id || b.id }));
+    if (Array.isArray(a) && a.length) {
+      const cleaned = a.map(clean).map((b, i) => Object.assign(b, { id: a[i].id || b.id }));
+      try {
+        const nextJson = JSON.stringify(cleaned);
+        if (nextJson !== localStorage.getItem(BOTKEY)) localStorage.setItem(BOTKEY, nextJson);
+      } catch (e) {}
+      return cleaned;
+    }
     for (const oldKey of [LEGACY_BOTKEY, 'tw_bots_v5']) {
       const legacy = JSON.parse(localStorage.getItem(oldKey));
       if (Array.isArray(legacy) && legacy.length) {
@@ -792,7 +803,7 @@ function marketUrlForBot(b) {
   const enc = encodeURIComponent;
   const isFx = /^(frx|XAU)/i.test(String(b.symbol || ''));
   const unit = b.durationUnit || (isFx ? 'm' : 't');
-  if (isFx) return `forex.html?vol=${enc(b.symbol)}&type=${c === 'PUT' ? 'PUT' : 'CALL'}&dur=${b.duration || 5}&unit=${enc(unit)}&bot=${enc(b.id)}`;
+  if (isFx) return `forex.html?vol=${enc(b.symbol)}&type=${c === 'PUT' ? 'PUT' : 'CALL'}&dur=${b.duration || 15}&unit=${enc(unit)}&bot=${enc(b.id)}`;
   if (/OVER|UNDER/.test(c)) return `over-under.html?vol=${enc(b.symbol)}&type=${c === 'DIGITOVER' ? 'OVER' : 'UNDER'}&barrier=${b.barrier != null ? b.barrier : 7}&dur=${b.duration || 1}&bot=${enc(b.id)}`;
   if (/EVEN|ODD/.test(c)) return `even-odd.html?vol=${enc(b.symbol)}&type=${c === 'DIGITEVEN' ? 'EVEN' : 'ODD'}&dur=${b.duration || 1}&bot=${enc(b.id)}`;
   if (/MATCH|DIFF/.test(c)) return `matches-differs.html?vol=${enc(b.symbol)}&type=${c === 'DIGITMATCH' ? 'MATCHES' : 'DIFFERS'}&digit=${b.barrier != null ? b.barrier : 0}&dur=${b.duration || 1}&bot=${enc(b.id)}`;
@@ -1013,7 +1024,7 @@ function recordMonTrade(b, t, stake, profit, isRecovery) {
   const entryExit = t.exitDigit != null ? `D:${t.entryDigit != null ? t.entryDigit : '-'} → D:${t.exitDigit}` : (t.exit ? `${t.entry || '-'} → ${t.exit}` : '-');
   monData.journal.unshift({
     id: monData.trades,
-    refId: t.cid || monData.trades,
+    refId: t.id || t.cid || monData.trades,
     time: nowClock(),
     bot: b.name,
     market: TW.volName(b.symbol),
@@ -1112,7 +1123,7 @@ function start(b) {
   const r = R[b.id] = {
     on: true, busy: false, k: 0, n: 0, w: 0, pnl: 0, recoveryPool: 0, step: 0,
     consecutiveLosses: 0, vetos: 0, grossWin: 0, grossLoss: 0, coolUntil: 0,
-    digitsTape: [], history: [], startTs: Date.now(), msg: `Streaming ${TW.volName(b.symbol)}…`
+    fxCandles: null, digitsTape: [], history: [], startTs: Date.now(), msg: `Streaming ${TW.volName(b.symbol)}…`
   };
   selectedBotId = b.id;
   addMonLog(`▶ Started "${b.name}" on ${TW.volName(b.symbol)} · ${b.contract}${/OVER|UNDER|MATCH|DIFF/.test(b.contract) ? ' ' + b.barrier : ''} · $${Number(b.stake).toFixed(2)} (${b.mart.mode})`, 'info');
@@ -1120,6 +1131,19 @@ function start(b) {
   updateRunUiState();
   applyBotFilter();
   renderQuickStrategy();
+
+  if (/^(frx|XAU)/i.test(b.symbol) && TW.scanMarkets) {
+    const fxMeta = TW.VOLS.find(v => v.id === b.symbol) || { id: b.symbol, name: TW.volName(b.symbol), fx: true };
+    TW.scanMarkets([fxMeta], {
+      count: 240, style: 'candles', granularity: 900, concurrency: 1, timeoutMs: 6500,
+      onDone: items => {
+        if (r.on && items && items[0] && items[0].prices && items[0].prices.length >= 20) {
+          r.fxCandles = items[0].prices;
+          if (!r.busy) tick(b, TW.tickPool[b.symbol] || { prices: r.fxCandles.slice(-80), digits: [] });
+        }
+      }
+    });
+  }
 
   r.feed = TW.tickFeed(b.symbol, {
     primary: false, count: 80,
@@ -1134,6 +1158,12 @@ function start(b) {
       if (!r.on) return;
       if (fd && fd.digits) r.digitsTape = fd.digits.slice(-8);
       if (!r.busy) tick(b, fd);
+    },
+    onError: msg => {
+      if (!r.on) return;
+      r.msg = `⚠️ Feed: ${msg}`;
+      addMonLog(`⚠️ [${b.name}] Feed notice (${b.symbol}): ${msg}`, 'error');
+      info(b);
     }
   });
 }
@@ -1176,12 +1206,16 @@ function tick(b, fd) {
   }
   r.coolUntil = 0;
 
+  const isFxBot = /^(frx|XAU)/i.test(b.symbol);
+  const fxSeries = (isFxBot && r.fxCandles && r.fxCandles.length >= 20)
+    ? r.fxCandles.slice(-240).concat([P[i]])
+    : P;
   let go = false, s = 0, dynContract = b.contract, dynBarrier = b.barrier;
   if (b.rule.kind === 'instant') {
     go = true;
   } else if (b.rule.kind === 'ai_alpha') {
     go = true;
-    if (P.length >= 15 && window.TWS) {
+    if ((fxSeries.length >= 15 || P.length >= 15) && window.TWS) {
       if (/OVER|UNDER/.test(b.contract) && TWS.decideOverUnder) {
         const ou = TWS.decideOverUnder(D, P);
         if (ou && ou.best) { dynContract = ou.best.contract; dynBarrier = ou.best.barrier; }
@@ -1192,10 +1226,11 @@ function tick(b, fd) {
         const counts = Array(10).fill(0); D.slice(-100).forEach(d => counts[d]++);
         dynBarrier = b.contract === 'DIGITDIFF' ? counts.indexOf(Math.min(...counts)) : counts.indexOf(Math.max(...counts));
       } else if (b.contract === 'CALL' || b.contract === 'PUT') {
-        if (/^(frx|XAU)/i.test(b.symbol) && TWS.analyzeForex && P.length >= 20) {
-          const fxSig = TWS.analyzeForex(P, b.symbol);
+        if (isFxBot && TWS.analyzeForex && fxSeries.length >= 20) {
+          const fxSig = TWS.analyzeForex(fxSeries, b.symbol);
           if (fxSig.action === 'CALL' || fxSig.action === 'PUT') dynContract = fxSig.action;
-          else if (b.aiMode !== 'turbo') go = false;
+          else if (b.aiMode === 'turbo') dynContract = fxSig.ema9 >= fxSig.ema21 ? 'CALL' : 'PUT';
+          else go = false;
         } else {
           const win = P.slice(-20);
           const ema5 = win.slice(-5).reduce((a, c) => a + c, 0) / Math.min(5, win.length);
@@ -1214,10 +1249,11 @@ function tick(b, fd) {
 
   const plan = planExecution(b, r, dynContract, dynBarrier, D);
   const evalC = plan.contract, evalB = plan.barrier;
-  const targetGate = b.aiGate || defaultBotGate(evalC, evalB);
-  const rf = (window.TWS && TWS.regimeFingerprint && P.length >= 20 && D.length >= 20) ? TWS.regimeFingerprint(P, D) : null;
+  const targetGate = (plan.switched || evalC !== b.contract || evalB !== b.barrier) ? defaultBotGate(evalC, evalB) : (b.aiGate || defaultBotGate(evalC, evalB));
+  const priceSeries = isFxBot ? fxSeries : P;
+  const rf = (window.TWS && TWS.regimeFingerprint && (priceSeries.length >= 20 || D.length >= 20)) ? TWS.regimeFingerprint(priceSeries, D) : null;
   const conf = (window.TWS && TWS.calcConfidence)
-    ? TWS.calcConfidence({ contract: evalC, barrier: evalB, prices: P, digits: D, consecutiveLosses: r.consecutiveLosses || 0, gate: targetGate, lossShield: b.lossShield !== false })
+    ? TWS.calcConfidence({ contract: evalC, barrier: evalB, symbol: b.symbol, prices: priceSeries, digits: D, consecutiveLosses: r.consecutiveLosses || 0, gate: targetGate, lossShield: b.lossShield !== false })
     : { score: 75, passes: true, gate: targetGate };
 
   if (b.id === selectedBotId) {
@@ -1274,8 +1310,12 @@ async function place(b, r, prePlan) {
 
   try {
     const isDig = /^DIGIT/.test(useContract);
-    const durUnit = isDig ? 't' : (b.durationUnit || 't');
-    const durVal = isDig ? Math.min(10, Math.max(1, b.duration || 1)) : Math.max(1, b.duration || 5);
+    let durUnit = isDig ? 't' : (b.durationUnit || 't');
+    let durVal = isDig ? Math.min(10, Math.max(1, b.duration || 1)) : Math.max(1, b.duration || 5);
+    if (/^frx(?!XAU)/i.test(b.symbol)) {
+      if (durUnit === 't') durUnit = 'm';
+      if (durUnit === 'm' && durVal < 15) durVal = 15;
+    }
     const t = await TW.trade({
       contract_type: useContract, symbol: b.symbol, amount: st,
       duration: durVal, duration_unit: durUnit, barrier: useBarrier,
@@ -1455,12 +1495,13 @@ function commitQuickEdits(sourceEl) {
     const allowed = CAT_TYPES[catEl.value] || CAT_TYPES.overunder;
     if (!allowed.some(([v]) => v === contract)) contract = allowed[0][0];
   }
-  const barrier = /OVER|UNDER|MATCH|DIFF/.test(contract) ? (+digEl.value || (contract === 'DIGITUNDER' ? 7 : contract === 'DIGITOVER' ? 2 : 0)) : 0;
+  const rawDig = digEl && digEl.value !== '' ? Number(digEl.value) : NaN;
+  const barrier = /OVER|UNDER|MATCH|DIFF/.test(contract) ? (Number.isFinite(rawDig) ? rawDig : (contract === 'DIGITUNDER' ? 7 : contract === 'DIGITOVER' ? 2 : 0)) : 0;
   let durationUnit = document.getElementById('qsUnit').value || 't';
   if (/^DIGIT/.test(contract)) durationUnit = 't';
   else if (sourceEl === symEl && symMeta.fx && durationUnit === 't') durationUnit = 'm';
-  let durNum = +document.getElementById('qsDur').value || (durationUnit === 't' ? 1 : 5);
-  if (sourceEl === symEl && symMeta.fx && durNum === 1 && durationUnit === 'm') durNum = 5;
+  let durNum = +document.getElementById('qsDur').value || (durationUnit === 't' ? 1 : (symMeta.fx ? 15 : 5));
+  if (sourceEl === symEl && symMeta.fx && durationUnit === 'm' && durNum < (/^frx(?!XAU)/i.test(sym) ? 15 : 5)) durNum = 15;
 
   const martVal = document.getElementById('qsMartMode').value;
   const updated = clean(Object.assign({}, b, {
@@ -1587,12 +1628,13 @@ function commitBuilderEdits(sourceEl) {
     const allowed = CAT_TYPES[catEl.value] || CAT_TYPES.overunder;
     if (!allowed.some(([v]) => v === contract)) contract = allowed[0][0];
   }
-  const barrier = /OVER|UNDER|MATCH|DIFF/.test(contract) ? (+digEl.value || (contract === 'DIGITUNDER' ? 7 : contract === 'DIGITOVER' ? 2 : 0)) : 0;
+  const rawDig = digEl && digEl.value !== '' ? Number(digEl.value) : NaN;
+  const barrier = /OVER|UNDER|MATCH|DIFF/.test(contract) ? (Number.isFinite(rawDig) ? rawDig : (contract === 'DIGITUNDER' ? 7 : contract === 'DIGITOVER' ? 2 : 0)) : 0;
   let durationUnit = document.getElementById('blkUnit')?.value || 't';
   if (/^DIGIT/.test(contract)) durationUnit = 't';
   else if (sourceEl === symEl && symMeta.fx && durationUnit === 't') durationUnit = 'm';
-  let durNum = +document.getElementById('blkDur').value || (durationUnit === 't' ? 1 : 5);
-  if (sourceEl === symEl && symMeta.fx && durNum === 1 && durationUnit === 'm') durNum = 5;
+  let durNum = +document.getElementById('blkDur').value || (durationUnit === 't' ? 1 : (symMeta.fx ? 15 : 5));
+  if (sourceEl === symEl && symMeta.fx && durationUnit === 'm' && durNum < (/^frx(?!XAU)/i.test(sym) ? 15 : 5)) durNum = 15;
 
   const updated = clean({
     id: b.id,
@@ -1881,7 +1923,8 @@ $('#list').addEventListener('change', e => {
   b[e.target.dataset.k] = e.target.value; save(); renderBuilderFromBot(b.id);
 });
 $('#list').addEventListener('click', async e => {
-  const a = e.target.dataset.a, c = e.target.closest('.bc'); if (!a || !c) return;
+  const btn = e.target.closest('[data-a]');
+  const a = btn && btn.dataset.a, c = e.target.closest('.bc'); if (!a || !c) return;
   const b = get(c.dataset.id); if (!b) return;
   if (a === 'editQuick') { renderBuilderFromBot(b.id); switchStudioView('quick'); return; }
   if (a === 'editBuilder') { renderBuilderFromBot(b.id); switchStudioView('builder'); return; }
@@ -1958,7 +2001,7 @@ function drawLib() {
         symbol: sym,
         contract: effContract,
         name: coerced ? effName : p.name,
-        duration: isFxSym ? Math.max(5, p.duration || 5) : p.duration,
+        duration: isFxSym ? Math.max(/^frx(?!XAU)/i.test(sym) ? 15 : 5, p.duration || 15) : p.duration,
         durationUnit: isFxSym ? 'm' : (p.durationUnit || 't'),
         rule: coerced ? { kind: 'ai_alpha', cond: 'rise', cb: 0, n: 1 } : p.rule
       }));
@@ -2008,7 +2051,7 @@ if (qs.symbol && qs.contract) {
     symbol: qs.symbol,
     contract: qs.contract,
     barrier: qs.barrier != null ? +qs.barrier : 7,
-    duration: qs.dur != null ? +qs.dur : (isFxSym ? 5 : 1),
+    duration: qs.dur != null ? +qs.dur : (isFxSym ? 15 : 1),
     durationUnit: qs.unit || (isFxSym ? 'm' : 't'),
     stake: qs.stake != null ? +qs.stake : 0.5,
     sl: qs.sl != null ? +qs.sl : 10,
