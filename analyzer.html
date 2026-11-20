@@ -18,8 +18,8 @@
 .single-card{border-radius:16px;padding:22px;background:linear-gradient(135deg,rgba(11,16,27,0.98),rgba(17,24,39,0.98));border:1.5px solid rgba(0,255,163,0.45);box-shadow:0 0 35px rgba(0,255,163,0.15);transition:all 0.3s ease}
 .kpi-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin:16px 0;background:rgba(0,0,0,0.35);padding:14px;border-radius:10px;border:1px solid rgba(255,255,255,0.06)}
 .kpi-cell-val{font-size:22px;font-weight:900;margin-top:2px}
-.launch-bar{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:18px}
-@media(max-width:680px){.launch-bar{grid-template-columns:1fr}.wrap-clean{padding:12px 10px 32px}.single-card{padding:14px}.command-bar{padding:12px}.command-btn{width:100%;justify-content:center}}
+.launch-bar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:18px}
+@media(max-width:760px){.launch-bar{grid-template-columns:1fr}.wrap-clean{padding:12px 10px 32px}.single-card{padding:14px}.command-bar{padding:12px}.command-btn{width:100%;justify-content:center}}
 .launch-btn{padding:14px 18px;border-radius:10px;font-size:13px;font-weight:900;text-decoration:none;display:flex;align-items:center;justify-content:center;gap:8px;text-align:center;transition:transform 0.2s,box-shadow 0.2s}
 .launch-btn:hover{transform:translateY(-2px)}
 .launch-btn.manual{background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;box-shadow:0 0 22px rgba(0,255,163,0.35)}
@@ -198,7 +198,7 @@ TW.ready(function(){
 
   function specBotName(contract, barrier, symbol, customTag) {
     if (TW.botStore && TW.botStore.specialistName) {
-      return TW.botStore.specialistName(contract, barrier, symbol);
+      return TW.botStore.specialistName(symbol, contract, barrier);
     }
     return `${customTag || contract} — ${symbol}`;
   }
@@ -599,12 +599,15 @@ TW.ready(function(){
       const barr = setup.barrier != null ? setup.barrier : (setup.digit != null ? setup.digit : 2);
       const rl = buildSpecialistRule(contract, setup.action, barr);
       const recGate = (contract==='DIGITOVER'&&barr<=2)?66:(contract==='DIGITUNDER'&&barr>=7)?66:contract==='DIGITDIFF'?82:contract==='DIGITMATCH'?16:54;
-      const tickDur = selectedUnit === 't' ? Math.min(10, Math.max(1, selectedDur)) : 1;
-      const isRF = contract === 'CALL' || contract === 'PUT';
+      const isRFBot = contract === 'CALL' || contract === 'PUT';
+      const botUnit = isRFBot ? selectedUnit : 't';
+      const botDur = isRFBot
+        ? (botUnit === 't' ? Math.min(10, Math.max(1, selectedDur)) : (botUnit === 's' ? Math.max(15, selectedDur) : Math.max(1, selectedDur)))
+        : Math.min(10, Math.max(1, selectedDur));
       const martOn = contract === 'DIGITMATCH' ? 0 : 1;
-      const martMode = isRF ? 'split_recovery' : 'smart_barrier';
+      const martMode = isRFBot ? 'split_recovery' : 'smart_barrier';
       const sName = specBotName(contract, barr, topBest.v.id);
-      return `bots-library.html?symbol=${topBest.v.id}&contract=${contract}&barrier=${barr}&name=${encodeURIComponent(sName)}&dur=${tickDur}&rule_kind=${rl.kind}&rule_cond=${rl.cond}&rule_cb=${rl.cb}&rule_n=${rl.n}&mart=${martOn}&mart_mode=${martMode}&mart_mult=1.05&mart_steps=4&shield=1&gate=${recGate}`;
+      return `bots-library.html?symbol=${topBest.v.id}&contract=${contract}&barrier=${barr}&name=${encodeURIComponent(sName)}&dur=${botDur}&unit=${botUnit}&rule_kind=${rl.kind}&rule_cond=${rl.cond}&rule_cb=${rl.cb}&rule_n=${rl.n}&mart=${martOn}&mart_mode=${martMode}&mart_mult=1.05&mart_steps=4&shield=1&gate=${recGate}`;
     }
 
     function updateActionButtonsText(){
@@ -617,7 +620,9 @@ TW.ready(function(){
       const bBot = $('#btnLaunchBotTrade');
       if(bBot){
         bBot.href = getBotUrl();
-        const botDurLabel = selectedUnit==='t' ? `${selectedDur} ${selectedDur===1?'Tick':'Ticks'}` : '1 Tick Bot';
+        const botDurLabel = isRF
+          ? durLabel
+          : `${Math.min(10, Math.max(1, selectedDur))} ${selectedDur === 1 ? 'Tick' : 'Ticks'}`;
         bBot.innerHTML = `🤖 OPEN IN BOT STUDIO (${botDurLabel}) →`;
       }
       const hl = document.getElementById('analyzerTimingHeadline');
@@ -1024,15 +1029,19 @@ TW.ready(function(){
         const contract = setup.best ? setup.best.contract : (pillarName==='Over / Under'?(setup.action==='OVER'?'DIGITOVER':'DIGITUNDER'):pillarName==='Even / Odd'?(setup.action==='EVEN'?'DIGITEVEN':'DIGITODD'):pillarName==='Matches / Differs'?(setup.action==='MATCHES'?'DIGITMATCH':'DIGITDIFF'):(setup.action==='CALL'?'CALL':'PUT'));
         const barr = setup.barrier != null ? setup.barrier : (setup.digit != null ? setup.digit : 2);
         const recGate = (contract==='DIGITOVER'&&barr<=2)?60:(contract==='DIGITUNDER'&&barr>=7)?60:contract==='DIGITDIFF'?80:contract==='DIGITMATCH'?12:/EVEN|ODD|CALL|PUT/.test(contract)?50:48;
-        const tickDur = selectedUnit === 't' ? Math.min(10, Math.max(1, selectedDur)) : 1;
         const isRFBot = contract === 'CALL' || contract === 'PUT';
+        const botUnit = isRFBot ? selectedUnit : 't';
+        const botDur = isRFBot
+          ? (botUnit === 't' ? Math.min(10, Math.max(1, selectedDur)) : (botUnit === 's' ? Math.max(15, selectedDur) : Math.max(1, selectedDur)))
+          : Math.min(10, Math.max(1, selectedDur));
         const rl = buildSpecialistRule(contract, setup.action, barr);
         const saved = TW.botStore.upsert({
           name: specBotName(contract, barr, topBest.v.id),
           symbol: topBest.v.id,
           contract,
           barrier: barr,
-          duration: tickDur,
+          duration: botDur,
+          durationUnit: botUnit,
           stake: testStake || 1.0,
           rule: rl,
           mart: { on: contract !== 'DIGITMATCH', mode: isRFBot ? 'split_recovery' : 'smart_barrier', mult: 1.05, steps: 4 },

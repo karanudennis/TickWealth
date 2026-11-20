@@ -225,7 +225,7 @@
               <div class="db-field">
                 <span>Duration &amp; Unit</span>
                 <div class="db-field-row">
-                  <input id="qsDur" type="number" min="1" max="60" step="1" value="1">
+                  <input id="qsDur" type="number" min="1" max="3600" step="1" value="1">
                   <select id="qsUnit"><option value="t">Ticks</option><option value="s">Sec</option><option value="m">Min</option><option value="h">Hr</option></select>
                 </div>
               </div>
@@ -308,7 +308,7 @@
                 <div class="db-field">
                   <span>Duration &amp; Unit</span>
                   <div class="db-field-row">
-                    <input id="blkDur" type="number" min="1" max="60" step="1" value="1">
+                    <input id="blkDur" type="number" min="1" max="3600" step="1" value="1">
                     <select id="blkUnit" aria-label="Duration unit"><option value="t">Ticks</option><option value="s">Sec</option><option value="m">Min</option><option value="h">Hr</option></select>
                   </div>
                 </div>
@@ -721,9 +721,10 @@ function clean(b) {
   const isFx = /^(frx|XAU)/i.test(symbol);
   let durationUnit = ['t', 's', 'm', 'h'].includes(b.durationUnit) ? b.durationUnit : (isFx ? 'm' : 't');
   if (isFx && durationUnit === 't') durationUnit = 'm';
-  const maxDur = durationUnit === 't' ? 10 : 60;
-  const defDur = durationUnit === 't' ? 1 : (isFx ? 15 : 5);
-  let duration = num(b.duration, 1, maxDur, defDur);
+  const maxDur = durationUnit === 't' ? 10 : durationUnit === 's' ? 3600 : durationUnit === 'm' ? 1440 : 24;
+  const minDur = durationUnit === 's' ? 15 : 1;
+  const defDur = durationUnit === 't' ? 1 : (isFx ? 15 : (durationUnit === 's' ? 15 : 5));
+  let duration = num(b.duration, minDur, maxDur, defDur);
   if (/^frx(?!XAU)/i.test(symbol) && durationUnit === 'm' && duration < 15) duration = 15;
   const defGate = defaultBotGate(contract, barrier);
   const martMode = ['smart_barrier', 'split_recovery', 'payout_martingale', 'martingale', 'dalembert', 'fibonacci', 'compounding'].includes(m.mode) ? m.mode : 'smart_barrier';
@@ -1132,10 +1133,12 @@ function start(b) {
   applyBotFilter();
   renderQuickStrategy();
 
-  if (/^(frx|XAU)/i.test(b.symbol) && TW.scanMarkets) {
-    const fxMeta = TW.VOLS.find(v => v.id === b.symbol) || { id: b.symbol, name: TW.volName(b.symbol), fx: true };
-    TW.scanMarkets([fxMeta], {
-      count: 240, style: 'candles', granularity: 900, concurrency: 1, timeoutMs: 6500,
+  const needCandles = (/^(frx|XAU)/i.test(b.symbol) || ((b.durationUnit === 'm' || b.durationUnit === 'h') && (b.contract === 'CALL' || b.contract === 'PUT')));
+  if (needCandles && TW.scanMarkets) {
+    const candleMeta = TW.VOLS.find(v => v.id === b.symbol) || { id: b.symbol, name: TW.volName(b.symbol) };
+    const granSec = /^(frx|XAU)/i.test(b.symbol) ? 900 : 60;
+    TW.scanMarkets([candleMeta], {
+      count: 240, style: 'candles', granularity: granSec, concurrency: 1, timeoutMs: 6500,
       onDone: items => {
         if (r.on && items && items[0] && items[0].prices && items[0].prices.length >= 20) {
           r.fxCandles = items[0].prices;
@@ -1188,11 +1191,14 @@ function stop(b, why) {
 function tick(b, fd) {
   const r = R[b.id];
   if (!r || !r.on || r.busy) return;
-  r.k++;
   const P = (fd && fd.prices && fd.prices.length >= 2) ? fd.prices : (TW.tickPool[b.symbol]?.prices || []);
   const D = (fd && fd.digits && fd.digits.length >= 2) ? fd.digits : (TW.tickPool[b.symbol]?.digits || []);
   const i = P.length - 1;
   if (i < 1) return;
+  const tickSig = `${P.length}:${P[i]}`;
+  if (!(fd && fd._force) && r._lastEvalSig === tickSig) return;
+  r._lastEvalSig = tickSig;
+  r.k++;
   r.digitsTape = D.slice(-8);
 
   if (r.coolUntil && r.coolUntil > Date.now()) {
@@ -1207,7 +1213,9 @@ function tick(b, fd) {
   r.coolUntil = 0;
 
   const isFxBot = /^(frx|XAU)/i.test(b.symbol);
-  const fxSeries = (isFxBot && r.fxCandles && r.fxCandles.length >= 20)
+  const isTimedDir = (b.durationUnit === 'm' || b.durationUnit === 'h') && (b.contract === 'CALL' || b.contract === 'PUT');
+  const useCandles = (isFxBot || isTimedDir) && r.fxCandles && r.fxCandles.length >= 20;
+  const fxSeries = useCandles
     ? r.fxCandles.slice(-240).concat([P[i]])
     : P;
   let go = false, s = 0, dynContract = b.contract, dynBarrier = b.barrier;
@@ -1226,7 +1234,7 @@ function tick(b, fd) {
         const counts = Array(10).fill(0); D.slice(-100).forEach(d => counts[d]++);
         dynBarrier = b.contract === 'DIGITDIFF' ? counts.indexOf(Math.min(...counts)) : counts.indexOf(Math.max(...counts));
       } else if (b.contract === 'CALL' || b.contract === 'PUT') {
-        if (isFxBot && TWS.analyzeForex && fxSeries.length >= 20) {
+        if ((isFxBot || isTimedDir) && TWS.analyzeForex && fxSeries.length >= 20) {
           const fxSig = TWS.analyzeForex(fxSeries, b.symbol);
           if (fxSig.action === 'CALL' || fxSig.action === 'PUT') dynContract = fxSig.action;
           else if (b.aiMode === 'turbo') dynContract = fxSig.ema9 >= fxSig.ema21 ? 'CALL' : 'PUT';
@@ -1264,7 +1272,8 @@ function tick(b, fd) {
   if (cs) cs.textContent = conf.score + '%';
 
   const isTurbo = b.aiMode === 'turbo';
-  const chopVeto = !isTurbo && rf && rf.hazard === 'CHOP_TRAP' && rf.chopIndex >= 0.74;
+  const isDirContract = evalC === 'CALL' || evalC === 'PUT';
+  const chopVeto = !isTurbo && rf && rf.hazard === 'CHOP_TRAP' && rf.chopIndex >= 0.74 && (isDirContract || b.aiMode === 'strict');
   const passes = !chopVeto && (isTurbo || conf.passes);
 
   if (!go) {
@@ -1315,6 +1324,8 @@ async function place(b, r, prePlan) {
     if (/^frx(?!XAU)/i.test(b.symbol)) {
       if (durUnit === 't') durUnit = 'm';
       if (durUnit === 'm' && durVal < 15) durVal = 15;
+    } else if (durUnit === 's' && durVal < 15) {
+      durVal = 15;
     }
     const t = await TW.trade({
       contract_type: useContract, symbol: b.symbol, amount: st,
@@ -1325,6 +1336,7 @@ async function place(b, r, prePlan) {
 
     const p = Number(t.profit != null ? t.profit : 0);
     const won = p > 0 || t.status === 'won';
+    const isTie = !won && p === 0 && t.status === 'tie';
     const latTxt = t.latencyMs != null ? ` · ⚡${t.latencyMs}ms` : '';
     r.n++; r.pnl = +(r.pnl + p).toFixed(2);
     if (p > 0) r.grossWin = +(Number(r.grossWin || 0) + p).toFixed(2);
@@ -1343,6 +1355,10 @@ async function place(b, r, prePlan) {
       r.msg = `✓ WON +$${p.toFixed(2)} (${exitStr}${latTxt})${cleared}`;
       addMonLog(`[${b.name}] #${r.n} WON +$${p.toFixed(2)} (${useContract}${useBarrier != null ? ' ' + useBarrier : ''} · ${exitStr}${latTxt})${cleared}`, 'win');
       r.history.push('W');
+    } else if (isTie) {
+      r.msg = `⚖️ Tie Refund ($0.00${latTxt})`;
+      addMonLog(`[${b.name}] #${r.n} TIE / REFUND $0.00 (${exitStr}${latTxt}) · Recovery Pool unchanged`, 'info');
+      r.history.push('T');
     } else {
       playBotFx('loss');
       const isComp = b.mart && b.mart.on && b.mart.mode === 'compounding';
@@ -1465,8 +1481,9 @@ function renderQuickStrategy() {
   [...unitEl.options].forEach(o => { o.disabled = needsDigit && o.value !== 't'; });
   unitEl.value = needsDigit ? 't' : effUnit;
   const durEl = document.getElementById('qsDur');
-  durEl.max = (needsDigit || unitEl.value === 't') ? 10 : 60;
-  durEl.value = b.duration || (effUnit === 't' ? 1 : 5);
+  durEl.min = unitEl.value === 's' ? 15 : 1;
+  durEl.max = (needsDigit || unitEl.value === 't') ? 10 : (unitEl.value === 's' ? 3600 : (unitEl.value === 'm' ? 1440 : 24));
+  durEl.value = b.duration || (effUnit === 't' ? 1 : (effUnit === 's' ? 15 : 5));
 
   document.getElementById('qsMartMode').value = (b.mart && b.mart.on === false) ? 'off' : ((b.mart && b.mart.mode) || 'smart_barrier');
   document.getElementById('qsMartMult').value = (b.mart && b.mart.mult) || 1.05;
@@ -1500,12 +1517,28 @@ function commitQuickEdits(sourceEl) {
   let durationUnit = document.getElementById('qsUnit').value || 't';
   if (/^DIGIT/.test(contract)) durationUnit = 't';
   else if (sourceEl === symEl && symMeta.fx && durationUnit === 't') durationUnit = 'm';
-  let durNum = +document.getElementById('qsDur').value || (durationUnit === 't' ? 1 : (symMeta.fx ? 15 : 5));
+  let durNum = +document.getElementById('qsDur').value || (durationUnit === 't' ? 1 : (symMeta.fx ? 15 : (durationUnit === 's' ? 15 : 5)));
+  if (durationUnit === 's' && durNum < 15) durNum = 15;
   if (sourceEl === symEl && symMeta.fx && durationUnit === 'm' && durNum < (/^frx(?!XAU)/i.test(sym) ? 15 : 5)) durNum = 15;
 
   const martVal = document.getElementById('qsMartMode').value;
+  const symChanged = sym !== b.symbol, ctChanged = contract !== b.contract, barChanged = Number(barrier) !== Number(b.barrier);
+  const nextName = ((symChanged || ctChanged || barChanged) && /^(Expert\s|AI\s|Playbook:|Quant\s)/i.test(String(b.name || '')))
+    ? specialistBotName(sym, contract, barrier)
+    : b.name;
+  let nextRule = b.rule;
+  if ((ctChanged || barChanged) && b.rule && b.rule.kind === 'streak') {
+    if (contract === 'DIGITUNDER') nextRule = { kind: 'streak', cond: 'over', cb: Math.max(1, barrier - 1), n: 1 };
+    else if (contract === 'DIGITOVER') nextRule = { kind: 'streak', cond: 'under', cb: Math.min(8, barrier + 1), n: 1 };
+    else if (contract === 'DIGITEVEN') nextRule = { kind: 'streak', cond: 'odd', cb: 0, n: 2 };
+    else if (contract === 'DIGITODD') nextRule = { kind: 'streak', cond: 'even', cb: 0, n: 2 };
+    else nextRule = { kind: 'ai_alpha', cond: 'even', cb: 0, n: 1 };
+  }
   const updated = clean(Object.assign({}, b, {
+    name: nextName,
     symbol: sym, contract, barrier, duration: durNum, durationUnit,
+    rule: nextRule,
+    aiGate: (ctChanged || barChanged) ? defaultBotGate(contract, barrier) : b.aiGate,
     stake: +document.getElementById('qsStake').value || 0.5,
     mart: {
       on: martVal !== 'off',
@@ -1577,8 +1610,10 @@ function renderBuilderFromBot(id) {
   }
   const durEl = document.getElementById('blkDur');
   if (durEl) {
-    durEl.max = (needsDigit || (unitEl && unitEl.value === 't')) ? 10 : 60;
-    durEl.value = b.duration || (effUnit === 't' ? 1 : 5);
+    const uEff = unitEl ? unitEl.value : effUnit;
+    durEl.min = uEff === 's' ? 15 : 1;
+    durEl.max = (needsDigit || uEff === 't') ? 10 : (uEff === 's' ? 3600 : (uEff === 'm' ? 1440 : 24));
+    durEl.value = b.duration || (effUnit === 't' ? 1 : (effUnit === 's' ? 15 : 5));
   }
   document.getElementById('blkName').value = b.name;
 
@@ -1633,18 +1668,23 @@ function commitBuilderEdits(sourceEl) {
   let durationUnit = document.getElementById('blkUnit')?.value || 't';
   if (/^DIGIT/.test(contract)) durationUnit = 't';
   else if (sourceEl === symEl && symMeta.fx && durationUnit === 't') durationUnit = 'm';
-  let durNum = +document.getElementById('blkDur').value || (durationUnit === 't' ? 1 : (symMeta.fx ? 15 : 5));
+  let durNum = +document.getElementById('blkDur').value || (durationUnit === 't' ? 1 : (symMeta.fx ? 15 : (durationUnit === 's' ? 15 : 5)));
+  if (durationUnit === 's' && durNum < 15) durNum = 15;
   if (sourceEl === symEl && symMeta.fx && durationUnit === 'm' && durNum < (/^frx(?!XAU)/i.test(sym) ? 15 : 5)) durNum = 15;
 
+  const nameInp = document.getElementById('blkName');
+  const symChanged = sym !== b.symbol, ctChanged = contract !== b.contract, barChanged = Number(barrier) !== Number(b.barrier);
+  const autoRename = sourceEl !== nameInp && (symChanged || ctChanged || barChanged) && /^(Expert\s|AI\s|Playbook:|Quant\s)/i.test(String(b.name || ''));
+  const nextName = autoRename ? specialistBotName(sym, contract, barrier) : (nameInp.value || b.name);
   const updated = clean({
     id: b.id,
-    name: document.getElementById('blkName').value || b.name,
+    name: nextName,
     symbol: sym, contract, barrier, duration: durNum, durationUnit,
     stake: +document.getElementById('blkStake').value || 0.5,
     rule: { kind: document.getElementById('blkRuleKind').value, n: +document.getElementById('blkStreakN').value || 1, cond: document.getElementById('blkStreakCond').value, cb: +document.getElementById('blkStreakCb').value || 0 },
     aiMode: document.getElementById('blkAiMode').value,
     speedMode: document.getElementById('blkSpeed')?.value || 'hft',
-    aiGate: +document.getElementById('blkAiGate').value || defaultBotGate(contract, barrier),
+    aiGate: (ctChanged || barChanged) ? defaultBotGate(contract, barrier) : (+document.getElementById('blkAiGate').value || defaultBotGate(contract, barrier)),
     lossShield: !!document.getElementById('blkShield').checked,
     mart: { on: !!document.getElementById('blkMartOn').checked, mode: document.getElementById('blkMartMode').value, mult: +document.getElementById('blkMartMult').value || 1.05, steps: +document.getElementById('blkMartSteps').value || 4 },
     coolSecs: +document.getElementById('blkCool').value || 0,
@@ -2063,13 +2103,30 @@ if (qs.symbol && qs.contract) {
     lossShield: qs.shield !== '0',
     notes: qs.notes || ''
   });
-  bots.unshift(newBot); save(); selectedBotId = newBot.id;
+  const existingBot = bots.find(x =>
+    x.symbol === newBot.symbol &&
+    x.contract === newBot.contract &&
+    Number(x.barrier) === Number(newBot.barrier) &&
+    Number(x.duration) === Number(newBot.duration) &&
+    x.durationUnit === newBot.durationUnit &&
+    x.name === newBot.name
+  );
+  let importedBot = newBot;
+  if (existingBot) {
+    Object.assign(existingBot, Object.assign({}, newBot, { id: existingBot.id }));
+    importedBot = existingBot;
+  } else {
+    bots.unshift(newBot);
+  }
+  save();
+  selectedBotId = importedBot.id;
+  if (history.replaceState) history.replaceState(null, '', location.pathname);
   const qb = document.getElementById('quickLaunchBanner');
   if (qb) {
     qb.style.display = 'block';
-    document.getElementById('qlBotName').textContent = newBot.name;
-    document.getElementById('qlBotDetails').textContent = `${TW.volName(newBot.symbol)} · ${newBot.contract}${/OVER|UNDER|MATCH|DIFF/.test(newBot.contract) ? ' ' + newBot.barrier : ''} · ${newBot.duration}${newBot.durationUnit} · $${newBot.stake.toFixed(2)} · Smart Recovery: ${newBot.mart.mode}`;
-    document.getElementById('btnQuickWatchMarket').href = marketUrlForBot(newBot);
+    document.getElementById('qlBotName').textContent = importedBot.name;
+    document.getElementById('qlBotDetails').textContent = `${TW.volName(importedBot.symbol)} · ${importedBot.contract}${/OVER|UNDER|MATCH|DIFF/.test(importedBot.contract) ? ' ' + importedBot.barrier : ''} · ${importedBot.duration}${importedBot.durationUnit} · $${importedBot.stake.toFixed(2)} · Smart Recovery: ${importedBot.mart.mode}`;
+    document.getElementById('btnQuickWatchMarket').href = marketUrlForBot(importedBot);
     document.getElementById('btnQuickStartBot').onclick = () => startSelectedBuilderBot();
   }
 }

@@ -590,7 +590,7 @@ TW.ready(function(){
         } else if(isFxStrat) {
           tradeUrl = `forex.html?vol=${targetSym}&type=${s.contract}&dur=${s.dur||5}&unit=${u}`;
         } else {
-          tradeUrl = `rise-fall.html?vol=${targetSym}&type=${s.type}&dur=${s.dur||5}`;
+          tradeUrl = `rise-fall.html?vol=${targetSym}&type=${s.type}&dur=${s.dur||5}&unit=${u}`;
         }
         const botGate = Math.max(15, Math.min(85, Math.round((s.winPct || 50) * 0.85)));
         const rKind = s.ruleKind || (s.triggerCond ? 'streak' : 'ai_alpha');
@@ -704,7 +704,7 @@ TW.ready(function(){
     } else if(isFxStrat) {
       tradeUrl = `forex.html?vol=${targetSym}&type=${s.contract}&dur=${s.dur||5}&unit=${u}`;
     } else {
-      tradeUrl = `rise-fall.html?vol=${targetSym}&type=${s.type}&dur=${s.dur||5}`;
+      tradeUrl = `rise-fall.html?vol=${targetSym}&type=${s.type}&dur=${s.dur||5}&unit=${u}`;
     }
     const botGate = Math.max(15, Math.min(85, Math.round((s.winPct || 50) * 0.85)));
     const rKind = s.ruleKind || (s.triggerCond ? 'streak' : 'ai_alpha');

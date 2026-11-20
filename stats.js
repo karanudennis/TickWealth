@@ -219,8 +219,8 @@ const TWS = (() => {
     if (rf && rf.hazard === 'CHOP_TRAP') {
       if (contract === 'CALL' || contract === 'PUT') {
         if (rf.chopIndex >= 0.65) chopPenalty = (rf.chopIndex >= 0.72 ? 9 : 5) + 4;
-      } else {
-        chopPenalty = rf.chopIndex >= 0.72 ? 9 : 4;
+      } else if (rf.chopIndex >= 0.78) {
+        chopPenalty = 6;
       }
     }
 
@@ -1119,7 +1119,8 @@ const TWS = (() => {
         const slD = digits.slice(winStart, i + 1);
         const slP = prices.slice(winStart, i + 1);
         const rf = regimeFingerprint(slP, slD);
-        if (rf.hazard === 'CHOP_TRAP' && rf.chopIndex >= 0.74) { i++; continue; }
+        const isDirQb = activeContract === 'CALL' || activeContract === 'PUT';
+        if (rf.hazard === 'CHOP_TRAP' && rf.chopIndex >= 0.74 && (isDirQb || aiMode === 'strict')) { i++; continue; }
         if (aiGate != null) {
           const conf = calcConfidence({ contract: activeContract, barrier: activeBarrier, symbol: sym, prices: slP, digits: slD, gate: aiGate, consecutiveLosses: consecLoss, lossShield });
           if (!conf.passes) { i++; continue; }
@@ -1318,7 +1319,7 @@ const TWS = (() => {
 
     let hazard = 'BALANCED';
     let regimeLabel = 'Stationary Balanced Flow';
-    if (chopIndex >= 0.68 || (n >= 40 && normEntropy >= 0.996)) {
+    if (chopIndex >= 0.68 || (n >= 40 && normEntropy >= 0.9995 && chopIndex >= 0.58)) {
       hazard = 'CHOP_TRAP';
       regimeLabel = 'High-Chop / High-Entropy Noise';
     } else if (hurst >= 0.58) {

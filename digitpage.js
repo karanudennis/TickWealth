@@ -12,8 +12,14 @@ TW.digitPage = function (cfg) {
     let tab = cfg.tabs.some(t => t.id === q.type) ? q.type : cfg.tabs[0].id;
     const rawPick = (q.barrier != null && q.barrier !== '') ? q.barrier : (q.digit != null && q.digit !== '' ? q.digit : null);
     let pick = cfg.picker ? (rawPick !== null && +rawPick >= 0 && +rawPick <= 9 ? +rawPick : cfg.picker.def) : null;
-    let dur = Math.min(10, Math.max(1, +q.dur || cfg.dur || (cfg.active === 'matches-differs' ? 1 : 5)));
-    let durUnit = 't';
+    const UNITS = {
+      t: { min: 1, max: 10, def: cfg.dur || (cfg.active === 'matches-differs' ? 1 : 5), l: 'ticks' },
+      s: { min: 15, max: 3600, def: 30, l: 'sec' },
+      m: { min: 1, max: 60, def: 1, l: 'min' }
+    };
+    let durUnit = (q.unit && UNITS[q.unit]) ? q.unit : 't';
+    const initU = UNITS[durUnit];
+    let dur = Math.min(initU.max, Math.max(initU.min, +q.dur || cfg.dur || initU.def));
     document.body.classList.add('t-' + cfg.theme);
 
     $('#app').innerHTML = `
@@ -25,37 +31,48 @@ TW.digitPage = function (cfg) {
         </div>
         <div class="sub">${cfg.hint}</div>
 
-        <!-- LIVE 5 / 10 TICKER STREAM WITH BLINKING LIGHTS -->
-        <div id="liveTickerBar" style="margin:6px 0 7px;background:#090d18;border:1px solid rgba(0,255,163,0.35);border-radius:10px;padding:6px 10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+        <!-- LIVE 5 / 10 TICKER STREAM -->
+        <div id="liveTickerBar" style="margin:6px 0 8px;background:#0c1322;border:1px solid var(--line);border-radius:10px;padding:6px 10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
           <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-            <span class="dot live" style="width:8px;height:8px;background:#00ffa3;"></span>
-            <span style="font-size:11px;font-weight:900;color:#00ffa3;letter-spacing:0.5px;">LIVE TICKER LIGHTS:</span>
+            <span class="dot live" style="width:7px;height:7px;background:#00ffa3;"></span>
+            <span style="font-size:10.5px;font-weight:800;color:#94a3b8;letter-spacing:0.4px;">LIVE TICKS</span>
             <div id="tickerChips" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"></div>
           </div>
           <div style="display:flex;align-items:center;gap:4px;">
-            <button type="button" id="btnTicks5" class="btn ghost" style="padding:2px 8px;font-size:10px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);cursor:pointer;">5 Ticks</button>
+            <button type="button" id="btnTicks5" class="btn ghost" style="padding:2px 8px;font-size:10px;border-radius:4px;border:1px solid var(--line);cursor:pointer;">5 Ticks</button>
             <button type="button" id="btnTicks10" class="btn" style="padding:2px 8px;font-size:10px;border-radius:4px;background:#00ffa3;color:#04101c;font-weight:800;border:0;cursor:pointer;">10 Ticks</button>
           </div>
         </div>
 
         <div class="d-grid" id="dGrid"></div>
 
-        <!-- INLINE MARKET-ATTACHED MANUAL EXECUTION BAR (STICKY WHILE SCROLLING) -->
+        <!-- INLINE MARKET-ATTACHED MANUAL EXECUTION BAR -->
         <div id="digitQuickTrade" class="quick-trade-bar" aria-label="Quick manual digit trade">
           <div class="qt-meta">
             <div class="qt-controls">
-              <span style="font-weight:900;color:#00ffa3;letter-spacing:0.4px;">⚡ QUICK MANUAL</span>
-              <span id="qtLastDigit" style="font-weight:900;color:#fff;background:rgba(255,255,255,0.08);padding:3px 7px;border-radius:6px;">Digit: -</span>
+              <span style="font-weight:800;color:#00ffa3;letter-spacing:0.3px;">⚡ Quick Order</span>
+              <span id="qtLastDigit" style="font-weight:800;color:#fff;background:rgba(255,255,255,0.06);padding:3px 7px;border-radius:6px;">Digit: -</span>
               ${cfg.picker ? `<label class="qt-field">${cfg.picker.label.split(' ')[0]} <select id="qtPickSel" aria-label="Quick barrier digit">${[0,1,2,3,4,5,6,7,8,9].map(n => `<option value="${n}"${n === pick ? ' selected' : ''}>${n}</option>`).join('')}</select></label>` : ''}
               <label class="qt-field">Stake $<input id="qtStake" type="number" min="0.35" step="0.5" value="1.00"></label>
               <button type="button" id="qtHalfBtn" class="qt-stk-btn" title="Halve stake">½</button>
               <button type="button" id="qtDoubleBtn" class="qt-stk-btn" title="Double stake">2×</button>
-              <label class="qt-field">Ticks <input id="qtDur" type="number" min="1" max="10" step="1" value="${dur}" style="width:42px;"></label>
+              <label class="qt-field">Timer <input id="qtDur" type="number" min="${initU.min}" max="${initU.max}" step="1" value="${dur}" style="width:44px;">
+                <select id="qtUnit" aria-label="Timer unit"><option value="t"${durUnit === 't' ? ' selected' : ''}>Tick</option><option value="s"${durUnit === 's' ? ' selected' : ''}>Sec</option><option value="m"${durUnit === 'm' ? ' selected' : ''}>Min</option></select>
+              </label>
+              <div class="qt-presets" aria-label="Timer presets">
+                <button type="button" class="qt-preset" data-pd="1" data-pu="t">1t</button>
+                <button type="button" class="qt-preset" data-pd="3" data-pu="t">3t</button>
+                <button type="button" class="qt-preset" data-pd="5" data-pu="t">5t</button>
+                <button type="button" class="qt-preset" data-pd="10" data-pu="t">10t</button>
+                <button type="button" class="qt-preset" data-pd="15" data-pu="s">15s</button>
+                <button type="button" class="qt-preset" data-pd="30" data-pu="s">30s</button>
+                <button type="button" class="qt-preset" data-pd="1" data-pu="m">1m</button>
+              </div>
             </div>
             <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <span id="qtTradeState" class="qt-trade-state">Ready</span>
-              <span id="qtQuoteTxt" style="font-weight:800;color:#cbd5e1;">Payout …</span>
-              <button type="button" id="qtPinBtn" class="qt-pin-btn on" title="Toggle sticky position while scrolling">📌 Pinned</button>
+              <span id="qtQuoteTxt" style="font-weight:700;color:#cbd5e1;">Payout …</span>
+              <button type="button" id="qtPinBtn" class="qt-pin-btn" title="Pin Quick Order bar while scrolling">📍 Pin</button>
             </div>
           </div>
           <div id="qtAiStrip" class="qt-ai-strip">
@@ -70,50 +87,46 @@ TW.digitPage = function (cfg) {
           <div class="qt-actions">
             ${cfg.tabs.map((t, idx) => `<button type="button" class="qt-btn ${t.cls === 'neg' ? 'neg' : (idx === 0 ? 'primary' : (t.cls === 'alt' ? 'alt' : 'neg'))}" data-qt="${t.id}"><span class="qt-lbl">${t.label}</span> <span class="qt-sub" style="font-size:11px;opacity:0.92;"></span></button>`).join('')}
           </div>
-          <div class="qt-hk-hint" style="font-size:10px;color:#7d8aa5;display:flex;justify-content:space-between;gap:8px;padding-top:1px;">
-            <span>Hotkeys: <b>1</b> ${TW.esc(cfg.tabs[0].label)} · <b>2</b> ${TW.esc(cfg.tabs[1].label)} · <b>M</b> Match AI · <b>B</b> Bet AI · <b>S</b> Scan</span>
-            <span>Per-button return estimates update live with stake &amp; barrier</span>
-          </div>
         </div>
 
         <div class="scanbar">
           <div class="t" id="scanTxt">Waiting for live ticks…</div>
-          <button class="btn" id="scanBtn">✦ PATTERN SCAN</button>
+          <button class="btn" id="scanBtn">✦ Pattern Scan</button>
           <button class="btn ghost" id="askAi">✦ Ask AI</button>
         </div>
 
         <!-- DEDICATED PILLAR ADVANCE AI MARKET SCANNER -->
-        <div class="panel" style="margin:16px 0 0;background:#090d18;border:1px solid rgba(0,255,163,0.3);border-radius:14px;padding:14px;">
+        <div class="panel" style="margin:12px 0 0;background:#0c1322;border:1px solid var(--line);border-radius:12px;padding:14px;">
           <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
             <div>
-              <div style="font-size:13.5px;font-weight:900;color:#00ffa3;letter-spacing:0.4px;">
-                ⚡ ADVANCE AI MARKET SCANNER · ${cfg.title}
+              <div style="font-size:13px;font-weight:800;color:#00ffa3;letter-spacing:0.3px;">
+                ⚡ AI Market Scanner · ${cfg.title}
               </div>
-              <div style="font-size:11px;color:#9fb0cc;margin-top:2px;">
-                Calculates real-data Markov transition probabilities & suggestions across all ${TW.VOLS.filter(v => v.digits).length} live Deriv markets for ${cfg.title}.
+              <div style="font-size:11px;color:#94a3b8;margin-top:2px;">
+                Markov transition probabilities &amp; top pick across ${TW.VOLS.filter(v => v.digits).length} Deriv markets.
               </div>
             </div>
             <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-              <button class="btn" id="btnPillarScan" style="background:#0d1627;border:1px solid #00b2ff;color:#00b2ff;font-weight:800;font-size:11px;padding:8px 12px;border-radius:8px;cursor:pointer;">
-                ⚡ RAPID SCAN (100t)
+              <button class="btn" id="btnPillarScan" style="background:#0d1627;border:1px solid rgba(0,178,255,0.45);color:#00b2ff;font-weight:800;font-size:11px;padding:7px 12px;border-radius:8px;cursor:pointer;">
+                ⚡ Rapid Scan (100t)
               </button>
-              <button class="btn" id="btnPillarDeepScan" style="background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;font-weight:900;font-size:11px;padding:8px 14px;border-radius:8px;border:0;cursor:pointer;">
-                ⚛ QUANTUM DEEP SCAN (1000t)
+              <button class="btn" id="btnPillarDeepScan" style="background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;font-weight:900;font-size:11px;padding:7px 13px;border-radius:8px;border:0;cursor:pointer;">
+                ⚛ Deep Scan (1000t)
               </button>
             </div>
           </div>
 
-          <!-- #1 Single Best Result Card (Neat, Non-Overcrowded, Fully Actionable) -->
-          <div id="aiTopSuggestionBox" style="margin-top:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px;transition:all 0.3s ease;">
-            <div style="display:flex;align-items:center;justify-content:center;height:85px;color:#7d8aa5;font-size:12px;gap:8px;">
-              <span class="dot live" style="width:10px;height:10px;"></span>
-              <span>Click <b>Rapid Scan (100t)</b> or <b>Deep Scan (1000t)</b> for the single best suggestion…</span>
+          <!-- #1 Single Best Result Card -->
+          <div id="aiTopSuggestionBox" style="margin-top:12px;background:rgba(255,255,255,0.025);border:1px solid var(--line);border-radius:10px;padding:14px;transition:all 0.25s ease;">
+            <div style="display:flex;align-items:center;justify-content:center;height:80px;color:#7d8aa5;font-size:12px;gap:8px;">
+              <span class="dot live" style="width:9px;height:9px;"></span>
+              <span>Click <b>Rapid Scan (100t)</b> or <b>Deep Scan (1000t)</b> for the top setup…</span>
             </div>
           </div>
-          <div id="scanStatusTxt" style="font-size:11px;color:#00b2ff;margin-top:8px;text-align:right;">Ready</div>
+          <div id="scanStatusTxt" style="font-size:11px;color:#94a3b8;margin-top:6px;text-align:right;">Ready</div>
         </div>
 
-        <div class="notice" style="margin-top:14px;">${TW.esc(TW.DISCLAIMER)}</div>
+        <div class="notice" style="margin-top:12px;">${TW.esc(TW.DISCLAIMER)}</div>
       </section>
 
       <aside class="side">
@@ -121,8 +134,9 @@ TW.digitPage = function (cfg) {
           <div class="h">${cfg.title}</div>
           <div class="seg" id="tabs">${cfg.tabs.map((t, i) => `<button data-t="${t.id}" class="${t.cls || ''}">${t.label}</button>`).join('')}</div>
           ${cfg.picker ? `<div class="lbl">${cfg.picker.label}</div><div class="bgrid" id="bGrid"></div>` : ''}
-          <div class="lbl">DURATION</div>
-          <div class="ctrl"><button data-for="dur" data-step="-1">−</button><input id="dur" type="number" min="1" max="10" step="1" value="${dur}"><button data-for="dur" data-step="1">+</button><span class="u" id="durUnitTxt">ticks</span></div>
+          <div class="lbl">DURATION TIMER</div>
+          <div class="ctrl"><select id="durUnitSel" aria-label="Duration unit"><option value="t"${durUnit === 't' ? ' selected' : ''}>Ticks (1–10)</option><option value="s"${durUnit === 's' ? ' selected' : ''}>Seconds</option><option value="m"${durUnit === 'm' ? ' selected' : ''}>Minutes</option></select></div>
+          <div class="ctrl"><button data-for="dur" data-step="-1">−</button><input id="dur" type="number" min="${initU.min}" max="${initU.max}" step="1" value="${dur}"><button data-for="dur" data-step="1">+</button><span class="u" id="durUnitTxt">${initU.l}</span></div>
           <div class="lbl">STAKE</div>
           <div class="ctrl"><button data-for="stake" data-step="-1">−</button><input id="stake" type="number" min="0.35" step="0.5" value="1.00"><button data-for="stake" data-step="1">+</button><span class="u">USD</span></div>
           <div style="display:flex;gap:4px;flex-wrap:wrap;margin:6px 0 8px;">
@@ -143,9 +157,9 @@ TW.digitPage = function (cfg) {
         </div>
 
         <!-- ADVANCED AI AUTO-TRADER PANEL -->
-        <div class="panel" style="margin:10px;background:#0d1424;border:1px solid rgba(0,178,255,0.3);border-radius:14px;padding:12px;">
+        <div class="panel" style="margin:10px;background:#0c1322;border:1px solid var(--line);border-radius:12px;padding:12px;">
           <div style="display:flex;justify-content:space-between;align-items:center;">
-            <div style="font-size:12px;font-weight:800;color:#00b2ff;letter-spacing:0.4px;">🤖 ADVANCED AI AUTO-TRADER</div>
+            <div style="font-size:12px;font-weight:800;color:#00b2ff;letter-spacing:0.3px;">🤖 AI Auto-Trader</div>
             <span id="aiAutoBadge" style="font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.06);color:#9fb0cc;font-weight:700;">OFF</span>
           </div>
           <label class="switch" style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;">
@@ -160,10 +174,10 @@ TW.digitPage = function (cfg) {
             <input type="range" id="aiGateSlider" min="70" max="95" step="5" value="85" style="width:100%;accent-color:#00ffa3;">
           </div>
           <div style="margin-top:8px;font-size:10.5px;color:#7d8aa5;line-height:1.45;">
-            🛡️ <b>Adaptive Loss Shield:</b> Increases gate requirement by +5% after any loss to filter noise traps. Requires minimum 5s cooldown.
+            🛡️ <b>Adaptive Loss Shield:</b> Increases gate by +5% after any loss. Minimum 5s cooldown.
           </div>
-          <div id="aiSentryStatus" style="margin-top:8px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;font-size:11px;color:#cbd5e1;line-height:1.4;">
-            Status: <span style="color:#9fb0cc;">Auto-trading idle. Check switch to arm AI sentry.</span>
+          <div id="aiSentryStatus" style="margin-top:8px;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;font-size:11px;color:#cbd5e1;line-height:1.4;">
+            Status: <span style="color:#9fb0cc;">Idle. Check switch to arm AI sentry.</span>
           </div>
         </div>
 
@@ -178,11 +192,13 @@ TW.digitPage = function (cfg) {
     const pb = cfg.picker ? TW.digitButtons($('#bGrid'), d => { pick = d; refresh(); }, d => cfg.picker.off && cfg.picker.off(d, tab)) : null;
 
     function params() {
+      const b = UNITS[durUnit] || UNITS.t;
+      const dVal = Math.min(b.max, Math.max(b.min, +$('#dur').value || b.def));
       const p = {
         contract_type: cfg.contract(tab, pick),
         symbol: top.symbol,
         amount: +$('#stake').value || 1,
-        duration: +$('#dur').value || 1,
+        duration: dVal,
         duration_unit: durUnit,
         label: cfg.label(tab, pick)
       };
@@ -191,7 +207,8 @@ TW.digitPage = function (cfg) {
     }
 
     let lastQtQuote = null;
-    const refreshQuote = TW.watchQuote(params, (qt, msg) => {
+    const rawRefreshQuote = TW.watchQuote(params, (qt, msg) => {
+      if (durUnit !== 't') return;
       if (qt) {
         const st = +$('#stake').value || 1;
         lastQtQuote = { tab, pick, stake: st, payout: +qt.payout };
@@ -211,13 +228,50 @@ TW.digitPage = function (cfg) {
       syncQuickTradeUI();
     });
 
+    function refreshQuote() {
+      if (durUnit !== 't') {
+        lastQtQuote = null;
+        const p = params();
+        const st = p.amount;
+        const est = TW.estimatePayout ? TW.estimatePayout(p.contract_type, p.barrier, st) : +(st * 1.95).toFixed(2);
+        const qtQ = $('#qtQuoteTxt');
+        if (TW.mode() === 'live') {
+          $('#qTxt').textContent = 'Live Digits require Ticks (1–10t)';
+          $('#qProfit').textContent = '';
+          $('#buySub').textContent = 'Switch Timer to Tick for Live Deriv';
+          if (qtQ) qtQ.innerHTML = '<span style="color:#fbbf24;">Live Digits use Tick · Sec/Min work in Paper</span>';
+        } else {
+          $('#qTxt').innerHTML = 'Est. Payout <b>' + TW.money(est) + '</b>';
+          $('#qProfit').innerHTML = 'Est. Profit <b>' + TW.money(est - st) + '</b>';
+          $('#buySub').textContent = 'Paper Timer (' + p.duration + durUnit + ') · Est. ' + TW.money(est);
+          if (qtQ) qtQ.innerHTML = 'Est. Payout <b style="color:#00ffa3;">' + TW.money(est) + '</b> · ' + p.duration + durUnit;
+        }
+        syncQuickTradeUI();
+        return;
+      }
+      rawRefreshQuote();
+    }
+    TW.on('account', refreshQuote);
+
     function syncQuickTradeUI() {
-      const qs = $('#qtStake'), qd = $('#qtDur'), qp = $('#qtPickSel');
+      const qs = $('#qtStake'), qd = $('#qtDur'), qp = $('#qtPickSel'), qu = $('#qtUnit'), su = $('#durUnitSel');
+      const uCfg = UNITS[durUnit] || UNITS.t;
       const stNum = Math.max(0.35, +$('#stake').value || 1);
       const stVal = stNum.toFixed(2);
       if (qs && document.activeElement !== qs) qs.value = stVal;
-      if (qd && document.activeElement !== qd) qd.value = $('#dur').value;
+      if (qd) {
+        qd.min = String(uCfg.min);
+        qd.max = String(uCfg.max);
+        if (document.activeElement !== qd) qd.value = $('#dur').value;
+      }
+      if (qu) qu.value = durUnit;
+      if (su) su.value = durUnit;
+      if ($('#durUnitTxt')) $('#durUnitTxt').textContent = uCfg.l;
       if (qp && pick != null) qp.value = String(pick);
+      const curD = +($('#dur') && $('#dur').value) || dur;
+      document.querySelectorAll('#digitQuickTrade .qt-preset').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.pu === durUnit && +btn.dataset.pd === curD);
+      });
       document.querySelectorAll('#digitQuickTrade [data-qt]').forEach(btn => {
         const tid = btn.dataset.qt;
         const pVal = cfg.picker && cfg.picker.off && cfg.picker.off(pick, tid) ? cfg.picker.fix(tid, pick) : pick;
@@ -238,9 +292,9 @@ TW.digitPage = function (cfg) {
       if (!el) return;
       const open = (TW.trades || []).find(t => t.status === 'open');
       if (open) {
-        const prog = open.unit === 't' ? `${open.ticksElapsed || open.count || 0}/${open.duration}t` : `${open.duration}${open.unit}`;
+        const cd = TW.formatTradeCountdown ? TW.formatTradeCountdown(open) : { label: `${open.duration}${open.unit || 't'}`, phase: 0 };
         el.className = 'qt-trade-state live';
-        el.innerHTML = `<span class="dot live" style="width:6px;height:6px;background:#00ffa3;"></span> ⏳ ${TW.esc(open.label || open.type)} ${prog} · $${Number(open.stake || 0).toFixed(2)}`;
+        el.innerHTML = `<span class="tw-cd-badge" data-cd-phase="${cd.phase}">⏱ ${cd.label}</span> <span>${TW.esc(open.label || open.type)} · $${Number(open.stake || 0).toFixed(2)}</span>`;
         return;
       }
       el.className = 'qt-trade-state';
@@ -254,6 +308,7 @@ TW.digitPage = function (cfg) {
       }
     }
     TW.on('trade', updateQtTradeState);
+    TW.on('countdown', updateQtTradeState);
     TW.on('account', updateQtTradeState);
     updateQtTradeState();
 
@@ -376,14 +431,36 @@ TW.digitPage = function (cfg) {
       refresh();
     }
 
+    function setDurUnit(nextUnit, customDur) {
+      const u = UNITS[nextUnit] ? nextUnit : 't';
+      durUnit = u;
+      const b = UNITS[u];
+      const dEl = $('#dur');
+      dEl.min = String(b.min);
+      dEl.max = String(b.max);
+      const val = customDur != null ? Math.min(b.max, Math.max(b.min, +customDur || b.def)) : b.def;
+      dur = val;
+      dEl.value = String(val);
+      if ($('#durUnitSel')) $('#durUnitSel').value = u;
+      if ($('#qtUnit')) $('#qtUnit').value = u;
+      if ($('#durUnitTxt')) $('#durUnitTxt').textContent = b.l;
+      syncQuickTradeUI();
+      refreshQuote();
+    }
+
     $('#tabs').onclick = e => { const b = e.target.closest('[data-t]'); if (b) { tab = b.dataset.t; refresh(); } };
-    ['stake', 'dur'].forEach(i => $('#' + i).addEventListener('input', () => { syncQuickTradeUI(); refreshQuote(); }));
+    ['stake', 'dur'].forEach(i => $('#' + i).addEventListener('input', () => { dur = +$('#dur').value || dur; syncQuickTradeUI(); refreshQuote(); }));
+    if ($('#durUnitSel')) $('#durUnitSel').addEventListener('change', e => setDurUnit(e.target.value));
+    if ($('#qtUnit')) $('#qtUnit').addEventListener('change', e => setDurUnit(e.target.value));
+    document.querySelectorAll('#digitQuickTrade .qt-preset').forEach(btn => {
+      btn.onclick = () => setDurUnit(btn.dataset.pu, +btn.dataset.pd);
+    });
     if ($('#qtStake')) $('#qtStake').addEventListener('input', e => { $('#stake').value = e.target.value; baseManualStake = +e.target.value || 1; syncQuickTradeUI(); refreshQuote(); });
-    if ($('#qtDur')) $('#qtDur').addEventListener('input', e => { $('#dur').value = e.target.value; syncQuickTradeUI(); refreshQuote(); });
+    if ($('#qtDur')) $('#qtDur').addEventListener('input', e => { $('#dur').value = e.target.value; dur = +e.target.value || dur; syncQuickTradeUI(); refreshQuote(); });
     if ($('#qtPickSel')) $('#qtPickSel').addEventListener('change', e => { pick = +e.target.value; refresh(); });
     if ($('#qtHalfBtn')) $('#qtHalfBtn').onclick = () => { const cur = Math.max(0.35, +($('#stake').value || 1)); const nv = Math.max(0.35, +(cur / 2).toFixed(2)); $('#stake').value = nv.toFixed(2); baseManualStake = nv; syncQuickTradeUI(); refreshQuote(); };
     if ($('#qtDoubleBtn')) $('#qtDoubleBtn').onclick = () => { const maxStk = (TW.settings && TW.settings.maxStake) ? +TW.settings.maxStake : 500; const cur = Math.max(0.35, +($('#stake').value || 1)); const nv = Math.min(maxStk, +(cur * 2).toFixed(2)); $('#stake').value = nv.toFixed(2); baseManualStake = nv; syncQuickTradeUI(); refreshQuote(); };
-    if ($('#qtPinBtn')) $('#qtPinBtn').onclick = () => { const bar = $('#digitQuickTrade'), btn = $('#qtPinBtn'); if (!bar || !btn) return; const pinned = !bar.classList.toggle('unpinned'); btn.classList.toggle('on', pinned); btn.textContent = pinned ? '📌 Pinned' : '📍 Docked'; };
+    if ($('#qtPinBtn')) $('#qtPinBtn').onclick = () => { const bar = $('#digitQuickTrade'), btn = $('#qtPinBtn'); if (!bar || !btn) return; const pinned = bar.classList.toggle('pinned'); btn.classList.toggle('on', pinned); btn.textContent = pinned ? '📌 Pinned' : '📍 Pin'; };
 
     $('#scanBtn').onclick = () => {
       if (!feed || feed.digits.length < 30) { TW.toast('Need at least 30 live ticks first.'); return; }
@@ -456,7 +533,12 @@ TW.digitPage = function (cfg) {
     }
 
     async function executeManualBuy() {
-      if (busy) return; setManualBusy(true);
+      if (busy) return;
+      if (TW.mode() === 'live' && durUnit !== 't') {
+        TW.toast('Deriv Live Digit contracts only support Ticks (1–10t). Switch Timer to Tick or use Paper mode for Sec/Min timed digits.', 'err', 4500);
+        return;
+      }
+      setManualBusy(true);
       try {
         const p = params(), t = await TW.trade(p);
         TW.toast('⚡ Dispatched ' + p.label + ' — waiting for result', 'ok');
@@ -827,7 +909,8 @@ TW.digitPage = function (cfg) {
       const rN = (cfg.active === 'even-odd') ? 2 : 1;
       const isMatch = botContract === 'DIGITMATCH';
       const rfCard = dec.rf || (window.TWS && TWS.regimeFingerprint && topBest.prices && topBest.dg ? TWS.regimeFingerprint(topBest.prices, topBest.dg) : null);
-      const botHref = `bots-library.html?symbol=${topBest.v.id}&contract=${botContract}&barrier=${botBarr}&stake=${curStakeVal}&name=${encodeURIComponent('AI ' + topBest.v.name + ' (' + dec.decision + ')')}&dur=1&rule_kind=${rKind}&rule_cond=${rCond}&rule_cb=${rCb}&rule_n=${rN}&mart=${isMatch ? 0 : 1}&mart_mode=smart_barrier&mart_mult=1.05&mart_steps=4&shield=1&gate=${Math.max(48, Math.min(85, dec.conviction || 55))}`;
+      const botHrefFor = (dur) => `bots-library.html?symbol=${topBest.v.id}&contract=${botContract}&barrier=${botBarr}&stake=${curStakeVal}&name=${encodeURIComponent('AI ' + topBest.v.name + ' (' + dec.decision + ')')}&dur=${Math.min(10, Math.max(1, +dur || 5))}&unit=t&rule_kind=${rKind}&rule_cond=${rCond}&rule_cb=${rCb}&rule_n=${rN}&mart=${isMatch ? 0 : 1}&mart_mode=smart_barrier&mart_mult=1.05&mart_steps=4&shield=1&gate=${Math.max(48, Math.min(85, dec.conviction || 55))}`;
+      const botHref = botHrefFor(selectedDur);
       const runnerUps = (computedPillarCandidates || []).slice(1, 3);
       const speedBadge = effMeta && effMeta.elapsedMs ? ` · ${(effMeta.elapsedMs / 1000).toFixed(2)}s` : '';
       const entryTriggerTxt = dec.action === 'UNDER'
@@ -944,7 +1027,7 @@ TW.digitPage = function (cfg) {
             <button type="button" id="btnApplyTopControls" class="btn" style="flex:1;min-width:min(100%,130px);padding:11px 12px;font-size:11.5px;font-weight:800;background:#141e33;border:1px solid rgba(0,255,163,0.4);color:#00ffa3;border-radius:8px;cursor:pointer;">
               🎯 APPLY TO PANEL
             </button>
-            <a href="${botHref}" class="btn" style="flex:1;min-width:min(100%,135px);padding:11px 12px;font-size:11.5px;font-weight:800;background:#0b1730;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;text-align:center;text-decoration:none;">
+            <a id="btnPillarBotLink" href="${botHref}" class="btn" style="flex:1;min-width:min(100%,135px);padding:11px 12px;font-size:11.5px;font-weight:800;background:#0b1730;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;text-align:center;text-decoration:none;">
               🤖 LAUNCH IN BOT →
             </a>
             <button type="button" id="btnPillarRescanCard" class="btn" style="flex:0.8;min-width:100px;padding:11px 12px;font-size:11px;font-weight:800;background:#1e293b;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;cursor:pointer;">
@@ -1008,6 +1091,10 @@ TW.digitPage = function (cfg) {
           const secHint = selectedUnit === 't' ? `~${selectedDur}s` : '';
           td.textContent = `USE ${selectedDur} ${uLabel}${secHint ? ' (' + secHint + ')' : ''} · DIGIT CONTRACTS SETTLE BY TICK`;
         }
+        const bLink = document.getElementById('btnPillarBotLink');
+        if (bLink) {
+          bLink.href = botHrefFor(selectedDur);
+        }
       }
 
       document.querySelectorAll('.top-sug-dur').forEach(b => {
@@ -1067,14 +1154,10 @@ TW.digitPage = function (cfg) {
         tab = dec.action;
       }
 
-      if (durationVal) {
-        dur = durationVal;
-        $('#dur').value = dur;
-      }
-      if (durationUnitVal) {
-        durUnit = durationUnitVal;
-        const uEl = $('#durUnitTxt');
-        if (uEl) uEl.textContent = durUnit === 't' ? 'ticks' : 'seconds';
+      if (durationUnitVal && UNITS[durationUnitVal]) {
+        setDurUnit(durationUnitVal, durationVal || UNITS[durationUnitVal].def);
+      } else if (durationVal) {
+        setDurUnit(durUnit, durationVal);
       }
 
       if (symChanged) restart();
@@ -1130,7 +1213,8 @@ TW.digitPage = function (cfg) {
         symbol: top.symbol,
         contract: cfg.contract(tab, pick),
         barrier: cfg.picker ? pick : 0,
-        duration: Math.max(1, Math.min(10, +$('#dur').value || 1)),
+        duration: Math.max(1, Math.min(10, durUnit === 't' ? (+$('#dur').value || 1) : 5)),
+        durationUnit: 't',
         stake: Math.max(0.35, +$('#stake').value || 1),
         auto2x: !!($('#chkManualMart') && $('#chkManualMart').checked)
       }),
@@ -1152,8 +1236,7 @@ TW.digitPage = function (cfg) {
           if (b.barrier != null) pick = b.barrier;
         }
         if (b.duration) {
-          dur = Math.max(1, Math.min(10, +b.duration || 1));
-          $('#dur').value = dur;
+          setDurUnit('t', Math.max(1, Math.min(10, +b.duration || 1)));
         }
         if (b.stake) {
           const nv = Math.max(0.35, +b.stake).toFixed(2);

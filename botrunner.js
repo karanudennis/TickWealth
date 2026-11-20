@@ -58,8 +58,9 @@
     const isFx = /^(frx|XAU)/i.test(sym);
     let durationUnit = ['t', 's', 'm', 'h'].includes(b.durationUnit) ? b.durationUnit : (isFx ? 'm' : 't');
     if (isFx && durationUnit === 't') durationUnit = 'm';
-    const maxDur = durationUnit === 't' ? 10 : 60;
-    let duration = num(b.duration, 1, maxDur, durationUnit === 't' ? 1 : (isFx ? 15 : 5));
+    const maxDur = durationUnit === 't' ? 10 : durationUnit === 's' ? 3600 : durationUnit === 'm' ? 1440 : 24;
+    const minDur = durationUnit === 's' ? 15 : 1;
+    let duration = num(b.duration, minDur, maxDur, durationUnit === 't' ? 1 : (isFx ? 15 : (durationUnit === 's' ? 15 : 5)));
     if (/^frx(?!XAU)/i.test(sym) && durationUnit === 'm' && duration < 15) duration = 15;
     const defGate = defaultGate(contract, barrier);
     const martMode = ['smart_barrier', 'split_recovery', 'payout_martingale', 'martingale', 'dalembert', 'fibonacci', 'compounding'].includes(m.mode) ? m.mode : 'smart_barrier';
@@ -133,6 +134,27 @@
     else list.unshift(nb);
     saveBots(list);
     return nb;
+  }
+
+  function adaptBotChange(prev, patch) {
+    const next = Object.assign({}, prev, patch);
+    const symChanged = next.symbol !== prev.symbol;
+    const ctChanged = next.contract !== prev.contract;
+    const barChanged = Number(next.barrier) !== Number(prev.barrier);
+    if ((symChanged || ctChanged || barChanged) && /^(Expert\s|AI\s|Playbook:|Quant\s)/i.test(String(prev.name || ''))) {
+      next.name = specialistBotName(next.symbol, next.contract, next.barrier);
+    }
+    if (ctChanged || barChanged) {
+      if (patch.aiGate == null) next.aiGate = defaultGate(next.contract, next.barrier);
+      if (!patch.rule && prev.rule && prev.rule.kind === 'streak') {
+        if (next.contract === 'DIGITUNDER') next.rule = { kind: 'streak', cond: 'over', cb: Math.max(1, Number(next.barrier || 7) - 1), n: 1 };
+        else if (next.contract === 'DIGITOVER') next.rule = { kind: 'streak', cond: 'under', cb: Math.min(8, Number(next.barrier || 2) + 1), n: 1 };
+        else if (next.contract === 'DIGITEVEN') next.rule = { kind: 'streak', cond: 'odd', cb: 0, n: 2 };
+        else if (next.contract === 'DIGITODD') next.rule = { kind: 'streak', cond: 'even', cb: 0, n: 2 };
+        else next.rule = { kind: 'ai_alpha', cond: 'even', cb: 0, n: 1 };
+      }
+    }
+    return next;
   }
 
   function marketUrlForBot(b) {
@@ -469,15 +491,18 @@
         return;
       }
       const mkts = TW.VOLS.filter(v => v.digits || v.rf || v.fx);
+      const curSymObj = mkts.find(v => v.id === b.symbol);
+      const symSupportsDigits = !!(curSymObj && curSymObj.digits);
       const hasDigit = /OVER|UNDER|MATCH|DIFF/.test(b.contract);
-      const uVal = b.durationUnit || (/^(frx|XAU)/i.test(b.symbol) ? 'm' : 't');
+      const isDigCt = /^DIGIT/.test(b.contract);
+      const uVal = isDigCt ? 't' : (b.durationUnit || (/^(frx|XAU)/i.test(b.symbol) ? 'm' : 't'));
       editGrid.style.display = 'grid';
       editGrid.innerHTML = `
         <label>Volatility / Market
           <select id="edSym">${mkts.map(v => `<option value="${TW.esc(v.id)}"${v.id === b.symbol ? ' selected' : ''}>${TW.esc(v.name)} (${v.id})</option>`).join('')}</select>
         </label>
-        <label>Contract Type
-          <select id="edCt">${CT.map(c => `<option value="${c}"${c === b.contract ? ' selected' : ''}>${c}</option>`).join('')}</select>
+        <label>Contract Type ${symSupportsDigits ? '' : '(No Digits on this market)'}
+          <select id="edCt">${CT.map(c => `<option value="${c}"${c === b.contract ? ' selected' : ''}${!symSupportsDigits && /^DIGIT/.test(c) ? ' disabled' : ''}>${c}</option>`).join('')}</select>
         </label>
         <label style="${hasDigit ? '' : 'opacity:0.45;'}">Digit / Barrier
           <input id="edBar" type="number" min="${b.contract === 'DIGITUNDER' ? 1 : 0}" max="${b.contract === 'DIGITOVER' ? 8 : 9}" value="${b.barrier}" ${hasDigit ? '' : 'disabled'}>
@@ -486,14 +511,14 @@
           <input id="edStk" type="number" min="0.35" step="0.05" value="${Number(b.stake).toFixed(2)}">
         </label>
         <label>Duration
-          <input id="edDur" type="number" min="1" max="${uVal === 't' ? 10 : 60}" value="${b.duration}">
+          <input id="edDur" type="number" min="${uVal === 's' ? 15 : 1}" max="${uVal === 't' ? 10 : (uVal === 's' ? 3600 : (uVal === 'm' ? 1440 : 24))}" value="${b.duration}">
         </label>
-        <label>Unit
+        <label>Unit ${isDigCt ? '(Ticks 1–10)' : ''}
           <select id="edUnit">
             <option value="t"${uVal === 't' ? ' selected' : ''}>Ticks</option>
-            <option value="s"${uVal === 's' ? ' selected' : ''}>Sec</option>
-            <option value="m"${uVal === 'm' ? ' selected' : ''}>Min</option>
-            <option value="h"${uVal === 'h' ? ' selected' : ''}>Hr</option>
+            <option value="s"${uVal === 's' ? ' selected' : ''}${isDigCt ? ' disabled' : ''}>Sec</option>
+            <option value="m"${uVal === 'm' ? ' selected' : ''}${isDigCt ? ' disabled' : ''}>Min</option>
+            <option value="h"${uVal === 'h' ? ' selected' : ''}${isDigCt ? ' disabled' : ''}>Hr</option>
           </select>
         </label>
         <label>Execution Rule
@@ -548,23 +573,39 @@
         const cur = currentBot();
         if (!cur) return;
         const nextSym = editGrid.querySelector('#edSym').value;
+        const nextSymObj = mkts.find(v => v.id === nextSym);
         const isNextFx = /^(frx|XAU)/i.test(nextSym);
         let nextCt = editGrid.querySelector('#edCt').value;
-        let nextUnit = editGrid.querySelector('#edUnit').value;
+        if (nextSymObj && !nextSymObj.digits && /^DIGIT/.test(nextCt)) {
+          nextCt = 'CALL';
+          TW.toast(`${TW.volName(nextSym)} does not offer Digit contracts — switched to Rise (CALL).`, 'mut', 3000);
+        }
+        let nextUnit = /^DIGIT/.test(nextCt) ? 't' : editGrid.querySelector('#edUnit').value;
         let nextDur = +editGrid.querySelector('#edDur').value;
         if (isNextFx) {
           if (!/^(CALL|PUT)$/.test(nextCt)) nextCt = 'CALL';
           if (nextUnit === 't') { nextUnit = 'm'; nextDur = Math.max(/^frx(?!XAU)/i.test(nextSym) ? 15 : 5, nextDur || 15); }
           else if (/^frx(?!XAU)/i.test(nextSym) && nextUnit === 'm' && nextDur < 15) { nextDur = 15; }
+        } else if (nextUnit === 's' && nextDur < 15) {
+          nextDur = 15;
+        } else if (nextUnit === 't') {
+          nextDur = Math.max(1, Math.min(10, nextDur || 1));
         }
-        const updated = upsertBot(Object.assign({}, cur, {
+        const nextBar = +editGrid.querySelector('#edBar').value;
+        const nextRuleKind = editGrid.querySelector('#edRule').value;
+        let nextRule = Object.assign({}, cur.rule, { kind: nextRuleKind });
+        if (nextCt !== cur.contract || nextBar !== Number(cur.barrier)) {
+          if (nextCt === 'DIGITUNDER') nextRule = { kind: nextRuleKind, cond: 'over', cb: Math.max(1, nextBar - 1), n: 1 };
+          else if (nextCt === 'DIGITOVER') nextRule = { kind: nextRuleKind, cond: 'under', cb: Math.min(8, nextBar + 1), n: 1 };
+        }
+        const adapted = adaptBotChange(cur, {
           symbol: nextSym,
           contract: nextCt,
-          barrier: +editGrid.querySelector('#edBar').value,
+          barrier: nextBar,
           stake: +editGrid.querySelector('#edStk').value,
           duration: nextDur,
           durationUnit: nextUnit,
-          rule: Object.assign({}, cur.rule, { kind: editGrid.querySelector('#edRule').value }),
+          rule: nextRule,
           speedMode: editGrid.querySelector('#edSpeed').value,
           aiMode: editGrid.querySelector('#edAiMode').value,
           mart: {
@@ -575,7 +616,12 @@
           },
           sl: +editGrid.querySelector('#edSl').value,
           tp: +editGrid.querySelector('#edTp').value
-        }));
+        });
+        const updated = upsertBot(adapted);
+        if (runtime.on && runtime.bot && runtime.bot.id === updated.id) {
+          runtime.bot = cleanBot(updated);
+          runtime._lastEvalSig = '';
+        }
         renderSelect(updated.id);
         renderInlineEditor();
         if (opt.onSelectBot && !runtime.on) opt.onSelectBot(updated, true);
@@ -739,9 +785,12 @@
       const b = runtime.bot || currentBot();
       const wr = runtime.n > 0 ? Math.round((runtime.w / runtime.n) * 100) + '%' : '—';
       const pnlCol = runtime.pnl >= 0 ? '#00ffa3' : '#ff3b69';
-      const nextStk = b ? calcNextStake(b, runtime) : 0;
+      const nextStk = b ? calcNextStake(b, runtime, (TW.tickPool[b.symbol] || {}).digits) : 0;
       const coolLeft = runtime.coolUntil > Date.now() ? Math.ceil((runtime.coolUntil - Date.now()) / 1000) : 0;
       const chips = runtime.history.slice(-8).map(x => `<span style="padding:1px 5px;border-radius:4px;font-size:9.5px;font-weight:900;background:${x === 'W' ? 'rgba(0,255,163,0.18)' : 'rgba(255,59,105,0.18)'};color:${x === 'W' ? '#00ffa3' : '#ff3b69'};">${x}</span>`).join(' ');
+
+      const isSessStop = /session stop-loss/i.test(runtime.lastMsg || '');
+      const isBotStop = !on && /stop-loss.*reached/i.test(runtime.lastMsg || '');
 
       telemEl.style.display = 'flex';
       telemEl.innerHTML = `
@@ -750,10 +799,42 @@
         <span>Next Stake: <b style="color:#ffd600;">$${nextStk.toFixed(2)}</b>${b && b.mart && b.mart.on ? ` (Step ${runtime.step}/${b.mart.steps})` : ''}</span>
         ${runtime.convPct != null ? `<span>AI Conv: <b style="color:#00b2ff;">${runtime.convPct}%</b></span>` : ''}
         ${runtime.vetos ? `<span>Vetoes: <b>${runtime.vetos}</b></span>` : ''}
+        ${on && runtime.vetos > 0 && b && b.aiMode !== 'turbo' ? `<button type="button" id="brTurboBypassBtn" class="br-btn reset" style="padding:3px 9px;font-size:10.5px;" title="Bypass AI & Chop-Trap veto filters immediately for this running bot">⚡ Turbo (Bypass Filter)</button>` : ''}
+        ${isSessStop && TW.resetSession ? `<button type="button" id="brUnlockSessBtn" class="br-btn shot" style="padding:3px 9px;font-size:10.5px;" title="Reset global Session P/L lock and resume">↺ Unlock Session Cap</button>` : ''}
+        ${isBotStop ? `<button type="button" id="brClearSlBtn" class="br-btn shot" style="padding:3px 9px;font-size:10.5px;" title="Reset this bot P/L & Stop-Loss counter">↺ Reset Bot P/L</button>` : ''}
         ${coolLeft > 0 ? `<span style="color:#ff9f43;">🧊 Cool ${coolLeft}s</span>` : ''}
         ${chips ? `<span style="display:inline-flex;gap:3px;align-items:center;">${chips}</span>` : ''}
         <span style="color:#9fb0cc;flex:1;min-width:150px;text-align:right;">${TW.esc(runtime.lastMsg || '')}</span>
       `;
+      const bypassBtn = $('brTurboBypassBtn');
+      if (bypassBtn) {
+        bypassBtn.onclick = () => {
+          const cur = runtime.bot || currentBot();
+          if (!cur) return;
+          const updated = upsertBot(Object.assign({}, cur, { aiMode: 'turbo' }));
+          runtime.bot = cleanBot(updated);
+          runtime._lastEvalSig = '';
+          addJournal(`⚡ Turbo Bypass armed on "${updated.name}" — AI & Chop-Trap vetoes bypassed.`, 'warn');
+          TW.toast('⚡ Turbo Mode enabled — AI filters bypassed!', 'ok', 2800);
+          renderSelect(updated.id);
+          renderTelemetry();
+          evalTick(TW.tickPool[updated.symbol], { force: true });
+        };
+      }
+      const unlockSessBtn = $('brUnlockSessBtn');
+      if (unlockSessBtn && TW.resetSession) {
+        unlockSessBtn.onclick = () => {
+          TW.resetSession();
+          runtime.lastMsg = 'Session stop-loss cap reset — click ▶ Run to resume.';
+          addJournal('Global Session P/L lock reset. Ready to resume.', 'info');
+          renderTelemetry();
+          TW.toast('↺ Session stop-loss lock cleared!', 'ok', 2500);
+        };
+      }
+      const clearSlBtn = $('brClearSlBtn');
+      if (clearSlBtn) {
+        clearSlBtn.onclick = resetBotState;
+      }
       renderDrawer();
     }
 
@@ -776,7 +857,7 @@
       runtime.n = 0; runtime.w = 0; runtime.pnl = 0; runtime.recoveryPool = 0;
       runtime.totalStake = 0; runtime.totalPayout = 0;
       runtime.step = 0; runtime.k = 0;
-      runtime.consecutiveLosses = 0; runtime.vetos = 0; runtime.coolUntil = 0; runtime.lastEntrySig = '';
+      runtime.consecutiveLosses = 0; runtime.vetos = 0; runtime.coolUntil = 0; runtime.lastEntrySig = ''; runtime._lastEvalSig = '';
       runtime.lastMsg = ''; runtime.convPct = null;
       runtime.history = []; runtime.transactions = []; runtime.journal = [];
       addJournal('Deriv DBot Runner stats, recovery pool, transactions & journal reset.', 'info');
@@ -819,6 +900,8 @@
         if (/^frx(?!XAU)/i.test(b.symbol)) {
           if (durUnit === 't') durUnit = 'm';
           if (durUnit === 'm' && durVal < 15) durVal = 15;
+        } else if (durUnit === 's' && durVal < 15) {
+          durVal = 15;
         }
         const t = await TW.trade({
           contract_type: useContract,
@@ -834,10 +917,12 @@
         await t.done;
         const p = Number(t.profit != null ? t.profit : 0);
         const won = p > 0 || t.status === 'won';
+        const isTie = !won && p === 0 && t.status === 'tie';
         const latTxt = t.latencyMs != null ? ` · ⚡${t.latencyMs}ms` : '';
         runtime.n++;
         runtime.totalStake = +(runtime.totalStake + st).toFixed(2);
         if (won) runtime.totalPayout = +(runtime.totalPayout + st + p).toFixed(2);
+        else if (isTie) runtime.totalPayout = +(runtime.totalPayout + st).toFixed(2);
         runtime.pnl = +(runtime.pnl + p).toFixed(2);
 
         const entryExit = t.exitDigit != null
@@ -879,6 +964,10 @@
           const recNote = plan.isRecovery && runtime.recoveryPool === 0 ? ' · RECOVERY CLEARED!' : (runtime.recoveryPool > 0 ? ` · Pool left $${runtime.recoveryPool.toFixed(2)}` : '');
           runtime.lastMsg = `🎯 WON +$${p.toFixed(2)}${latTxt}${recNote}`;
           addJournal(`#${runtime.n} WON +$${p.toFixed(2)} (${entryExit}${latTxt})${recNote} · Net P/L: ${runtime.pnl >= 0 ? '+' : '-'}$${Math.abs(runtime.pnl).toFixed(2)}`, 'win');
+        } else if (isTie) {
+          runtime.history.push('T');
+          runtime.lastMsg = `⚖️ Tie Refund ($0.00)${latTxt}`;
+          addJournal(`#${runtime.n} TIE / REFUND $0.00 (${entryExit}${latTxt}) · Recovery Pool unchanged`, 'info');
         } else {
           if (TW.fx && TW.fx.loss) TW.fx.loss();
           const isComp = b.mart && b.mart.on && b.mart.mode === 'compounding';
@@ -923,14 +1012,17 @@
       }
     }
 
-    function evalTick(fd) {
+    function evalTick(fd, evalOpts) {
       const b = runtime.bot;
       if (!runtime.on || !b || runtime.busy) return;
-      runtime.k++;
       const P = (fd && fd.prices && fd.prices.length) ? fd.prices : (TW.tickPool[b.symbol]?.prices || []);
       const D = (fd && fd.digits && fd.digits.length) ? fd.digits : (TW.tickPool[b.symbol]?.digits || []);
       if (P.length < 2) return;
       const i = P.length - 1;
+      const tickSig = `${P.length}:${P[i]}`;
+      if (!(evalOpts && evalOpts.force) && runtime._lastEvalSig === tickSig) return;
+      runtime._lastEvalSig = tickSig;
+      runtime.k++;
 
       if (runtime.coolUntil && runtime.coolUntil > Date.now()) {
         renderTelemetry();
@@ -942,7 +1034,9 @@
       runtime.coolUntil = 0;
 
       const isFxBot = /^(frx|XAU)/i.test(b.symbol);
-      const fxSeries = (isFxBot && runtime.fxCandles && runtime.fxCandles.length >= 20)
+      const isTimedDir = (b.durationUnit === 'm' || b.durationUnit === 'h') && (b.contract === 'CALL' || b.contract === 'PUT');
+      const useCandles = (isFxBot || isTimedDir) && runtime.fxCandles && runtime.fxCandles.length >= 20;
+      const fxSeries = useCandles
         ? runtime.fxCandles.slice(-240).concat([P[i]])
         : P;
       let dynContract = b.contract, dynBarrier = b.barrier, go = false;
@@ -950,14 +1044,14 @@
         go = true;
       } else if (b.rule.kind === 'ai_alpha') {
         go = true;
-        if (isFxBot && window.TWS && TWS.analyzeForex && fxSeries.length >= 20) {
+        if ((isFxBot || isTimedDir) && window.TWS && TWS.analyzeForex && fxSeries.length >= 20) {
           const fxSig = TWS.analyzeForex(fxSeries, b.symbol);
           if (fxSig.action === 'HOLD') {
             if (b.aiMode === 'turbo') {
               dynContract = fxSig.ema9 >= fxSig.ema21 ? 'CALL' : 'PUT';
             } else {
               runtime.convPct = fxSig.conviction;
-              runtime.lastMsg = `FX AI Hold (${fxSig.biasLabel} · ${fxSig.conviction}% · ${fxSig.reason || 'Awaiting trend alignment'})`;
+              runtime.lastMsg = `Candle AI Hold (${fxSig.biasLabel} · ${fxSig.conviction}% · ${fxSig.reason || 'Awaiting trend alignment'})`;
               renderTelemetry();
               return;
             }
@@ -1007,7 +1101,8 @@
       }
 
       const isTurbo = b.aiMode === 'turbo';
-      const chopVeto = !isTurbo && rf && rf.hazard === 'CHOP_TRAP' && rf.chopIndex >= 0.74;
+      const isDirContract = evalContract === 'CALL' || evalContract === 'PUT';
+      const chopVeto = !isTurbo && rf && rf.hazard === 'CHOP_TRAP' && rf.chopIndex >= 0.74 && (isDirContract || b.aiMode === 'strict');
       const passes = !chopVeto && (isTurbo || conf.passes);
 
       if (go) {
@@ -1052,10 +1147,12 @@
       TW.toast(`▶ Running DBot: ${b.name} on ${TW.volName(b.symbol)}`, 'ok', 3200);
 
       runtime.fxCandles = null;
-      if (/^(frx|XAU)/i.test(b.symbol) && TW.scanMarkets) {
-        const fxMeta = TW.VOLS.find(v => v.id === b.symbol) || { id: b.symbol, name: TW.volName(b.symbol), fx: true };
-        TW.scanMarkets([fxMeta], {
-          count: 240, style: 'candles', granularity: 900, concurrency: 1, timeoutMs: 6500,
+      const needCandleFeed = (/^(frx|XAU)/i.test(b.symbol) || ((b.durationUnit === 'm' || b.durationUnit === 'h') && (b.contract === 'CALL' || b.contract === 'PUT')));
+      if (needCandleFeed && TW.scanMarkets) {
+        const candleMeta = TW.VOLS.find(v => v.id === b.symbol) || { id: b.symbol, name: TW.volName(b.symbol) };
+        const granSec = /^(frx|XAU)/i.test(b.symbol) ? 900 : 60;
+        TW.scanMarkets([candleMeta], {
+          count: 240, style: 'candles', granularity: granSec, concurrency: 1, timeoutMs: 6500,
           onDone: items => {
             if (runtime.on && runtime.bot && runtime.bot.symbol === b.symbol && items && items[0] && items[0].prices && items[0].prices.length >= 20) {
               runtime.fxCandles = items[0].prices;
@@ -1149,14 +1246,19 @@
       const b = currentBot();
       if (!b || !opt.getCurrentSetup) return;
       const s = opt.getCurrentSetup();
-      const updated = upsertBot(Object.assign({}, b, {
+      const adapted = adaptBotChange(b, {
         symbol: s.symbol || b.symbol,
         contract: s.contract || b.contract,
         barrier: s.barrier != null ? s.barrier : b.barrier,
         duration: s.duration != null ? s.duration : b.duration,
         durationUnit: s.durationUnit || b.durationUnit || 't',
         stake: s.stake != null ? s.stake : b.stake
-      }));
+      });
+      const updated = upsertBot(adapted);
+      if (runtime.on && runtime.bot && runtime.bot.id === updated.id) {
+        runtime.bot = cleanBot(updated);
+        runtime._lastEvalSig = '';
+      }
       renderSelect(updated.id);
       addJournal(`🎯 Synced screen view (${updated.symbol} · ${updated.contract}${/OVER|UNDER|MATCH|DIFF/.test(updated.contract) ? ' ' + updated.barrier : ''}) into "${updated.name}"`, '');
       renderDrawer();

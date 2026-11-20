@@ -8,8 +8,8 @@
 <meta name="description" content="Live Deriv Forex &amp; Gold (XAU/USD) terminal with multi-timeframe candles, BUY/SELL/WAIT regime scanner, session liquidity notes, and live DBot execution.">
 <link rel="stylesheet" href="core.css">
 <style>
-.fx-session-bar{margin:0 0 6px;background:#090f1d;border:1px solid rgba(0,178,255,0.28);border-radius:10px;padding:6px 11px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;font-variant-numeric:tabular-nums}
-.fx-sig-card{margin:12px 0 0;background:#0a101f;border:1px solid rgba(255,255,255,0.12);border-radius:12px;padding:14px;display:grid;gap:12px;font-variant-numeric:tabular-nums}
+.fx-session-bar{margin:0 0 8px;background:#0c1322;border:1px solid var(--line);border-radius:10px;padding:6px 11px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;font-variant-numeric:tabular-nums}
+.fx-sig-card{margin:12px 0 0;background:#0c1322;border:1px solid var(--line);border-radius:12px;padding:14px;display:grid;gap:12px;font-variant-numeric:tabular-nums}
 .fx-sig-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
 .fx-dir-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 12px;border-radius:7px;font-size:13px;font-weight:900;letter-spacing:.3px}
 .fx-dir-badge.buy{background:rgba(0,255,163,0.16);color:#00ffa3;border:1px solid rgba(0,255,163,0.45)}
@@ -46,14 +46,14 @@
     <div class="chartbox" id="chartBox"></div>
 
     <!-- LIVE PRICE STREAM BAR -->
-    <div id="liveTickerBar" style="margin:6px 0 6px;background:#090d18;border:1px solid rgba(0,255,163,0.3);border-radius:10px;padding:6px 10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
+    <div id="liveTickerBar" style="margin:6px 0 8px;background:#0c1322;border:1px solid var(--line);border-radius:10px;padding:6px 10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <span class="dot live" style="width:8px;height:8px;background:#00ffa3;"></span>
-        <span style="font-size:11px;font-weight:900;color:#00ffa3;letter-spacing:0.5px;">LIVE FX QUOTES:</span>
+        <span class="dot live" style="width:7px;height:7px;background:#00ffa3;"></span>
+        <span style="font-size:10.5px;font-weight:800;color:#94a3b8;letter-spacing:0.4px;">LIVE QUOTES</span>
         <div id="tickerChips" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"></div>
       </div>
       <div style="display:flex;align-items:center;gap:4px;">
-        <button type="button" id="btnTicks5" class="btn ghost" style="padding:2px 8px;font-size:10px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);cursor:pointer;">5 Quotes</button>
+        <button type="button" id="btnTicks5" class="btn ghost" style="padding:2px 8px;font-size:10px;border-radius:4px;border:1px solid var(--line);cursor:pointer;">5 Quotes</button>
         <button type="button" id="btnTicks10" class="btn" style="padding:2px 8px;font-size:10px;border-radius:4px;background:#00ffa3;color:#04101c;font-weight:800;border:0;cursor:pointer;">10 Quotes</button>
       </div>
     </div>
@@ -62,19 +62,25 @@
     <div id="chartQuickTrade" class="quick-trade-bar" aria-label="Quick Forex BUY/SELL">
       <div class="qt-meta">
         <div class="qt-controls">
-          <span style="font-weight:900;color:#00ffa3;letter-spacing:0.4px;">⚡ QUICK FX ORDER</span>
+          <span style="font-weight:800;color:#00ffa3;letter-spacing:0.3px;">⚡ Quick FX</span>
           <span id="qtLiveSpot" style="font-weight:800;color:#fff;background:rgba(255,255,255,0.06);padding:3px 7px;border-radius:6px;">Spot: --</span>
           <label class="qt-field">Stake $<input id="qtStake" type="number" min="0.35" step="0.5" value="1.00"></label>
           <button type="button" id="qtHalfBtn" class="qt-stk-btn" title="Halve stake">½</button>
           <button type="button" id="qtDoubleBtn" class="qt-stk-btn" title="Double stake">2×</button>
-          <label class="qt-field">Expiry <input id="qtDur" type="number" min="1" max="1440" step="1" value="15" style="width:48px;">
-            <select id="qtUnit" aria-label="Quick duration unit"><option value="m" selected>Min</option><option value="h">Hr</option><option value="s">Sec</option><option value="t">Ticks</option></select>
+          <label class="qt-field">Timer <input id="qtDur" type="number" min="1" max="1440" step="1" value="15" style="width:48px;">
+            <select id="qtUnit" aria-label="Timer unit"><option value="t">Tick</option><option value="s">Sec</option><option value="m" selected>Min</option><option value="h">Hr</option></select>
           </label>
+          <div class="qt-presets" aria-label="Timer presets">
+            <button type="button" class="qt-preset" data-pd="5" data-pu="m">5m</button>
+            <button type="button" class="qt-preset" data-pd="15" data-pu="m">15m</button>
+            <button type="button" class="qt-preset" data-pd="30" data-pu="m">30m</button>
+            <button type="button" class="qt-preset" data-pd="1" data-pu="h">1h</button>
+          </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span id="qtTradeState" class="qt-trade-state">Ready</span>
-          <span id="qtQuoteTxt" style="font-weight:800;color:#cbd5e1;">Payout …</span>
-          <button type="button" id="qtPinBtn" class="qt-pin-btn on" title="Toggle sticky position while scrolling">📌 Pinned</button>
+          <span id="qtQuoteTxt" style="font-weight:700;color:#cbd5e1;">Payout …</span>
+          <button type="button" id="qtPinBtn" class="qt-pin-btn" title="Pin Quick FX bar while scrolling">📍 Pin</button>
         </div>
       </div>
       <div id="qtAiStrip" class="qt-ai-strip">
@@ -89,10 +95,6 @@
       <div class="qt-actions">
         <button type="button" id="qtBuyBtn" class="qt-btn primary">▲ BUY (CALL) <span id="qtBuySub" style="font-size:11px;opacity:0.9;"></span></button>
         <button type="button" id="qtSellBtn" class="qt-btn neg">▼ SELL (PUT) <span id="qtSellSub" style="font-size:11px;opacity:0.92;"></span></button>
-      </div>
-      <div class="qt-hk-hint" style="font-size:10px;color:#7d8aa5;display:flex;justify-content:space-between;gap:8px;padding-top:1px;">
-        <span>Hotkeys: <b>B</b> Buy (Call) · <b>S</b> Sell (Put) · <b>M</b> Match AI Signal · <b>Q</b> Refresh Scan</span>
-        <span>Deriv Bot dock mounts cleanly right below</span>
       </div>
     </div>
 
@@ -183,8 +185,8 @@
     <div class="panel">
       <div class="h">FOREX BUY / SELL</div>
       <div class="seg"><button id="tRise" class="active">▲ Buy (Call)</button><button id="tFall">▼ Sell (Put)</button></div>
-      <div class="lbl">EXPIRY DURATION</div>
-      <div class="ctrl"><select id="unit" aria-label="Duration unit"><option value="m" selected>Minutes</option><option value="h">Hours</option><option value="s">Seconds</option><option value="t">Ticks</option></select></div>
+      <div class="lbl">DURATION TIMER</div>
+      <div class="ctrl"><select id="unit" aria-label="Duration unit"><option value="t">Ticks</option><option value="s">Seconds</option><option value="m" selected>Minutes</option><option value="h">Hours</option></select></div>
       <div class="ctrl"><button data-for="dur" data-step="-1">−</button><input id="dur" type="number" min="1" max="1440" step="1" value="15"><button data-for="dur" data-step="1">+</button><span class="u" id="durU">minutes</span></div>
       <div class="lbl">STAKE</div>
       <div class="ctrl"><button data-for="stake" data-step="-1">−</button><input id="stake" type="number" min="0.35" step="0.5" value="1.00"><button data-for="stake" data-step="1">+</button><span class="u">USD</span></div>
@@ -205,9 +207,9 @@
       <button class="buy" id="buyBtn">Buy (Call)<small id="buySub">&nbsp;</small></button>
     </div>
 
-    <div class="panel" style="margin:10px;background:#0d1424;border:1px solid rgba(0,178,255,0.3);border-radius:14px;padding:12px;">
+    <div class="panel" style="margin:10px;background:#0c1322;border:1px solid var(--line);border-radius:12px;padding:12px;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:12px;font-weight:800;color:#00b2ff;letter-spacing:0.4px;">🤖 FX AI SENTRY AUTO-TRADER</div>
+        <div style="font-size:12px;font-weight:800;color:#00b2ff;letter-spacing:0.3px;">🤖 FX AI Auto-Trader</div>
         <span id="aiAutoBadge" style="font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.06);color:#9fb0cc;font-weight:700;">OFF</span>
       </div>
       <label class="switch" style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;">
@@ -221,7 +223,7 @@
         </div>
         <input type="range" id="thr" min="55" max="90" step="5" value="70" style="width:100%;accent-color:#00ffa3;">
       </div>
-      <div id="aiSentryStatus" style="margin-top:8px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;font-size:11px;color:#cbd5e1;line-height:1.4;">
+      <div id="aiSentryStatus" style="margin-top:8px;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;font-size:11px;color:#cbd5e1;line-height:1.4;">
         Status: <span style="color:#9fb0cc;">Idle. Arm switch to trade high-conviction FX signals automatically.</span>
       </div>
     </div>
@@ -385,8 +387,9 @@ TW.ready(function () {
     if (!el) return;
     const open = (TW.trades || []).find(t => t.status === 'open');
     if (open) {
+      const cd = TW.formatTradeCountdown ? TW.formatTradeCountdown(open) : { label: `${open.duration}${open.unit || 'm'}`, phase: 0 };
       el.className = 'qt-trade-state live';
-      el.innerHTML = `<span class="dot live" style="width:6px;height:6px;background:#00ffa3;"></span> ⏳ ${TW.esc(open.label || open.type)} ${open.duration}${open.unit} · $${Number(open.stake || 0).toFixed(2)}`;
+      el.innerHTML = `<span class="tw-cd-badge" data-cd-phase="${cd.phase}">⏱ ${cd.label}</span> <span>${TW.esc(open.label || open.type)} · $${Number(open.stake || 0).toFixed(2)}</span>`;
       return;
     }
     el.className = 'qt-trade-state';
@@ -396,9 +399,14 @@ TW.ready(function () {
       el.innerHTML = `Session ${sess.wins}W/${Math.max(0, sess.trades - sess.wins)}L · <b style="color:${pCol};">${sess.pnl >= 0 ? '+' : '-'}$${Math.abs(sess.pnl).toFixed(2)}</b>`;
     } else el.textContent = 'Ready';
   }
-  TW.on('trade', updateQtTradeState);
+  function syncChartOverlay() {
+    const open = (TW.trades || []).find(t => t.status === 'open' && t.symbol === top.symbol && (t.type === 'CALL' || t.type === 'PUT') && t.entry != null);
+    if (chart.setTradeOverlay) chart.setTradeOverlay(open ? { entry: open.entry, type: open.type, label: open.label } : null);
+  }
+  TW.on('trade', () => { updateQtTradeState(); syncChartOverlay(); });
+  TW.on('countdown', () => { updateQtTradeState(); syncChartOverlay(); });
   TW.on('account', updateQtTradeState);
-  updateQtTradeState();
+  updateQtTradeState(); syncChartOverlay();
 
   function setType(t) {
     type = t === 'PUT' ? 'PUT' : 'CALL';
@@ -420,21 +428,52 @@ TW.ready(function () {
     if (qs && document.activeElement !== qs) qs.value = stVal;
     if (qd) { qd.min = $('#dur').min; qd.max = $('#dur').max; if (document.activeElement !== qd) qd.value = $('#dur').value; }
     if (qu) qu.value = $('#unit').value;
+    const curU = $('#unit').value, curD = +$('#dur').value || 15;
+    document.querySelectorAll('#chartQuickTrade .qt-preset').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.pu === curU && +btn.dataset.pd === curD);
+    });
     const estPay = (lastQuote && Math.abs((lastQuote.stake || 0) - stNum) < 0.01) ? lastQuote.payout : +(stNum * 1.92).toFixed(2);
     const prof = Math.max(0, +(estPay - stNum).toFixed(2)).toFixed(2);
     $('#qtBuySub').textContent = `($${stVal} ➔ +$${prof})`;
     $('#qtSellSub').textContent = `($${stVal} ➔ +$${prof})`;
   }
 
+  const clampFxDur = (uKey, val, sym) => {
+    const u = UNITS[uKey] || UNITS.m;
+    let d = Math.max(u.min, Math.min(u.max, Math.round(+val) || u.def));
+    if (uKey === 'm' && /^frx(?!XAU)/i.test(String(sym || top.symbol || '')) && d < 15) d = 15;
+    return d;
+  };
+
   $('#unit').onchange = () => {
+    if ($('#unit').value === 't' && TW.mode() === 'live') {
+      $('#unit').value = 'm';
+      TW.toast('Deriv live Forex requires Minutes or Hours — switched to Minutes.', 'mut', 2800);
+    }
     const u = UNITS[$('#unit').value] || UNITS.m, d = $('#dur');
-    d.min = u.min; d.max = u.max; d.value = u.def;
+    d.min = u.min; d.max = u.max; d.value = clampFxDur($('#unit').value, u.def, top.symbol);
     $('#durU').textContent = u.l;
     syncQuickControls();
     refreshQuote();
   };
+  document.querySelectorAll('#chartQuickTrade .qt-preset').forEach(btn => {
+    btn.onclick = () => {
+      const uKey = btn.dataset.pu, dVal = +btn.dataset.pd;
+      const u = UNITS[uKey] || UNITS.m, d = $('#dur');
+      $('#unit').value = uKey;
+      d.min = u.min; d.max = u.max;
+      d.value = clampFxDur(uKey, dVal, top.symbol);
+      $('#durU').textContent = u.l;
+      syncQuickControls();
+      refreshQuote();
+    };
+  });
 
-  const params = () => ({ contract_type: type, symbol: top.symbol, amount: +$('#stake').value || 1, duration: +$('#dur').value, duration_unit: $('#unit').value });
+  const params = () => {
+    const unitVal = $('#unit').value || 'm';
+    const dVal = clampFxDur(unitVal, $('#dur').value, top.symbol);
+    return { contract_type: type, symbol: top.symbol, amount: Math.max(0.35, +$('#stake').value || 1), duration: dVal, duration_unit: unitVal };
+  };
   const refreshQuote = TW.watchQuote(params, (qr, msg) => {
     if (qr) {
       const st = +$('#stake').value || 1;
@@ -460,7 +499,7 @@ TW.ready(function () {
   $('#qtUnit').addEventListener('change', e => { $('#unit').value = e.target.value; $('#unit').onchange(); });
   $('#qtHalfBtn').onclick = () => { const nv = Math.max(0.35, +((+$('#stake').value || 1) / 2).toFixed(2)); $('#stake').value = nv.toFixed(2); baseManualStake = nv; syncQuickControls(); refreshQuote(); };
   $('#qtDoubleBtn').onclick = () => { const nv = Math.min((TW.settings && TW.settings.maxStake) || 500, +((+$('#stake').value || 1) * 2).toFixed(2)); $('#stake').value = nv.toFixed(2); baseManualStake = nv; syncQuickControls(); refreshQuote(); };
-  $('#qtPinBtn').onclick = () => { const bar = $('#chartQuickTrade'), btn = $('#qtPinBtn'); const pinned = !bar.classList.toggle('unpinned'); btn.classList.toggle('on', pinned); btn.textContent = pinned ? '📌 Pinned' : '📍 Docked'; };
+  $('#qtPinBtn').onclick = () => { const bar = $('#chartQuickTrade'), btn = $('#qtPinBtn'); if (!bar || !btn) return; const pinned = bar.classList.toggle('pinned'); btn.classList.toggle('on', pinned); btn.textContent = pinned ? '📌 Pinned' : '📍 Pin'; };
 
   let baseManualStake = +$('#stake').value || 1.0, manualLossPool = 0;
   $('#stake').addEventListener('change', () => { baseManualStake = +$('#stake').value || 1.0; syncQuickControls(); });
@@ -488,6 +527,11 @@ TW.ready(function () {
 
   async function buy(opts) {
     if (busy) return;
+    if (TW.mode() === 'live' && $('#unit').value === 't') {
+      $('#unit').value = 'm';
+      $('#unit').onchange();
+      TW.toast('Live Deriv Forex uses Minutes/Hours (not Ticks) — adjusted to 15m.', 'mut', 3000);
+    }
     setBusyBtns(true);
     try {
       const p = params();
@@ -689,15 +733,27 @@ TW.ready(function () {
     }
     lastAuto = Date.now();
     setType(fxSig.action);
-    $('#unit').value = fxSig.durationUnit || 'm';
+    const autoUnit = fxSig.durationUnit || 'm';
+    $('#unit').value = autoUnit;
     $('#unit').onchange();
-    $('#dur').value = fxSig.duration || 15;
+    $('#dur').value = clampFxDur(autoUnit, fxSig.duration || 15, top.symbol);
+    syncQuickControls();
+    $('#aiSentryStatus').innerHTML = `⚡ Firing <b>${TW.esc(fxSig.biasLabel)}</b> (${fxSig.conviction}% conv · ${$('#dur').value}${autoUnit})…`;
     try {
       const tr = await TW.trade(Object.assign(params(), { contract_type: fxSig.action, label: `FX AI ${fxSig.biasLabel}`, bot: 'FX AI Sentry' }), { silent: true });
-      tr.done.then(r => { consecutiveLosses = r.profit > 0 ? 0 : consecutiveLosses + 1; });
+      tr.done.then(r => {
+        consecutiveLosses = r.profit > 0 ? 0 : consecutiveLosses + 1;
+        if (autoOn.checked) {
+          $('#aiSentryStatus').innerHTML = r.profit > 0
+            ? `✅ Last Won <b>+$${Number(r.profit).toFixed(2)}</b> · Scanning next setup`
+            : `⚠️ Loss (${consecutiveLosses}L) · Next Gate <b>${baseGate + consecutiveLosses * 5}%</b>`;
+        }
+      });
     } catch (e) {
       autoOn.checked = false;
       $('#aiAutoBadge').textContent = 'OFF';
+      $('#aiAutoBadge').style.color = '#9fb0cc';
+      $('#aiSentryStatus').innerHTML = `🛑 Halted: ${TW.esc((e && e.message) || String(e))}`;
     }
   }
 
@@ -759,14 +815,26 @@ TW.ready(function () {
       anchor: '#chartQuickTrade',
       pillar: 'forex',
       getSymbol: () => top.symbol,
-      getCurrentSetup: () => ({
-        symbol: top.symbol,
-        contract: type,
-        barrier: 0,
-        duration: +$('#dur').value || 15,
-        durationUnit: $('#unit').value || 'm',
-        stake: +$('#stake').value || 1.0
-      }),
+      getCurrentSetup: () => {
+        const uKey = ($('#unit').value && UNITS[$('#unit').value]) ? $('#unit').value : 'm';
+        const safeU = uKey === 't' ? 'm' : uKey;
+        return {
+          symbol: top.symbol,
+          contract: type,
+          barrier: 0,
+          duration: clampFxDur(safeU, $('#dur').value, top.symbol),
+          durationUnit: safeU,
+          stake: Math.max(0.35, +$('#stake').value || 1.0)
+        };
+      },
+      onBeforeStart: () => {
+        if (autoOn && autoOn.checked) {
+          autoOn.checked = false;
+          $('#aiAutoBadge').textContent = 'OFF';
+          $('#aiAutoBadge').style.color = '#9fb0cc';
+          $('#aiSentryStatus').innerHTML = 'Status: <span style="color:#9fb0cc;">Yielded to Deriv DBot Runner.</span>';
+        }
+      },
       onSelectBot: b => {
         if (!b) return;
         const symSel = $('#twSym');
@@ -777,8 +845,8 @@ TW.ready(function () {
         }
         setType(b.contract === 'PUT' ? 'PUT' : 'CALL');
         if (b.durationUnit && UNITS[b.durationUnit]) { $('#unit').value = b.durationUnit; $('#unit').onchange(); }
-        if (b.duration) $('#dur').value = b.duration;
-        if (b.stake) { $('#stake').value = Number(b.stake).toFixed(2); baseManualStake = +b.stake; }
+        if (b.duration) $('#dur').value = clampFxDur($('#unit').value, b.duration, top.symbol);
+        if (b.stake) { $('#stake').value = Math.max(0.35, Number(b.stake)).toFixed(2); baseManualStake = +$('#stake').value; }
         syncQuickControls();
         refreshQuote();
       }
@@ -787,7 +855,7 @@ TW.ready(function () {
 
   if (q.type) setType(q.type === 'PUT' || q.type === 'SELL' ? 'PUT' : 'CALL');
   if (q.unit && UNITS[q.unit]) { $('#unit').value = q.unit; $('#unit').onchange(); }
-  if (q.dur) $('#dur').value = q.dur;
+  if (q.dur) $('#dur').value = clampFxDur($('#unit').value, q.dur, top.symbol);
   syncQuickControls();
   restart();
   setTimeout(() => scanForexPairs(true), 400);

@@ -32,8 +32,40 @@ const PORT = resolvePort();
 
 app.use(express.json({ limit: '2mb' }));
 
+const aiDiagnostics: {
+  lastStatus: 'untested' | 'ok' | 'error';
+  lastModel: string;
+  lastErrorSummary: string | null;
+  lastUpdatedAt: string | null;
+} = {
+  lastStatus: 'untested',
+  lastModel: 'gemini-4-hydrogen',
+  lastErrorSummary: null,
+  lastUpdatedAt: null,
+};
+
+function sanitizeAiError(err: any): string {
+  const raw = String((err && (err.message || err.status || err)) || 'unknown_error')
+    .replace(/AIza[0-9A-Za-z_-]+/g, '[redacted]');
+  try {
+    const parsed = JSON.parse(raw);
+    const e = parsed && parsed.error ? parsed.error : parsed;
+    if (e && (e.code || e.status || e.message)) {
+      const code = e.code || e.status || '';
+      const msg = String(e.message || '').split('\n')[0].slice(0, 100);
+      return `${code ? `HTTP ${code}: ` : ''}${msg}`.trim();
+    }
+  } catch {}
+  return raw.slice(0, 120);
+}
+
 app.get('/api/health', (_req: Request, res: Response) => {
-  res.json({ ok: true, port: PORT, aiConfigured: !!process.env.GEMINI_API_KEY });
+  res.json({
+    ok: true,
+    port: PORT,
+    aiConfigured: !!process.env.GEMINI_API_KEY,
+    aiDiagnostics,
+  });
 });
 
 // Shared Gemini Client
@@ -49,14 +81,27 @@ if (process.env.GEMINI_API_KEY) {
   });
 }
 
-async function generateWithTimeout(params: any, timeoutMs = 9500) {
+async function generateWithTimeout(params: any, timeoutMs = 16000) {
   if (!ai) throw new Error('Gemini client not initialized');
-  return Promise.race([
-    ai.models.generateContent(params),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Gemini timeout after ${timeoutMs}ms`)), timeoutMs)
-    ),
-  ]);
+  try {
+    const out = await Promise.race([
+      ai.models.generateContent(params),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error(`Gemini timeout after ${timeoutMs}ms`)), timeoutMs)
+      ),
+    ]);
+    aiDiagnostics.lastStatus = 'ok';
+    aiDiagnostics.lastModel = String(params?.model || 'gemini-4-hydrogen');
+    aiDiagnostics.lastErrorSummary = null;
+    aiDiagnostics.lastUpdatedAt = new Date().toISOString();
+    return out;
+  } catch (err: any) {
+    aiDiagnostics.lastStatus = 'error';
+    aiDiagnostics.lastModel = String(params?.model || 'gemini-4-hydrogen');
+    aiDiagnostics.lastErrorSummary = sanitizeAiError(err);
+    aiDiagnostics.lastUpdatedAt = new Date().toISOString();
+    throw err;
+  }
 }
 
 /**
@@ -116,6 +161,7 @@ Keep tone strictly analytical, institutional, emotion-free, and under 240 words.
     const reportText = response.text || 'Analysis completed with no output.';
     return res.json({
       success: true,
+      source: 'gemini',
       report: reportText,
       timestamp: new Date().toISOString(),
     });
@@ -137,6 +183,7 @@ Keep tone strictly analytical, institutional, emotion-free, and under 240 words.
 
     return res.json({
       success: true,
+      source: 'quant-engine',
       report: fallbackBrief,
       fallback: true,
       timestamp: new Date().toISOString(),
@@ -276,6 +323,7 @@ app.post('/api/ai/project-markets', async (req: Request, res: Response) => {
     if (!ai) {
       return res.json({
         success: true,
+        source: 'quant-engine',
         fallback: true,
         projectionReport: generateFallbackProjection(scannedMarkets, confidenceThreshold),
       });
@@ -313,6 +361,7 @@ Keep tone strictly analytical, quantitative, crisp, and under 250 words.`;
     const reportText = response.text || generateFallbackProjection(scannedMarkets, confidenceThreshold);
     return res.json({
       success: true,
+      source: 'gemini',
       projectionReport: reportText,
       timestamp: new Date().toISOString(),
     });
@@ -320,6 +369,7 @@ Keep tone strictly analytical, quantitative, crisp, and under 250 words.`;
     console.error('Market projection AI error:', err);
     return res.json({
       success: true,
+      source: 'quant-engine',
       fallback: true,
       projectionReport: generateFallbackProjection(req.body?.scannedMarkets, req.body?.confidenceThreshold),
       timestamp: new Date().toISOString(),
@@ -387,6 +437,7 @@ app.post('/api/ai/cross-market-analysis', async (req: Request, res: Response) =>
     if (!ai) {
       return res.json({
         success: true,
+        source: 'quant-engine',
         fallback: true,
         crossMarketReport: generateFallbackCrossMarketBriefing(markets, th),
         timestamp: new Date().toISOString(),
@@ -424,6 +475,7 @@ Keep tone strictly institutional, quantitative, objective, and under 260 words.`
     const reportText = response.text || generateFallbackCrossMarketBriefing(markets, th);
     return res.json({
       success: true,
+      source: 'gemini',
       crossMarketReport: reportText,
       timestamp: new Date().toISOString(),
     });
@@ -431,6 +483,7 @@ Keep tone strictly institutional, quantitative, objective, and under 260 words.`
     console.error('Cross-market AI analysis error:', err);
     return res.json({
       success: true,
+      source: 'quant-engine',
       fallback: true,
       crossMarketReport: generateFallbackCrossMarketBriefing(req.body?.markets, req.body?.confidenceThreshold),
       timestamp: new Date().toISOString(),
@@ -495,13 +548,16 @@ Keep answers under 130 words, plain language, institutional and caring.`;
     });
 
     return res.json({
+      success: true,
       source: 'gemini',
       reply: response.text || '',
     });
   } catch (err: any) {
     console.error('AI chat error:', err);
     return res.json({
+      success: true,
       source: 'quant-engine',
+      fallback: true,
       reply: '✦ Quant Coach: Maintain strict risk bounds — cap single stake under 2% of session equity, keep AI Confidence Gate calibrated to your contract baseline, and use paper mode before live capital.',
     });
   }
@@ -610,8 +666,19 @@ app.post('/api/ai/bot-architect', async (req: Request, res: Response) => {
     const martMode = isRF ? 'split_recovery' : 'smart_barrier';
     const baseStake = Math.max(0.35, Math.min(25, Number(defaultStake) || (isUltraSafe ? 0.35 : 0.5)));
     const isNonGoldFx = /^frx(?!XAU)/i.test(symbol);
-    const duration = isFx ? (q.includes('30m') ? 30 : (q.includes('5m') && !isNonGoldFx ? 5 : 15)) : (isRF ? 5 : 1);
-    const durationUnit = isFx ? 'm' : 't';
+    let durationUnit = isFx ? 'm' : 't';
+    let duration = isFx ? 15 : (isRF ? 5 : 1);
+    const durMatch = q.match(/(\d+)\s*(t|ticks?|s|secs?|seconds?|m|mins?|minutes?|h|hrs?|hours?)\b/);
+    if (durMatch) {
+      const val = parseInt(durMatch[1], 10);
+      const uRaw = durMatch[2][0];
+      if (!/^DIGIT/.test(contract) || uRaw === 't') {
+        durationUnit = isFx && uRaw === 't' ? 'm' : uRaw;
+        const maxD = durationUnit === 't' ? 10 : durationUnit === 's' ? 3600 : durationUnit === 'm' ? 1440 : 24;
+        const minD = durationUnit === 's' ? 15 : (isNonGoldFx && durationUnit === 'm' ? 15 : 1);
+        duration = Math.max(minD, Math.min(maxD, val));
+      }
+    }
 
     return {
       success: true,
@@ -715,7 +782,8 @@ Remember calibration & naming rules:
     const durationUnit = isFx
       ? (['s', 'm', 'h'].includes(parsed.durationUnit) ? parsed.durationUnit : 'm')
       : (['t', 's', 'm', 'h'].includes(parsed.durationUnit) ? parsed.durationUnit : 't');
-    const maxDur = durationUnit === 't' ? 10 : 60;
+    const maxDur = durationUnit === 't' ? 10 : durationUnit === 's' ? 3600 : durationUnit === 'm' ? 1440 : 24;
+    const minDur = durationUnit === 's' ? 15 : (isFx && durationUnit === 'm' ? (/^frx(?!XAU)/i.test(symbol) ? 15 : 5) : 1);
 
     return res.json({
       success: true,
@@ -725,7 +793,7 @@ Remember calibration & naming rules:
         symbol,
         contract,
         barrier: Math.max(0, Math.min(9, Math.round(Number(parsed.barrier ?? 7)))),
-        duration: Math.max(isFx && durationUnit === 'm' ? (/^frx(?!XAU)/i.test(symbol) ? 15 : 5) : 1, Math.min(maxDur, Math.round(Number(parsed.duration ?? (isFx ? 15 : 1))))),
+        duration: Math.max(minDur, Math.min(maxDur, Math.round(Number(parsed.duration ?? (isFx ? 15 : 1))))),
         durationUnit,
         stake: Math.max(0.35, Math.min(50, +Number(parsed.stake ?? 0.5).toFixed(2))),
         aiGate: Math.max(10, Math.min(92, Math.round(Number(parsed.aiGate ?? 68)))),

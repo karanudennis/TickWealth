@@ -6,8 +6,8 @@
   if (!window.TW || TW.embed) return;
   const CT = { RISE: ['Rise', 'CALL'], FALL: ['Fall', 'PUT'], OVER: ['Over', 'DIGITOVER'], UNDER: ['Under', 'DIGITUNDER'], EVEN: ['Even', 'DIGITEVEN'], ODD: ['Odd', 'DIGITODD'], MATCH: ['Matches', 'DIGITMATCH'], DIFF: ['Differs', 'DIGITDIFF'] };
   const st = document.createElement('style');
-  st.textContent = `.twa-btn{position:fixed;right:96px;bottom:14px;z-index:60;padding:10px 14px;border-radius:99px;border:1px solid #00b2ff;background:#0a0f1d;color:#00b2ff;font:600 13px system-ui;cursor:pointer}
-  .twa-box{position:fixed;right:14px;bottom:60px;z-index:60;width:min(360px,calc(100vw - 28px));max-height:75vh;overflow:auto;background:rgba(10,15,29,.96);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:14px;color:#d7e0f2;font:13px/1.5 system-ui}
+  st.textContent = `.twa-btn{position:fixed;right:94px;bottom:14px;z-index:60;height:36px;padding:0 14px;border-radius:10px;border:1px solid rgba(0,178,255,0.45);background:rgba(10,15,29,0.94);backdrop-filter:blur(8px);color:#00b2ff;font:700 12.5px "Plus Jakarta Sans",system-ui,sans-serif;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,0.45)}
+  .twa-box{position:fixed;right:14px;bottom:58px;z-index:60;width:min(360px,calc(100vw - 28px));max-height:75vh;overflow:auto;background:rgba(10,15,29,.96);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:14px;color:#d7e0f2;font:13px/1.5 "Plus Jakarta Sans",system-ui,sans-serif}
   .twa-box label{display:block;color:#7d8aa5;margin:8px 0 3px;font-size:12px}.twa-box select,.twa-box input[type=number]{width:100%;padding:6px 8px;border-radius:8px;border:1px solid rgba(255,255,255,.14);background:rgba(0,0,0,.4);color:#d7e0f2}
   .twa-box button{padding:7px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.2);background:rgba(0,0,0,.35);color:#d7e0f2;cursor:pointer;margin:6px 6px 0 0}
   .twa-row{display:flex;gap:8px}.twa-row>*{flex:1}.twa-line{margin:4px 0}.twa-cd{margin:8px 0;padding:8px;border-radius:8px;border:1px solid #00ffa3;color:#00ffa3;display:none}.twa-note{color:#7d8aa5;font-size:11px;margin-top:8px}`;

@@ -5,11 +5,11 @@
   'use strict';
   if (!window.TW || TW.embed) return;
   const st = document.createElement('style');
-  st.textContent = '.tc-btn{position:fixed;right:14px;bottom:14px;z-index:60;padding:10px 14px;border-radius:99px;border:1px solid #00ffa3;background:#0a0f1d;color:#00ffa3;font:600 13px system-ui;cursor:pointer}' +
-    '.tc-box{position:fixed;right:14px;bottom:60px;z-index:60;width:min(380px,calc(100vw - 28px));height:min(460px,70vh);display:flex;flex-direction:column;background:rgba(10,15,29,.97);border:1px solid rgba(255,255,255,.14);border-radius:14px;color:#d7e0f2;font:13px/1.5 system-ui}' +
+  st.textContent = '.tc-btn{position:fixed;right:14px;bottom:14px;z-index:60;height:36px;padding:0 14px;border-radius:10px;border:1px solid rgba(0,255,163,0.45);background:rgba(10,15,29,0.94);backdrop-filter:blur(8px);color:#00ffa3;font:700 12.5px "Plus Jakarta Sans",system-ui,sans-serif;cursor:pointer;box-shadow:0 6px 20px rgba(0,0,0,0.45)}' +
+    '.tc-box{position:fixed;right:14px;bottom:58px;z-index:60;width:min(380px,calc(100vw - 28px));height:min(460px,70vh);display:flex;flex-direction:column;background:rgba(10,15,29,.97);border:1px solid rgba(255,255,255,.14);border-radius:14px;color:#d7e0f2;font:13px/1.5 "Plus Jakarta Sans",system-ui,sans-serif}' +
     '.tc-box[hidden]{display:none}.tc-log{flex:1;overflow:auto;padding:12px}.tc-m{margin:0 0 10px;padding:8px 10px;border-radius:10px;white-space:pre-wrap}.tc-u{background:rgba(0,178,255,.15);margin-left:30px}.tc-a{background:rgba(255,255,255,.06);margin-right:30px}' +
     '.tc-in{display:flex;gap:6px;padding:8px;border-top:1px solid rgba(255,255,255,.1)}.tc-in input{flex:1;padding:8px;border-radius:8px;border:1px solid rgba(255,255,255,.15);background:rgba(0,0,0,.4);color:#d7e0f2}.tc-in button{padding:8px 12px;border-radius:8px;border:1px solid #00ffa3;background:transparent;color:#00ffa3;cursor:pointer}' +
-    '.tc-q{display:flex;gap:6px;flex-wrap:wrap;padding:0 12px 8px}.tc-q button{padding:4px 9px;border-radius:99px;border:1px solid rgba(255,255,255,.2);background:transparent;color:#9fb0cc;font-size:11px;cursor:pointer}';
+    '.tc-q{display:flex;gap:6px;flex-wrap:wrap;padding:0 12px 8px}.tc-q button{padding:4px 9px;border-radius:8px;border:1px solid rgba(255,255,255,.18);background:transparent;color:#9fb0cc;font-size:11px;cursor:pointer}';
   document.head.appendChild(st);
   const btn = document.createElement('button'); btn.className = 'tc-btn'; btn.textContent = 'Coach'; btn.setAttribute('aria-expanded', 'false');
   const box = document.createElement('div'); box.className = 'tc-box'; box.hidden = true; box.setAttribute('role', 'dialog'); box.setAttribute('aria-label', 'TickWealth coach');

@@ -15,36 +15,45 @@
     <div class="chartbar" id="gran"></div>
     <div class="chartbox" id="chartBox"></div>
 
-    <!-- LIVE 5 / 10 TICKER STREAM WITH BLINKING LIGHTS (RISE / FALL) -->
-    <div id="liveTickerBar" style="margin:6px 0 7px;background:#090d18;border:1px solid rgba(0,255,163,0.35);border-radius:10px;padding:6px 10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;box-shadow:0 4px 16px rgba(0,0,0,0.4);">
+    <!-- LIVE 5 / 10 TICKER STREAM -->
+    <div id="liveTickerBar" style="margin:6px 0 8px;background:#0c1322;border:1px solid var(--line);border-radius:10px;padding:6px 10px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;">
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-        <span class="dot live" style="width:8px;height:8px;background:#00ffa3;"></span>
-        <span style="font-size:11px;font-weight:900;color:#00ffa3;letter-spacing:0.5px;">LIVE TICKER LIGHTS:</span>
+        <span class="dot live" style="width:7px;height:7px;background:#00ffa3;"></span>
+        <span style="font-size:10.5px;font-weight:800;color:#94a3b8;letter-spacing:0.4px;">LIVE TICKS</span>
         <div id="tickerChips" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;"></div>
       </div>
       <div style="display:flex;align-items:center;gap:4px;">
-        <button type="button" id="btnTicks5" class="btn ghost" style="padding:2px 8px;font-size:10px;border-radius:4px;border:1px solid rgba(255,255,255,0.2);cursor:pointer;">5 Ticks</button>
+        <button type="button" id="btnTicks5" class="btn ghost" style="padding:2px 8px;font-size:10px;border-radius:4px;border:1px solid var(--line);cursor:pointer;">5 Ticks</button>
         <button type="button" id="btnTicks10" class="btn" style="padding:2px 8px;font-size:10px;border-radius:4px;background:#00ffa3;color:#04101c;font-weight:800;border:0;cursor:pointer;">10 Ticks</button>
       </div>
     </div>
 
-    <!-- INLINE CHART-ATTACHED MANUAL EXECUTION BAR (STICKY WHILE SCROLLING) -->
+    <!-- INLINE CHART-ATTACHED MANUAL EXECUTION BAR -->
     <div id="chartQuickTrade" class="quick-trade-bar" aria-label="Quick manual trade">
       <div class="qt-meta">
         <div class="qt-controls">
-          <span style="font-weight:900;color:#00ffa3;letter-spacing:0.4px;">⚡ QUICK MANUAL</span>
+          <span style="font-weight:800;color:#00ffa3;letter-spacing:0.3px;">⚡ Quick Order</span>
           <span id="qtLiveSpot" style="font-weight:800;color:#fff;background:rgba(255,255,255,0.06);padding:3px 7px;border-radius:6px;">Spot: --</span>
           <label class="qt-field">Stake $<input id="qtStake" type="number" min="0.35" step="0.5" value="1.00"></label>
           <button type="button" id="qtHalfBtn" class="qt-stk-btn" title="Halve stake">½</button>
           <button type="button" id="qtDoubleBtn" class="qt-stk-btn" title="Double stake">2×</button>
-          <label class="qt-field">Dur <input id="qtDur" type="number" min="1" max="10" step="1" value="5" style="width:42px;">
-            <select id="qtUnit" aria-label="Quick duration unit"><option value="t">Ticks</option><option value="s">Sec</option><option value="m">Min</option><option value="h">Hr</option></select>
+          <label class="qt-field">Timer <input id="qtDur" type="number" min="1" max="10" step="1" value="5" style="width:44px;">
+            <select id="qtUnit" aria-label="Timer unit"><option value="t">Tick</option><option value="s">Sec</option><option value="m">Min</option><option value="h">Hr</option></select>
           </label>
+          <div class="qt-presets" aria-label="Timer presets">
+            <button type="button" class="qt-preset" data-pd="1" data-pu="t">1t</button>
+            <button type="button" class="qt-preset" data-pd="5" data-pu="t">5t</button>
+            <button type="button" class="qt-preset" data-pd="10" data-pu="t">10t</button>
+            <button type="button" class="qt-preset" data-pd="15" data-pu="s">15s</button>
+            <button type="button" class="qt-preset" data-pd="30" data-pu="s">30s</button>
+            <button type="button" class="qt-preset" data-pd="1" data-pu="m">1m</button>
+            <button type="button" class="qt-preset" data-pd="5" data-pu="m">5m</button>
+          </div>
         </div>
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
           <span id="qtTradeState" class="qt-trade-state">Ready</span>
-          <span id="qtQuoteTxt" style="font-weight:800;color:#cbd5e1;">Payout …</span>
-          <button type="button" id="qtPinBtn" class="qt-pin-btn on" title="Toggle sticky position while scrolling">📌 Pinned</button>
+          <span id="qtQuoteTxt" style="font-weight:700;color:#cbd5e1;">Payout …</span>
+          <button type="button" id="qtPinBtn" class="qt-pin-btn" title="Pin Quick Order bar while scrolling">📍 Pin</button>
         </div>
       </div>
       <div id="qtAiStrip" class="qt-ai-strip">
@@ -60,56 +69,52 @@
         <button type="button" id="qtRiseBtn" class="qt-btn primary">▲ BUY RISE <span id="qtRiseSub" style="font-size:11px;opacity:0.9;"></span></button>
         <button type="button" id="qtFallBtn" class="qt-btn neg">▼ BUY FALL <span id="qtFallSub" style="font-size:11px;opacity:0.92;"></span></button>
       </div>
-      <div class="qt-hk-hint" style="font-size:10px;color:#7d8aa5;display:flex;justify-content:space-between;gap:8px;padding-top:1px;">
-        <span>Hotkeys: <b>R</b> Buy Rise · <b>F</b> Buy Fall · <b>M</b> Match AI · <b>B</b> Bet AI · <b>S</b> Scan</span>
-        <span>Stays docked above as you inspect scanners below</span>
-      </div>
     </div>
 
     <div class="scanbar" id="scanBar">
       <div class="t" id="scanTxt">Waiting for live ticks…</div>
-      <button class="btn" id="scanBtn">✦ MOMENTUM SCAN</button><button class="btn ghost" id="askAi">✦ Ask AI</button>
+      <button class="btn" id="scanBtn">✦ Momentum Scan</button><button class="btn ghost" id="askAi">✦ Ask AI</button>
     </div>
 
-    <!-- NEAT, NON-OVERCROWDED ADVANCE AI MOMENTUM SUGGESTION SYSTEM -->
-    <div class="panel" style="margin:16px 0 0;background:#090d18;border:1px solid rgba(0,255,163,0.3);border-radius:14px;padding:14px;">
+    <!-- NEAT ADVANCE AI MOMENTUM SUGGESTION SYSTEM -->
+    <div class="panel" style="margin:12px 0 0;background:#0c1322;border:1px solid var(--line);border-radius:12px;padding:14px;">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
         <div>
-          <div style="font-size:13px;font-weight:800;color:#00ffa3;letter-spacing:0.4px;">
-            ⚡ ADVANCE AI MOMENTUM SUGGESTION · RISE / FALL
+          <div style="font-size:13px;font-weight:800;color:#00ffa3;letter-spacing:0.3px;">
+            ⚡ AI Momentum Scanner · Rise / Fall
           </div>
-          <div style="font-size:11px;color:#9fb0cc;margin-top:2px;">
-            Scans all live Deriv Rise/Fall markets for highest directional momentum. Minimum 85% confidence recommended before trading.
+          <div style="font-size:11px;color:#94a3b8;margin-top:2px;">
+            Evaluates live Deriv Rise/Fall markets for highest directional momentum.
           </div>
         </div>
         <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-          <button class="btn" id="btnRfScan" style="background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;font-weight:800;font-size:11px;padding:8px 12px;border-radius:8px;border:0;cursor:pointer;">
-            ⚡ SCAN FOR BEST SUGGESTION
+          <button class="btn" id="btnRfScan" style="background:linear-gradient(90deg,#00ffa3,#00b2ff);color:#04101c;font-weight:800;font-size:11px;padding:7px 12px;border-radius:8px;border:0;cursor:pointer;">
+            ⚡ Scan Top Setup
           </button>
-          <button class="btn ghost" id="btnRfDeepScan" style="font-size:11px;padding:8px 12px;border-radius:8px;cursor:pointer;">
-            ⚛ DEEP SCAN (1000t)
+          <button class="btn ghost" id="btnRfDeepScan" style="font-size:11px;padding:7px 12px;border-radius:8px;cursor:pointer;">
+            ⚛ Deep Scan (1000t)
           </button>
         </div>
       </div>
 
-      <!-- THE SINGLE BEST OVERALL RESULT CARD (NO CLUTTER) -->
-      <div id="rfAiSuggestionBox" style="margin-top:12px;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.1);border-radius:12px;padding:14px;transition:all 0.3s ease;">
-        <div style="display:flex;align-items:center;justify-content:center;height:90px;color:#7d8aa5;font-size:12px;gap:8px;">
-          <span class="dot live" style="width:10px;height:10px;"></span>
-          <span>Click <b>Scan For Best Suggestion</b> or <b>Deep Scan (1000t)</b> to evaluate directional momentum…</span>
+      <!-- THE SINGLE BEST OVERALL RESULT CARD -->
+      <div id="rfAiSuggestionBox" style="margin-top:12px;background:rgba(255,255,255,0.025);border:1px solid var(--line);border-radius:10px;padding:14px;transition:all 0.25s ease;">
+        <div style="display:flex;align-items:center;justify-content:center;height:80px;color:#7d8aa5;font-size:12px;gap:8px;">
+          <span class="dot live" style="width:9px;height:9px;"></span>
+          <span>Click <b>Scan Top Setup</b> or <b>Deep Scan (1000t)</b> for directional momentum…</span>
         </div>
       </div>
 
     </div>
 
-    <div class="notice" id="disc" style="margin-top:14px;"></div>
+    <div class="notice" id="disc" style="margin-top:12px;"></div>
   </section>
 
   <aside class="side">
     <div class="panel">
       <div class="h">RISE / FALL</div>
       <div class="seg"><button id="tRise" class="active">▲ Rise</button><button id="tFall">▼ Fall</button></div>
-      <div class="lbl">DURATION</div>
+      <div class="lbl">DURATION TIMER</div>
       <div class="ctrl"><select id="unit" aria-label="Duration unit"><option value="t">Ticks</option><option value="s">Seconds</option><option value="m">Minutes</option><option value="h">Hours</option></select></div>
       <div class="ctrl"><button data-for="dur" data-step="-1">−</button><input id="dur" type="number" min="1" max="10" step="1" value="5"><button data-for="dur" data-step="1">+</button><span class="u" id="durU">ticks</span></div>
       <div class="lbl">STAKE</div>
@@ -132,9 +137,9 @@
     </div>
 
     <!-- ADVANCED AI AUTO-TRADER PANEL FOR RISE / FALL -->
-    <div class="panel" style="margin:10px;background:#0d1424;border:1px solid rgba(0,178,255,0.3);border-radius:14px;padding:12px;">
+    <div class="panel" style="margin:10px;background:#0c1322;border:1px solid var(--line);border-radius:12px;padding:12px;">
       <div style="display:flex;justify-content:space-between;align-items:center;">
-        <div style="font-size:12px;font-weight:800;color:#00b2ff;letter-spacing:0.4px;">🤖 ADVANCED AI AUTO-TRADER</div>
+        <div style="font-size:12px;font-weight:800;color:#00b2ff;letter-spacing:0.3px;">🤖 AI Auto-Trader</div>
         <span id="aiAutoBadge" style="font-size:10px;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.06);color:#9fb0cc;font-weight:700;">OFF</span>
       </div>
       <label class="switch" style="margin-top:10px;display:flex;align-items:center;justify-content:space-between;">
@@ -149,10 +154,10 @@
         <input type="range" id="thr" min="70" max="95" step="5" value="85" style="width:100%;accent-color:#00ffa3;">
       </div>
       <div style="margin-top:8px;font-size:10.5px;color:#7d8aa5;line-height:1.45;">
-        🛡️ <b>Adaptive Loss Shield:</b> Increases gate requirement by +5% after any loss to filter choppy noise. Requires minimum 5s cooldown.
+        🛡️ <b>Adaptive Loss Shield:</b> Increases gate by +5% after any loss. Minimum 5s cooldown.
       </div>
-      <div id="aiSentryStatus" style="margin-top:8px;background:rgba(0,0,0,0.4);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:8px 10px;font-size:11px;color:#cbd5e1;line-height:1.4;">
-        Status: <span style="color:#9fb0cc;">Auto-trading idle. Check switch to arm AI sentry.</span>
+      <div id="aiSentryStatus" style="margin-top:8px;background:rgba(0,0,0,0.35);border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:8px 10px;font-size:11px;color:#cbd5e1;line-height:1.4;">
+        Status: <span style="color:#9fb0cc;">Idle. Check switch to arm AI sentry.</span>
       </div>
     </div>
 
@@ -304,9 +309,9 @@ TW.ready(function(){
     if(!el) return;
     const open=(TW.trades||[]).find(t=>t.status==='open');
     if(open){
-      const prog=open.unit==='t'?`${open.ticksElapsed||open.count||0}/${open.duration}t`:`${open.duration}${open.unit}`;
+      const cd=TW.formatTradeCountdown?TW.formatTradeCountdown(open):{label:`${open.duration}${open.unit||'t'}`,phase:0};
       el.className='qt-trade-state live';
-      el.innerHTML=`<span class="dot live" style="width:6px;height:6px;background:#00ffa3;"></span> ⏳ ${TW.esc(open.label||open.type)} ${prog} · $${Number(open.stake||0).toFixed(2)}`;
+      el.innerHTML=`<span class="tw-cd-badge" data-cd-phase="${cd.phase}">⏱ ${cd.label}</span> <span>${TW.esc(open.label||open.type)} · $${Number(open.stake||0).toFixed(2)}</span>`;
       return;
     }
     el.className='qt-trade-state';
@@ -319,9 +324,14 @@ TW.ready(function(){
       el.textContent='Ready';
     }
   }
-  TW.on('trade', updateQtTradeState);
+  function syncChartOverlay(){
+    const open=(TW.trades||[]).find(t=>t.status==='open'&&t.symbol===top.symbol&&(t.type==='CALL'||t.type==='PUT')&&t.entry!=null);
+    if(chart.setTradeOverlay) chart.setTradeOverlay(open?{entry:open.entry,type:open.type,label:open.label}:null);
+  }
+  TW.on('trade', ()=>{ updateQtTradeState(); syncChartOverlay(); });
+  TW.on('countdown', ()=>{ updateQtTradeState(); syncChartOverlay(); });
   TW.on('account', updateQtTradeState);
-  updateQtTradeState();
+  updateQtTradeState(); syncChartOverlay();
 
   function doScan(silent){
     scan=calcScan(); if(!scan){ if(!silent)TW.toast('Need at least 30 ticks first.'); return; }
@@ -384,6 +394,10 @@ TW.ready(function(){
       if(document.activeElement !== qd) qd.value = $('#dur').value;
     }
     if(qu) qu.value = $('#unit').value;
+    const curU = $('#unit').value, curD = +$('#dur').value || 5;
+    document.querySelectorAll('#chartQuickTrade .qt-preset').forEach(btn=>{
+      btn.classList.toggle('active', btn.dataset.pu===curU && +btn.dataset.pd===curD);
+    });
     const estPay=(lastRfQuotePayout && Math.abs((lastRfQuotePayout.stake||0)-stNum)<0.01) ? lastRfQuotePayout.payout : (TW.estimatePayout ? TW.estimatePayout('CALL', null, stNum) : +(stNum*1.95).toFixed(2));
     const prof=Math.max(0, +(estPay-stNum).toFixed(2)).toFixed(2);
     const rs=$('#qtRiseSub'), fs=$('#qtFallSub');
@@ -391,7 +405,15 @@ TW.ready(function(){
     if(fs) fs.textContent=`($${stVal} ➔ +$${prof})`;
   }
   $('#unit').onchange=()=>{const u=UNITS[$('#unit').value],d=$('#dur'); d.min=u.min; d.max=u.max; d.value=u.def; $('#durU').textContent=u.l; syncQuickTradeControls(); refreshQuote();};
-  const params=()=>({contract_type:type,symbol:top.symbol,amount:+$('#stake').value||1,duration:+$('#dur').value,duration_unit:$('#unit').value});
+  document.querySelectorAll('#chartQuickTrade .qt-preset').forEach(btn=>{
+    btn.onclick=()=>{
+      const uKey=btn.dataset.pu, dVal=+btn.dataset.pd;
+      const u=UNITS[uKey]||UNITS.t, d=$('#dur');
+      $('#unit').value=uKey; d.min=u.min; d.max=u.max; d.value=Math.max(u.min,Math.min(u.max,dVal)); $('#durU').textContent=u.l;
+      syncQuickTradeControls(); refreshQuote();
+    };
+  });
+  const params=()=>{ const unit=$('#unit').value, b=UNITS[unit]||UNITS.t, d=Math.min(b.max,Math.max(b.min,+$('#dur').value||b.def)); return {contract_type:type,symbol:top.symbol,amount:+$('#stake').value||1,duration:d,duration_unit:unit}; };
   const refreshQuote=TW.watchQuote(params,(q,msg)=>{
     if(q){const st=+$('#stake').value||1; lastRfQuotePayout={stake:st,payout:+q.payout}; $('#qTxt').innerHTML='Payout <b>'+TW.money(q.payout)+'</b>'; $('#qProfit').innerHTML='Profit <b>'+TW.money(q.payout-st)+'</b>'; $('#buySub').textContent='Payout '+TW.money(q.payout); const qtQ=$('#qtQuoteTxt'); if(qtQ) qtQ.innerHTML='Payout <b style="color:#00ffa3;">'+TW.money(q.payout)+'</b> · Profit <b>'+TW.money(q.payout-st)+'</b>';}
     else {lastRfQuotePayout=null; $('#qTxt').textContent=msg==='loading'?'Getting price…':msg; $('#qProfit').textContent=''; if(msg!=='loading')$('#buySub').innerHTML='&nbsp;'; const qtQ=$('#qtQuoteTxt'); if(qtQ) qtQ.textContent=msg==='loading'?'Getting price…':msg;}
@@ -403,10 +425,10 @@ TW.ready(function(){
   if($('#qtUnit')) $('#qtUnit').addEventListener('change',e=>{ $('#unit').value=e.target.value; $('#unit').onchange(); });
   if($('#qtHalfBtn')) $('#qtHalfBtn').onclick=()=>{ const cur=Math.max(0.35,+($('#stake').value||1)); const nv=Math.max(0.35,+(cur/2).toFixed(2)); $('#stake').value=nv.toFixed(2); baseManualStake=nv; syncQuickTradeControls(); refreshQuote(); };
   if($('#qtDoubleBtn')) $('#qtDoubleBtn').onclick=()=>{ const maxStk=(TW.settings&&TW.settings.maxStake)?+TW.settings.maxStake:500; const cur=Math.max(0.35,+($('#stake').value||1)); const nv=Math.min(maxStk,+(cur*2).toFixed(2)); $('#stake').value=nv.toFixed(2); baseManualStake=nv; syncQuickTradeControls(); refreshQuote(); };
-  if($('#qtPinBtn')) $('#qtPinBtn').onclick=()=>{ const bar=$('#chartQuickTrade'), btn=$('#qtPinBtn'); if(!bar||!btn) return; const pinned=!bar.classList.toggle('unpinned'); btn.classList.toggle('on',pinned); btn.textContent=pinned?'📌 Pinned':'📍 Docked'; };
+  if($('#qtPinBtn')) $('#qtPinBtn').onclick=()=>{ const bar=$('#chartQuickTrade'), btn=$('#qtPinBtn'); if(!bar||!btn) return; const pinned=bar.classList.toggle('pinned'); btn.classList.toggle('on',pinned); btn.textContent=pinned?'📌 Pinned':'📍 Pin'; };
   if(q.type) setType(q.type==='PUT'||q.type==='FALL'?'PUT':'CALL');
-  if(q.dur) { $('#dur').value = q.dur; }
   if(q.unit && UNITS[q.unit]) { const u=UNITS[q.unit]; $('#unit').value=q.unit; $('#dur').min=u.min; $('#dur').max=u.max; $('#durU').textContent=u.l; }
+  if(q.dur) { const u=UNITS[$('#unit').value]||UNITS.t; $('#dur').value = Math.max(u.min, Math.min(u.max, +q.dur || u.def)); }
   syncQuickTradeControls();
   refreshQuote();
 
@@ -853,7 +875,7 @@ TW.ready(function(){
           <button type="button" id="btnApplySuggestedRfControls" class="btn" style="flex:1;min-width:min(100%,130px);padding:11px 12px;font-size:11.5px;font-weight:800;background:#141e33;border:1px solid rgba(0,255,163,0.4);color:#00ffa3;border-radius:8px;cursor:pointer;">
             🎯 APPLY TO PANEL
           </button>
-          <a href="bots-library.html?symbol=${topBest.v.id}&contract=${topBest.action}&stake=${Math.max(0.35, +($('#stake')&&$('#stake').value)||1)}&name=${encodeURIComponent('AI Momentum '+topBest.v.name+' ('+topBest.action+')')}&dur=5&unit=t&rule_kind=ai_alpha&rule_cond=${topBest.action==='CALL'?'rise':'fall'}&rule_n=1&mart=1&mart_mode=split_recovery&mart_mult=1.05&mart_steps=4&shield=1&gate=${Math.max(48,Math.min(62,topBest.strength))}" class="btn" style="flex:1;min-width:min(100%,135px);padding:11px 12px;font-size:11.5px;font-weight:800;background:#0b1730;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;text-align:center;text-decoration:none;">
+          <a id="btnRfLaunchBot" href="bots-library.html?symbol=${topBest.v.id}&contract=${topBest.action}&stake=${Math.max(0.35, +($('#stake')&&$('#stake').value)||1)}&name=${encodeURIComponent('AI Momentum '+topBest.v.name+' ('+topBest.action+')')}&dur=${selectedDur}&unit=${selectedUnit}&rule_kind=ai_alpha&rule_cond=${topBest.action==='CALL'?'rise':'fall'}&rule_n=1&mart=1&mart_mode=split_recovery&mart_mult=1.05&mart_steps=4&shield=1&gate=${Math.max(48,Math.min(62,topBest.strength))}" class="btn" style="flex:1;min-width:min(100%,135px);padding:11px 12px;font-size:11.5px;font-weight:800;background:#0b1730;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;text-align:center;text-decoration:none;">
             🤖 LAUNCH IN BOT →
           </a>
           <button type="button" id="btnRfRescanCard" class="btn" style="flex:0.8;min-width:100px;padding:11px 12px;font-size:11px;font-weight:800;background:#1e293b;border:1px solid #00b2ff;color:#00b2ff;border-radius:8px;cursor:pointer;">
@@ -908,10 +930,16 @@ TW.ready(function(){
 
     function updateRfSugLabel(){
       const b=$('#btnPlaceSuggestedRfBet');
-      if(!b) return;
-      const dirTxt=topBest.action==='CALL'?'RISE':'FALL';
-      const uTxt=selectedUnit==='t'?(selectedDur===1?'TICK':'TICKS'):selectedUnit==='s'?'SEC':'MIN';
-      b.textContent=`⚡ 1-CLICK BET (${dirTxt} · ${selectedDur} ${uTxt})`;
+      if(b){
+        const dirTxt=topBest.action==='CALL'?'RISE':'FALL';
+        const uTxt=selectedUnit==='t'?(selectedDur===1?'TICK':'TICKS'):selectedUnit==='s'?'SEC':'MIN';
+        b.textContent=`⚡ 1-CLICK BET (${dirTxt} · ${selectedDur} ${uTxt})`;
+      }
+      const lb=$('#btnRfLaunchBot');
+      if(lb){
+        const curStk=Math.max(0.35, +($('#stake')&&$('#stake').value)||1);
+        lb.href=`bots-library.html?symbol=${topBest.v.id}&contract=${topBest.action}&stake=${curStk}&name=${encodeURIComponent('AI Momentum '+topBest.v.name+' ('+topBest.action+')')}&dur=${selectedDur}&unit=${selectedUnit}&rule_kind=ai_alpha&rule_cond=${topBest.action==='CALL'?'rise':'fall'}&rule_n=1&mart=1&mart_mode=split_recovery&mart_mult=1.05&mart_steps=4&shield=1&gate=${Math.max(48,Math.min(62,topBest.strength))}`;
+      }
     }
     updateRfSugLabel();
 
@@ -1023,15 +1051,19 @@ TW.ready(function(){
       anchor: '#chartQuickTrade',
       pillar: 'rise-fall',
       getSymbol: () => top.symbol,
-      getCurrentSetup: () => ({
-        symbol: top.symbol,
-        contract: type,
-        barrier: 0,
-        duration: Math.max(1, Math.min($('#unit').value === 't' ? 10 : 60, +$('#dur').value || 5)),
-        durationUnit: $('#unit').value || 't',
-        stake: Math.max(0.35, +$('#stake').value || 1),
-        auto2x: !!($('#chkManualMart') && $('#chkManualMart').checked)
-      }),
+      getCurrentSetup: () => {
+        const uKey = $('#unit').value || 't';
+        const uCfg = UNITS[uKey] || UNITS.t;
+        return {
+          symbol: top.symbol,
+          contract: type,
+          barrier: 0,
+          duration: Math.max(uCfg.min, Math.min(uCfg.max, +$('#dur').value || uCfg.def)),
+          durationUnit: uKey,
+          stake: Math.max(0.35, +$('#stake').value || 1),
+          auto2x: !!($('#chkManualMart') && $('#chkManualMart').checked)
+        };
+      },
       onSelectBot: (b, silent) => {
         if (!b) return;
         const symChanged = b.symbol && b.symbol !== top.symbol;

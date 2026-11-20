@@ -1,11 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 64" role="img" aria-label="TickWealth">
-<defs><linearGradient id="g" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#00ffa3"/><stop offset="1" stop-color="#00b2ff"/></linearGradient>
-<linearGradient id="t" gradientUnits="userSpaceOnUse" x1="136" y1="0" x2="290" y2="0"><stop offset="0" stop-color="#00ffa3"/><stop offset="1" stop-color="#00b2ff"/></linearGradient>
-<filter id="b" x="-60%" y="-60%" width="220%" height="220%"><feGaussianBlur stdDeviation="2.4"/></filter></defs>
-<style>@media (prefers-reduced-motion:no-preference){.ring{transform-box:fill-box;transform-origin:center;animation:s 14s linear infinite}.dot{animation:p 2.2s ease-in-out infinite}}@keyframes s{to{transform:rotate(360deg)}}@keyframes p{50%{opacity:.35}}</style>
-<rect width="64" height="64" rx="16" fill="#0a0f1d"/>
-<g class="ring"><circle cx="32" cy="32" r="22" fill="none" stroke="url(#g)" stroke-width="3" stroke-dasharray="118 20" stroke-linecap="round" transform="rotate(-70 32 32)"/></g>
-<polyline points="16,39 24,39 28,31 34,43 40,27 48,27" fill="none" stroke="url(#g)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
-<circle class="dot" cx="48" cy="27" r="5" fill="#00ffa3" filter="url(#b)"/><circle cx="48" cy="27" r="3" fill="#00ffa3"/>
-<text x="76" y="43" font-family="Segoe UI,system-ui,Arial,sans-serif" font-size="31" font-weight="800" letter-spacing="-.5" fill="#ffffff">Tick<tspan fill="url(#t)">Wealth</tspan></text>
+<defs>
+  <linearGradient id="twG" x1="0" y1="1" x2="1" y2="0">
+    <stop offset="0" stop-color="#00ffa3"/>
+    <stop offset="0.55" stop-color="#00d4ff"/>
+    <stop offset="1" stop-color="#60a5fa"/>
+  </linearGradient>
+  <linearGradient id="twBg" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#111a2e"/>
+    <stop offset="1" stop-color="#070b15"/>
+  </linearGradient>
+  <linearGradient id="twTxt" gradientUnits="userSpaceOnUse" x1="138" y1="0" x2="292" y2="0">
+    <stop offset="0" stop-color="#00ffa3"/>
+    <stop offset="1" stop-color="#00b2ff"/>
+  </linearGradient>
+</defs>
+<polygon points="18,4 46,4 60,18 60,46 46,60 18,60 4,46 4,18" fill="url(#twBg)" stroke="url(#twG)" stroke-width="2.2"/>
+<polygon points="20,8 44,8 56,20 56,44 44,56 20,56 8,44 8,20" fill="none" stroke="rgba(0,212,255,0.28)" stroke-width="1"/>
+<circle cx="32" cy="32" r="21" fill="none" stroke="rgba(0,255,163,0.2)" stroke-width="1" stroke-dasharray="3 4"/>
+<path d="M13 38 L22 38 L27 25 L33 43 L40 21 L50 21" fill="none" stroke="url(#twG)" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"/>
+<circle cx="50" cy="21" r="3.4" fill="#00ffa3"/>
+<text x="76" y="42" font-family="'Plus Jakarta Sans','Segoe UI',system-ui,sans-serif" font-size="31" font-weight="800" letter-spacing="-0.6" fill="#ffffff">Tick<tspan fill="url(#twTxt)">Wealth</tspan></text>
 </svg>

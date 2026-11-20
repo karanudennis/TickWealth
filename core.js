@@ -313,6 +313,7 @@
           h.onTick && h.onTick(st, { price, digit, epoch });
           emit('tick', { symbol, price, digit, epoch, prices: st.prices, digits: st.digits, pip: st.pip });
           if (TW.onGlobalTick) TW.onGlobalTick(symbol, { price, digit, epoch });
+          if (typeof advanceLiveTickTrades === 'function') advanceLiveTickTrades(symbol, { price, digit, epoch });
           if (typeof paperTick === 'function') paperTick(symbol, { price, digit, epoch });
         }
       }
@@ -580,10 +581,10 @@
   TW.paper = { balance: (savedPaperBal !== null && savedPaperBal !== '' && isFinite(+savedPaperBal)) ? +savedPaperBal : TW.settings.paperStart };
   const savePaper = () => store.set('tw_paper', String(TW.paper.balance));
   TW.resetPaper = () => { TW.paper.balance = +TW.settings.paperStart || 10000; savePaper(); emit('account'); };
-  TW.session = { trades: 0, wins: 0, pnl: 0 };
+  TW.session = { trades: 0, wins: 0, pnl: 0, paperPnl: 0, livePnl: 0 };
   try { Object.assign(TW.session, JSON.parse(store.sget('tw_session') || '{}')); } catch (e) {}
   TW.saveSession = () => store.sset('tw_session', JSON.stringify(TW.session));
-  TW.resetSession = () => { TW.session.trades = 0; TW.session.wins = 0; TW.session.pnl = 0; TW.saveSession(); emit('trade'); };
+  TW.resetSession = () => { TW.session.trades = 0; TW.session.wins = 0; TW.session.pnl = 0; TW.session.paperPnl = 0; TW.session.livePnl = 0; TW.saveSession(); emit('trade'); };
   TW.trades = [];
   TW.mode = () => (!TW.embed && TW.settings.mode === 'live' && TW.account.authed ? 'live' : 'paper');
   const getToken = () => store.sget('tw_token') || store.get('tw_token_saved') || '';
@@ -608,11 +609,23 @@
         } else {
           flushSendQ();
         }
-        Object.keys(watch).forEach(id => tsock.send({ proposal_open_contract: 1, contract_id: +id, subscribe: 1 }));
+        Object.keys(watch).forEach(id => tsock.send({ proposal_open_contract: 1, contract_id: watch[id].cid || id, subscribe: 1 }));
       },
       onMessage: onT
     });
   }
+  setInterval(() => {
+    const ids = Object.keys(watch);
+    if (!ids.length || !tsock || !tsock.ws || tsock.ws.readyState !== 1) return;
+    const now = Date.now();
+    ids.forEach(id => {
+      const w = watch[id];
+      if (w && (now - (w.lastUpdate || now)) > 15000) {
+        w.lastUpdate = now;
+        tsock.send({ proposal_open_contract: 1, contract_id: w.cid || id, subscribe: 1 });
+      }
+    });
+  }, 8000);
   function req(obj, ms) {
     tconnect();
     return new Promise((res, rej) => {
@@ -810,8 +823,12 @@
   }
   function settle(t, profit) {
     if (t.status !== 'open') return;
-    t.profit = +profit.toFixed(2); t.status = t.profit > 0 ? 'won' : 'lost';
-    TW.session.trades++; if (t.profit > 0) TW.session.wins++; TW.session.pnl = +(TW.session.pnl + t.profit).toFixed(2); TW.saveSession();
+    t.profit = +profit.toFixed(2); t.status = t.profit > 0 ? 'won' : (t.profit < 0 ? 'lost' : 'tie');
+    TW.session.trades++; if (t.profit > 0) TW.session.wins++;
+    TW.session.pnl = +(TW.session.pnl + t.profit).toFixed(2);
+    if (t.mode === 'live') TW.session.livePnl = +((TW.session.livePnl || 0) + t.profit).toFixed(2);
+    else TW.session.paperPnl = +((TW.session.paperPnl || 0) + t.profit).toFixed(2);
+    TW.saveSession();
     if (t.mode === 'paper') { TW.paper.balance = +(TW.paper.balance + t.profit).toFixed(2); savePaper(); emit('account'); }
     if (!t.silent) {
       if (t.profit > 0) {
@@ -822,10 +839,11 @@
         TW.toast(`⚠️ LOST -${TW.money(t.stake)} (${t.label || t.type})`, 'err', 3500);
       }
     }
-    // Target profit protection check
-    if (TW.settings.targetProfit > 0 && TW.session.pnl >= TW.settings.targetProfit) {
+    // Target profit protection check (per active trading mode)
+    const activeTargetPnl = t.mode === 'live' ? (TW.session.livePnl || 0) : (TW.session.paperPnl || 0);
+    if (TW.settings.targetProfit > 0 && activeTargetPnl >= TW.settings.targetProfit) {
       TW.fx.win();
-      TW.toast(`🏆 DAILY TARGET ACHIEVED (+${TW.money(TW.session.pnl)})! Pausing to protect profit.`, 'ok', 9000);
+      TW.toast(`🏆 DAILY TARGET ACHIEVED (+${TW.money(activeTargetPnl)})! Pausing to protect profit.`, 'ok', 9000);
       TW.emergencyKill && TW.emergencyKill();
     }
     emit('trade', t); t._done(t);
@@ -833,18 +851,23 @@
 
   TW.emergencyKill = function () {
     TW.fx.alert();
+    const killed = [];
     while (paperOpen.length) {
       const t = paperOpen.pop();
       if (t._watchdog) { clearTimeout(t._watchdog); t._watchdog = null; }
       t.status = 'lost';
       t.profit = 0;
+      killed.push(t);
       t._done && t._done(t);
     }
+    killed.forEach(t => emit('trade', t));
+    emit('countdown');
     emit('kill');
     TW.toast('🚨 EMERGENCY KILL SWITCH: All active bots & trades stopped.', 'err', 5000);
   };
   function onPOC(c) {
     const w = watch[c.contract_id]; if (!w) return;
+    w.lastUpdate = Date.now();
     const t = w.trade; t.spot = c.current_spot;
     const pip = TW.volPip(t.symbol) || 2;
     if (c.entry_tick != null || c.entry_spot != null) {
@@ -925,11 +948,61 @@
       const finished = byTime ? (tk.epoch || Math.floor(Date.now() / 1000)) >= t.entryEpoch + secs(t.duration, t.unit) : t.ticksElapsed >= t.duration;
       if (!finished) {
         emit('trade', t);
+        emit('countdown', t);
         return;
       }
       resolvePaperTrade(t, tk.price, tk.digit);
     });
   }
+
+  function advanceLiveTickTrades(sym, tk) {
+    const list = TW.trades.filter(t => t.mode === 'live' && t.symbol === sym && t.status === 'open' && (t.unit || 't') === 't');
+    if (!list.length) return;
+    const tickSig = `${tk.epoch || ''}:${tk.price}`;
+    let changed = false;
+    list.forEach(t => {
+      if (t._lastTickSig === tickSig) return;
+      t._lastTickSig = tickSig;
+      const cap = Math.max(0, +(t.duration || 1) - 1);
+      t.ticksElapsed = Math.min(cap, (t.ticksElapsed || 0) + 1);
+      t.count = t.ticksElapsed;
+      changed = true;
+    });
+    if (changed) emit('countdown');
+  }
+
+  TW.formatTradeCountdown = function (t) {
+    if (!t || t.status !== 'open') return null;
+    const dur = Math.max(1, +(t.duration || 1));
+    if ((t.unit || 't') === 't') {
+      const done = Math.min(dur, +(t.ticksElapsed || t.count || 0));
+      const rem = Math.max(0, dur - done);
+      return { label: `${rem}/${dur}T`, phase: done % 5, rem, total: dur, unit: 't' };
+    }
+    const totalSec = Math.max(1, secs(dur, t.unit));
+    const startEp = t.entryEpoch || Math.floor((t.time || Date.now()) / 1000);
+    const elapsed = Math.max(0, Math.floor(Date.now() / 1000) - startEp);
+    const rem = Math.max(0, totalSec - elapsed);
+    const h = Math.floor(rem / 3600), m = Math.floor((rem % 3600) / 60), s = rem % 60;
+    const p2 = n => String(n).padStart(2, '0');
+    const label = h > 0 ? `${h}:${p2(m)}:${p2(s)}` : `${p2(m)}:${p2(s)}`;
+    return { label, phase: rem % 5, rem, total: totalSec, unit: t.unit };
+  };
+
+  if (window.__twCdTimer) clearInterval(window.__twCdTimer);
+  window.__twCdTimer = setInterval(() => {
+    const open = TW.trades && TW.trades.find(t => t.status === 'open');
+    if (!open) return;
+    emit('countdown', open);
+    const hudCd = document.getElementById('twHudCountdown');
+    if (hudCd && !open.silent) {
+      const cd = TW.formatTradeCountdown(open);
+      if (cd) {
+        hudCd.setAttribute('data-cd-phase', String(cd.phase));
+        hudCd.textContent = `⏱ ${cd.label}`;
+      }
+    }
+  }, 1000);
 
   TW.resolvePaperTrade = resolvePaperTrade;
   TW.paperTick = paperTick;
@@ -954,9 +1027,12 @@
     const s = TW.settings, mode = TW.mode(), amount = +(+p.amount).toFixed(2);
     if (!(amount >= 0.35)) throw err('Minimum stake is 0.35.');
     if (amount > s.maxStake) throw err(`Stake ${amount} is above your max-stake limit (${s.maxStake}). Raise it in Settings if you really want this.`);
-    if (s.stopLoss > 0 && TW.session.pnl <= -s.stopLoss) throw err(`Session stop-loss reached (-${s.stopLoss}). Trading is paused — reset the session in Settings.`);
+    const activeSessionPnl = mode === 'live' ? (TW.session.livePnl || 0) : (TW.session.paperPnl || 0);
+    if (s.stopLoss > 0 && activeSessionPnl <= -s.stopLoss) throw err(`Global ${mode} session stop-loss reached (-$${s.stopLoss}). Reset session P/L or raise Session Stop-Loss in Settings.`);
     if (mode === 'paper' && amount > TW.paper.balance) throw err('Not enough paper balance. Reset it in Settings.');
-    const params = { contract_type: p.contract_type, symbol: p.symbol, duration: +p.duration, duration_unit: p.duration_unit || 't', amount, barrier: p.barrier };
+    if (!p || !p.symbol || !p.contract_type) throw err('Select a valid market and contract before trading.');
+    const durVal = Math.max(1, Math.round(+p.duration) || 1);
+    const params = { contract_type: p.contract_type, symbol: p.symbol, duration: durVal, duration_unit: p.duration_unit || 't', amount, barrier: p.barrier };
 
     // Live modal confirmation if required
     if (mode === 'live' && !o.silent && s.confirm) {
@@ -978,10 +1054,10 @@
       if (!r || !r.buy) throw err((r && r.error && r.error.message) || 'Deriv rejected or failed to confirm contract.');
       const b = r.buy;
       const nowMs = (typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now();
-      const t = newTrade(p, 'live', { id: b.contract_id, payout: b.payout, stake: b.buy_price, longcode: b.longcode, silent: !!o.silent, latencyMs: Math.max(1, Math.round(nowMs - dispatchStart)) });
-      watch[b.contract_id] = { trade: t };
+      const t = newTrade(p, 'live', { id: b.contract_id, payout: b.payout, stake: b.buy_price, count: 0, ticksElapsed: 0, entryEpoch: Math.floor(Date.now() / 1000), longcode: b.longcode, silent: !!o.silent, latencyMs: Math.max(1, Math.round(nowMs - dispatchStart)) });
+      watch[b.contract_id] = { trade: t, cid: b.contract_id, lastUpdate: Date.now() };
       tsock.send({ proposal_open_contract: 1, contract_id: b.contract_id, subscribe: 1 });
-      emit('trade', t); return t;
+      emit('trade', t); emit('countdown', t); return t;
     }
 
     // Paper trade: zero-latency dispatch with 30s cached real quote multiplier
@@ -1061,11 +1137,25 @@
   // =========================================================================
   function renderTradeHud(t) {
     if (!t || t.silent) return;
+    const coachOpen = !!document.querySelector('.tc-box:not([hidden])');
+    const advisorOpen = !!document.querySelector('.twa-box:not([hidden])');
+    const modalOpen = !!document.querySelector('.ov');
+    const inlineState = document.getElementById('qtTradeState');
+    let inlineVisible = false;
+    if (inlineState && inlineState.style.display !== 'none' && inlineState.offsetParent !== null) {
+      const r = inlineState.getBoundingClientRect();
+      inlineVisible = r.bottom > 0 && r.top < window.innerHeight;
+    }
+    if (coachOpen || advisorOpen || modalOpen || inlineVisible) {
+      const existingHud = document.getElementById('twTradeHud');
+      if (existingHud) existingHud.remove();
+      return;
+    }
     let hud = document.getElementById('twTradeHud');
     if (!hud) {
       hud = document.createElement('div');
       hud.id = 'twTradeHud';
-      hud.style.cssText = 'position:fixed;bottom:68px;right:14px;z-index:99999;max-width:340px;width:calc(100vw - 28px);background:linear-gradient(135deg,rgba(11,16,27,0.98),rgba(17,24,39,0.98));border:1.5px solid #00ffa3;border-radius:14px;padding:14px 16px;box-shadow:0 12px 36px rgba(0,0,0,0.8),0 0 24px rgba(0,255,163,0.25);font-family:system-ui,-apple-system,sans-serif;color:#fff;transition:opacity 0.25s ease;';
+      hud.style.cssText = 'position:fixed;bottom:68px;right:14px;z-index:55;max-width:340px;width:calc(100vw - 28px);background:linear-gradient(135deg,rgba(11,16,27,0.98),rgba(17,24,39,0.98));border:1.5px solid #00ffa3;border-radius:14px;padding:14px 16px;box-shadow:0 12px 36px rgba(0,0,0,0.8),0 0 24px rgba(0,255,163,0.25);font-family:system-ui,-apple-system,sans-serif;color:#fff;transition:opacity 0.25s ease;';
       document.body.appendChild(hud);
     }
     if (hud._hideTimer) { clearTimeout(hud._hideTimer); hud._hideTimer = null; }
@@ -1100,15 +1190,20 @@
     }
 
     if (isOpen) {
+      const cd = TW.formatTradeCountdown ? TW.formatTradeCountdown(t) : null;
       hud.style.borderColor = '#00ffa3';
       hud.style.opacity = '1';
       hud.innerHTML = `
-        <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;">
           <div style="display:flex;align-items:center;gap:6px;">
             <span class="dot live" style="width:8px;height:8px;background:#00ffa3;"></span>
-            <b style="font-size:12px;color:#00ffa3;letter-spacing:0.3px;">LIVE TRADE IN PROGRESS</b>
+            <b style="font-size:12px;color:#00ffa3;letter-spacing:0.3px;">LIVE TRADE</b>
           </div>
-          <span style="font-size:11px;color:#8e9ab3;font-weight:700;">${TW.esc(t.symbol)}</span>
+          <div style="display:flex;align-items:center;gap:6px;">
+            ${cd ? `<span id="twHudCountdown" class="tw-cd-badge" data-cd-phase="${cd.phase}">⏱ ${cd.label}</span>` : ''}
+            <span style="font-size:11px;color:#8e9ab3;font-weight:700;">${TW.esc(t.symbol)}</span>
+            <button type="button" onclick="this.closest('#twTradeHud')?.remove()" aria-label="Dismiss" style="background:none;border:0;color:#8e9ab3;font-size:15px;line-height:1;padding:0;cursor:pointer;">×</button>
+          </div>
         </div>
         <div style="font-size:14px;font-weight:900;color:#fff;margin-top:4px;">
           ${TW.esc(t.label || t.type)} · $${(+t.stake).toFixed(2)}
@@ -1198,7 +1293,7 @@
     o = o || {};
     const el = $('#top'); el.className = 'top';
     const isAct = p => p[0] === o.active || p[0].replace('.html','') === String(o.active).replace('.html','') || (p[0] === 'bots-library.html' && o.active === 'bots');
-    el.innerHTML = `<div class="top-row"><a class="brand" href="index.html" aria-label="TickWealth home"><img src="logo-mark.svg" alt="" width="30" height="30"><span>Tick<b style="color:#00ffa3">Wealth</b></span></a>${o.symbols ? '<select class="sel" id="twSym" aria-label="Market"></select>' : ''}<span class="dot" id="twDot"></span><span class="mut" id="twStatus" style="font-size:11px"></span><span id="twPing" style="font-size:10.5px;color:#00ffa3;font-weight:800;background:rgba(0,255,163,0.08);padding:3px 8px;border-radius:6px;border:1px solid rgba(0,255,163,0.25);">⚡ <b>--ms</b></span><span class="spacer"></span><span class="tw-clock" id="twClock" aria-label="Live Date and Time" title="Live local date & time"><span class="tw-clock-date" id="twClockDate">--</span><span class="tw-clock-sep">·</span><span class="tw-clock-time" id="twClockTime">--:--:--</span></span><button type="button" class="pill" id="twSoundBtn" title="Toggle Sound FX" style="padding:4px 10px;font-size:11px;cursor:pointer;">${TW.fx.enabled?'🔊 FX':'🔇 FX'}</button><button type="button" class="pill" id="twKillBtn" title="Emergency Stop All Bots & Trades" style="padding:4px 8px;font-size:11px;font-weight:900;background:rgba(255,59,105,0.12);color:#ff3b69;border:1px solid rgba(255,59,105,0.4);cursor:pointer;">🚨 STOP</button><button class="pill" id="twAcc" title="Account & mode"></button></div><nav class="nav">${PAGES.map(p => `<a href="${p[0]}" class="${isAct(p) ? 'on' : ''}">${p[1]}</a>`).join('')}</nav>`;
+    el.innerHTML = `<div class="top-row"><a class="brand" href="index.html" aria-label="TickWealth home"><span class="tw-logo-3d" aria-hidden="true"><span class="tw-logo-spin"><span class="tw-logo-face"><img src="logo-mark.svg" alt="" width="32" height="32"></span><span class="tw-logo-face tw-logo-back"><svg viewBox="0 0 64 64" width="32" height="32"><polygon points="18,4 46,4 60,18 60,46 46,60 18,60 4,46 4,18" fill="#09101f" stroke="#00ffa3" stroke-width="2.5"/><text x="32" y="40" text-anchor="middle" font-family="system-ui,sans-serif" font-size="22" font-weight="900" fill="#00d4ff">TW</text></svg></span></span></span><span>Tick<b style="color:#00ffa3">Wealth</b></span></a>${o.symbols ? '<select class="sel" id="twSym" aria-label="Market"></select>' : ''}<span class="dot" id="twDot"></span><span class="mut" id="twStatus" style="font-size:11px"></span><span id="twPing" style="font-size:10.5px;color:#00ffa3;font-weight:800;background:rgba(0,255,163,0.08);padding:3px 8px;border-radius:6px;border:1px solid rgba(0,255,163,0.25);">⚡ <b>--ms</b></span><span class="spacer"></span><span class="tw-clock" id="twClock" aria-label="Live Date and Time" title="Live local date & time"><span class="tw-clock-date" id="twClockDate">--</span><span class="tw-clock-sep">·</span><span class="tw-clock-time" id="twClockTime">--:--:--</span></span><button type="button" class="pill" id="twSoundBtn" title="Toggle Sound FX" style="padding:4px 10px;font-size:11px;cursor:pointer;">${TW.fx.enabled?'🔊 FX':'🔇 FX'}</button><button type="button" class="pill" id="twKillBtn" title="Emergency Stop All Bots & Trades" style="padding:4px 8px;font-size:11px;font-weight:900;background:rgba(255,59,105,0.12);color:#ff3b69;border:1px solid rgba(255,59,105,0.4);cursor:pointer;">🚨 STOP</button><button class="pill" id="twAcc" title="Account & mode"></button></div><nav class="nav">${PAGES.map(p => `<a href="${p[0]}" class="${isAct(p) ? 'on' : ''}">${p[1]}</a>`).join('')}</nav>`;
     const clkEl = $('#twClock'), clkD = $('#twClockDate'), clkT = $('#twClockTime');
     if (clkEl && clkD && clkT) {
       const p2 = n => String(n).padStart(2, '0');
@@ -1276,7 +1371,7 @@
     opt = opt || {};
     const cv = document.createElement('canvas'); box.appendChild(cv);
     const ctx = cv.getContext('2d');
-    let data = [], line = false, bars = 90, off = 0, W = 0, H = 0, pip = 2, mx = null, drag = null, msg = 'Connecting…';
+    let data = [], line = false, bars = 90, off = 0, W = 0, H = 0, pip = 2, mx = null, drag = null, msg = 'Connecting…', tradeOverlay = null;
     const AX = 66, AY = 22, UP = opt.up || '#fbbf24', DN = opt.down || '#ef4444';
     let IND = {}; const SUBH = 64;
     const sma = (a, n) => { const o = Array(a.length).fill(null); let t = 0; for (let i = 0; i < a.length; i++) { t += a[i]; if (i >= n) t -= a[i - n]; if (i >= n - 1) o[i] = t / n; } return o; };
@@ -1294,8 +1389,22 @@
       const end = data.length - off, start = Math.max(0, end - bars), vis = data.slice(start, end);
       const subs = (IND.rsi ? 1 : 0) + (IND.macd ? 1 : 0), pw = W - AX, ph = H - AY - subs * SUBH, step = pw / bars;
       let lo = Infinity, hi = -Infinity; vis.forEach(c => { lo = Math.min(lo, c.l); hi = Math.max(hi, c.h); });
-      if (hi === lo) { hi += 1; lo -= 1; } const pad = (hi - lo) * .08; lo -= pad; hi += pad;
+      const hasEntry = tradeOverlay && Number.isFinite(Number(tradeOverlay.entry));
+      if (hasEntry && off === 0) {
+        const ep = Number(tradeOverlay.entry);
+        lo = Math.min(lo, ep);
+        hi = Math.max(hi, ep);
+      }
+      if (hi === lo) { hi += 1; lo -= 1; } const pad = (hi - lo) * .09; lo -= pad; hi += pad;
       const y = v => 6 + (hi - v) / (hi - lo) * (ph - 12), x = i => pw - (vis.length - i - .5) * step;
+      if (hasEntry && off === 0) {
+        const ep = Number(tradeOverlay.entry);
+        const ey = Math.max(4, Math.min(ph - 4, y(ep)));
+        const isCall = tradeOverlay.type !== 'PUT';
+        ctx.fillStyle = isCall ? 'rgba(0,255,163,0.06)' : 'rgba(255,59,105,0.06)';
+        if (isCall) ctx.fillRect(0, 0, pw, ey);
+        else ctx.fillRect(0, ey, pw, Math.max(0, ph - ey));
+      }
       ctx.font = '10px sans-serif'; ctx.textAlign = 'left'; ctx.strokeStyle = '#151a2e'; ctx.fillStyle = '#64748b'; ctx.lineWidth = 1;
       for (let g = 0; g <= 5; g++) { const v = lo + (hi - lo) * g / 5, yy = y(v); ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(pw, yy); ctx.stroke(); ctx.fillText(v.toFixed(pip), pw + 6, yy + 3); }
       const every = Math.max(1, Math.round(vis.length / 5)); ctx.textAlign = 'center';
@@ -1325,6 +1434,43 @@
           [[M.m, '#38bdf8'], [M.s, '#fb923c']].forEach(([arr, col]) => { ctx.beginPath(); ctx.strokeStyle = col; vis.forEach((_, i) => { const q = arr[start + i]; i ? ctx.lineTo(x(i), yy(q)) : ctx.moveTo(x(i), yy(q)); }); ctx.stroke(); }); sy += SUBH; }
       }
       const last = data[data.length - 1];
+      if (hasEntry && off === 0) {
+        const ep = Number(tradeOverlay.entry);
+        const ey = Math.max(10, Math.min(ph - 10, y(ep)));
+        const isCall = tradeOverlay.type !== 'PUT';
+        const lineCol = isCall ? '#00ffa3' : '#ff3b69';
+        const delta = last.c - ep;
+        const winning = isCall ? delta > 0 : delta < 0;
+        ctx.save();
+        ctx.setLineDash([6, 4]);
+        ctx.strokeStyle = lineCol;
+        ctx.lineWidth = 1.6;
+        ctx.beginPath();
+        ctx.moveTo(0, ey);
+        ctx.lineTo(pw, ey);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        // Axis entry price pill
+        ctx.fillStyle = lineCol;
+        ctx.fillRect(pw, ey - 8, AX, 16);
+        ctx.fillStyle = '#04101c';
+        ctx.textAlign = 'left';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.fillText(ep.toFixed(pip), pw + 5, ey + 3.5);
+        // Left entry status banner
+        const tagTxt = `ENTRY ${ep.toFixed(pip)} · ${isCall ? 'RISE' : 'FALL'} (${delta >= 0 ? '+' : ''}${delta.toFixed(pip)} ${winning ? 'WIN' : 'TRAIL'})`;
+        ctx.font = 'bold 10.5px sans-serif';
+        const tw = Math.min(pw - 16, ctx.measureText(tagTxt).width + 16);
+        const by = ey > 28 ? ey - 22 : ey + 6;
+        ctx.fillStyle = 'rgba(7,10,20,0.9)';
+        ctx.fillRect(8, by, tw, 18);
+        ctx.strokeStyle = winning ? '#00ffa3' : '#ff3b69';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(8, by, tw, 18);
+        ctx.fillStyle = winning ? '#00ffa3' : '#ff3b69';
+        ctx.fillText(tagTxt, 15, by + 12.5);
+        ctx.restore();
+      }
       if (off === 0) { const yy = y(last.c); ctx.setLineDash([4, 4]); ctx.strokeStyle = '#94a3b8'; ctx.beginPath(); ctx.moveTo(0, yy); ctx.lineTo(pw, yy); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = last.c >= last.o ? UP : DN; ctx.fillRect(pw, yy - 8, AX, 16); ctx.fillStyle = '#111827'; ctx.textAlign = 'left'; ctx.font = 'bold 10px sans-serif'; ctx.fillText(last.c.toFixed(pip), pw + 5, yy + 3.5); }
       if (mx != null && mx < pw) {
         const i = Math.round((mx - (pw - vis.length * step)) / step - .5);
@@ -1342,7 +1488,7 @@
       setData(a, isLine, p) { data = a; line = !!isLine; if (p != null) pip = p; off = 0; draw(); },
       update(c) { const l = data[data.length - 1]; if (l && l.t === c.t) data[data.length - 1] = c; else data.push(c); if (data.length > 5000) data.shift(); draw(); },
       zoom(f) { bars = Math.max(15, Math.min(400, Math.round(bars * f))); draw(); }, latest() { off = 0; draw(); },
-      setIndicators(o) { IND = Object.assign({}, o); draw(); }, message(m) { msg = m; draw(); },
+      setIndicators(o) { IND = Object.assign({}, o); draw(); }, setTradeOverlay(o) { tradeOverlay = o || null; draw(); }, message(m) { msg = m; draw(); },
       clear() { data = []; draw(); }, setPip(p) { pip = p; }, get length() { return data.length; }
     };
   };
@@ -1541,7 +1687,7 @@
 
   TW.aiRequest = async function (endpoint, payload, timeoutMs) {
     const ctl = typeof AbortController !== 'undefined' ? new AbortController() : null;
-    const t = ctl ? setTimeout(() => ctl.abort(), timeoutMs || 18000) : null;
+    const t = ctl ? setTimeout(() => ctl.abort(), timeoutMs || 15000) : null;
     try {
       const res = await fetch(endpoint, {
         method: 'POST',
